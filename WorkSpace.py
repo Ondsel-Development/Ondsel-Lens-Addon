@@ -11,6 +11,7 @@ import os
 import FreeCAD
 import shutil
 
+
 class WorkSpaceModelFactory:
     @staticmethod
     def createWorkspace(workspaceDict, **kwargs):
@@ -124,7 +125,7 @@ class WorkSpaceModel(QAbstractListModel):
             self.NameAndIsFolderRole: b"nameAndIsFolder",
             self.IdRole: b"id",
         }
-        
+
     def deleteFile(self, index):
 
         fileName = self.data(index, WorkSpaceModel.NameRole)
@@ -184,30 +185,39 @@ class WorkSpaceModel(QAbstractListModel):
                     )
 
     def dump(self):
-        for row in range(self.rowCount()):
-            # index = self.index(row, 0)
-            file_item = self.files[row]
-            print(f"File {row + 1}:")
-            print(f"Basename: {file_item.basename}")
-            print(f"Path: {file_item.path}")
-            print(f"Is Folder: {file_item.is_folder}")
-            print(f"Versions: {file_item.versions}")
-            print(f"Current Version: {file_item.current_version}")
-            print(f"Created At: {file_item.created_at}")
-            print(f"Updated At: {file_item.updated_at}")
-            print(f"Status: {file_item.status}")
-            if file_item.model is not None:
-                model = file_item.model
-                print(f"ID: {model['_id']}")
-                print(f"Customer File Name: {model['custFileName']}")
-                print(f"Unique File Name: {model['uniqueFileName']}")
-                print(f"Created At: {model['createdAt']}")
-                print(f"Updated At: {model['updatedAt']}")
-                print(f"Is Shared Model: {model['isSharedModel']}")
-                print(f"Attributes: {model['attributes']}")
-                print(f"Object URL: {model['objUrl']}")
-                print(f"Thumbnail URL: {model['thumbnailUrl']}")
-            print()
+        """
+        useful for debugging.  This will return the contents in a printable form
+        """
+
+        for file in self.files:
+            print(file)
+
+
+    # def dump(self):
+    #     for row in range(self.rowCount()):
+    #         # index = self.index(row, 0)
+    #         file_item = self.files[row]
+    #         print(f"File {row + 1}:")
+    #         print(f"Basename: {file_item.basename}")
+    #         print(f"Path: {file_item.path}")
+    #         print(f"Is Folder: {file_item.is_folder}")
+    #         print(f"Versions: {file_item.versions}")
+    #         print(f"Current Version: {file_item.current_version}")
+    #         print(f"Created At: {file_item.created_at}")
+    #         print(f"Updated At: {file_item.updated_at}")
+    #         print(f"Status: {file_item.status}")
+    #         if file_item.model is not None:
+    #             model = file_item.model
+    #             print(f"ID: {model['_id']}")
+    #             print(f"Customer File Name: {model['custFileName']}")
+    #             print(f"Unique File Name: {model['uniqueFileName']}")
+    #             print(f"Created At: {model['createdAt']}")
+    #             print(f"Updated At: {model['updatedAt']}")
+    #             print(f"Is Shared Model: {model['isSharedModel']}")
+    #             print(f"Attributes: {model['attributes']}")
+    #             print(f"Object URL: {model['objUrl']}")
+    #             print(f"Thumbnail URL: {model['thumbnailUrl']}")
+    #         print()
 
 
 class LocalWorkspaceModel(WorkSpaceModel):
@@ -218,7 +228,7 @@ class LocalWorkspaceModel(WorkSpaceModel):
 
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
-        
+
         self.refreshModel()
         self.refreshModel()
 
@@ -264,7 +274,6 @@ class LocalWorkspaceModel(WorkSpaceModel):
             FreeCAD.loadFile(file_path)
 
 
-
 class ServerWorkspaceModel(WorkSpaceModel):
 
     NameRole = Qt.UserRole + 1
@@ -282,44 +291,46 @@ class ServerWorkspaceModel(WorkSpaceModel):
             os.makedirs(self.path)
 
     def refreshModel(self):
-        self.clearModel()
-        
-        files = self.getLocalFiles()
 
-        remoteFilesToAdd = []
         models = self.API_Client.getModels()
+        files = []
         for model in models:
-            foundLocal = False
-            for i, localFile in enumerate(files):
-                if model["custFileName"] == localFile.name:
-                    filesData.model = model
+            fullFileName = Utils.joinPath(self.getFullPath(), model["custFileName"])
 
-                    if model["updatedAt"] < localFile.updatedAt:
-                        localFile.status = "ToUpload"
+            if not os.path.isfile(fullFileName):  # file on server but not local
+                model["status"] = "ToDownload"
+                files.append(model)
 
-                    elif model["updatedAt"] > localFile.updatedAt:
-                        localFile.status = "ToDownload"
+                continue
+            lastUpdate = os.path.getmtime(fullFileName)
 
-                    else:
-                        localFile.status = "Synced"
-                    foundLocal = True
+            if model["updatedAt"] < lastUpdate:
+                model.status = "ToUpload"
+            elif model["updatedAt"] > lastUpdate:
+                model["status"] = "ToDownload"
+            else:
+                model["status"] = "Synced"
+            files.append(model)
+
+        # Add files that exist locally but not on server
+        candidates = self.getLocalFiles()
+
+        for candidate in candidates:
+            if candidate.is_folder:
+                continue
+
+            found = False
+            for model in models:
+                if candidate.name == model["custFileName"]:
+                    found = True
                     break
-            if not foundLocal: # local doesnt have this file
-                file_item = FileItem(
-                    model["custFileName"],
-                    self.getFullPath(),
-                    False,
-                    [model["custFileName"]],
-                    model["custFileName"],
-                    model["createdAt"],
-                    model["updatedAt"],
-                    "ToDownload",
-                    model,
-                )
-                remoteFilesToAdd.append(model)
-        files += remoteFilesToAdd
-        
+
+            if not found:
+                candidate.status = "ToUpload"
+                models.append(candidate)
+
         self.beginResetModel()
+        self.clearModel()
         self.files = files
         self.endResetModel()
 
@@ -332,12 +343,11 @@ class ServerWorkspaceModel(WorkSpaceModel):
         if role == Qt.DisplayRole:
             return file_item
         elif role == self.NameRole:
-            return file_item.name
+            return file_item["custFileName"]
         elif role == self.NameAndIsFolderRole:
-            return file_item.name, False
+            return file_item["custFileName"], False
         elif role == self.IdRole:
-            if file_item.model is not None:
-                return file_item.model["_id"]
+            return file_item["_id"]
 
         return None
 
@@ -350,7 +360,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
             if not os.path.isfile(file_path):
                 # download the file
-                self.API_Client.downloadFileFromServer(file_item.model["uniqueFileName"], file_path)
+                self.API_Client.downloadFileFromServer(
+                    file_item.model["uniqueFileName"], file_path
+                )
 
             FreeCAD.loadFile(file_path)
 
@@ -372,7 +384,7 @@ class FileItem:
         current_version,
         created_at,
         updated_at,
-        status,
+        status="Untracked",
         model=None,
     ):
         self.name = name
@@ -384,4 +396,3 @@ class FileItem:
         self.updated_at = updated_at
         self.status = status
         self.model = model
-

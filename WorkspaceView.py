@@ -76,6 +76,9 @@ class CheckboxDelegate(QStyledItemDelegate):
 class FileListDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
         # Get the data for the current index
+        if not index.isValid():
+            return
+
         fileName, isFolder = index.data(WorkSpaceModel.NameAndIsFolderRole)
 
         if option.state & QStyle.State_Selected:
@@ -466,8 +469,6 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.fileDetails.setVisible(True)
 
             version_model = LocalVersionModel(fullFileName)
-            print(version_model.dump())
-            version_model = None
             links_model = None
 
             link_tab.setEnabled(False)
@@ -478,7 +479,6 @@ class WorkspaceView(QtGui.QDockWidget):
             fileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
             if fileId is not None:
                 links_model = ShareLinkModel(fileId, self.apiClient)
-                print("links_model:", links_model.dump())
                 version_model = None
 
                 self.form.linksView.setModel(links_model)
@@ -536,7 +536,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
         menu = QtGui.QMenu()
         openOnlineAction = menu.addAction("Open Online")
-        shareAction = menu.addAction("Share")
+        # shareAction = menu.addAction("Share")
         deleteAction = menu.addAction("Delete File")
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
         if action == openOnlineAction:
@@ -547,16 +547,16 @@ class WorkspaceView(QtGui.QDockWidget):
 
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
-        elif action == shareAction:
-            if self.currentWorkspace["type"] == "Ondsel" and fileId is not None:
-                fileData = self.currentWorkspaceModel.apiClient.getModel(fileId)
-                dialog = ManageSharingLinksDialog(self.access_token, fileData, self)
+        # elif action == shareAction:
+        #     if self.currentWorkspace["type"] == "Ondsel" and fileId is not None:
+        #         fileData = self.currentWorkspaceModel.apiClient.getModel(fileId)
+        #         dialog = ManageSharingLinksDialog(self.access_token, fileData, self)
 
-                if dialog.exec_() == QtGui.QDialog.Accepted:
-                    print("closed")
+        #         if dialog.exec_() == QtGui.QDialog.Accepted:
+        #             print("closed")
 
-            else:
-                QtGui.QDesktopServices.openUrl(QtCore.QUrl(ondselUrl))
+        #     else:
+        #         QtGui.QDesktopServices.openUrl(QtCore.QUrl(ondselUrl))
 
         elif action == deleteAction:
             result = QtGui.QMessageBox.question(
@@ -569,7 +569,6 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.currentWorkspaceModel.deleteFile(index)
 
     def showLinksContextMenu(self, pos):
-        print("showLinksContextMenu")
         index = self.form.linksView.indexAt(pos)
         model = index.model()
 
@@ -651,7 +650,7 @@ class WorkspaceView(QtGui.QDockWidget):
                     cachePath + "ondsel",
                 )
             else:
-                print(f"Authentication failed")
+                print("Authentication failed")
 
     def logout(self):
         self.setUIForLogin(False)
