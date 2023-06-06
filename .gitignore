@@ -1,0 +1,6 @@
+workspaceList.txt
+config.py
+workspaceList.json
+Cache/
+*.orig
+*.pyc

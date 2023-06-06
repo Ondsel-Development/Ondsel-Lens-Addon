@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+  <class>ManageSharingLinksDialog</class>
+  <widget class="QDialog" name="ManageSharingLinksDialog">
+    <property name="windowTitle">
+      <string>Manage Sharing Links</string>
+    </property>
+    <layout class="QVBoxLayout" name="verticalLayout">
+     <item>
+      <layout  class="QHBoxLayout">
+      <item>
+        <widget class="QLabel" name="infoLabel">
+          <property name="text">
+            <string>Manage your sharing links:</string>
+          </property>
+        </widget>
+      </item>
+      <item>
+       <widget class="QToolButton" name="buttonAdd">
+        <property name="toolTip">
+         <string>Create a new sharing link</string>
+        </property>
+        <property name="text">
+         <string/>
+        </property>
+        <property name="icon">
+         <iconset><normaloff>:/icons/list-add.svg</normaloff>:/icons/list-add.svg</iconset>
+        </property>
+       </widget>
+        </item>
+       </layout>
+      </item>
+      <item>
+        <widget class="QListWidget" name="linksListView"/>
+      </item>
+      <item>
+        <widget class="QGroupBox" name="linkDetailsGroupBox">
+          <property name="title">
+            <string>Link Properties</string>
+          </property>
+          <property name="visible">
+           <bool>false</bool>
+          </property>
+          <layout class="QVBoxLayout" name="linkDetailsLayout">
+            <item>
+             <layout  class="QHBoxLayout">
+              <item>
+               <widget class="QLabel" name="urlLabel">
+                <property name="text">
+                 <string>URL:</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="buttonCopy">
+                <property name="toolTip">
+                 <string>Copy to clipboard the sharing url</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset><normaloff>:/icons/edit-copy.svg</normaloff>:/icons/edit-copy.svg</iconset>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QToolButton" name="buttonDelete">
+                <property name="toolTip">
+                 <string>Delete sharing link</string>
+                </property>
+                <property name="text">
+                 <string/>
+                </property>
+                <property name="icon">
+                 <iconset><normaloff>:/icons/edit_Cancel.svg</normaloff>:/icons/edit_Cancel.svg</iconset>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item>
+             <layout  class="QHBoxLayout">
+              <item>
+               <widget class="QGroupBox" name="downloadOptionsGroupBox">
+                <property name="title">
+                  <string>Download options</string>
+                </property>
+                <layout class="QVBoxLayout" name="verticalLayout">
+                  <item>
+                    <widget class="QCheckBox" name="objCheckBox">
+                      <property name="text">
+                        <string>.Obj</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QCheckBox" name="stepCheckBox">
+                      <property name="text">
+                        <string>.step</string>
+                      </property>
+                    </widget>
+                  </item>
+                  <item>
+                    <widget class="QCheckBox" name="fcstdCheckBox">
+                      <property name="text">
+                        <string>.FCStd</string>
+                      </property>
+                    </widget>
+                  </item>
+                </layout>
+              </widget>
+              </item>
+			  <item>
+               <layout class="QVBoxLayout">
+			    <item>
+                 <widget class="QCheckBox" name="expCheckBox">
+                  <property name="text">
+                   <string>Set expiration date</string>
+                  </property>
+                 </widget>
+          	    </item>
+			  <item>
+               <layout class="QHBoxLayout">
+                <item>
+                 <widget class="QLabel" name="expirationLabel">
+                  <property name="text">
+                   <string>Expiration date:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QDateEdit" name="dateEdit">
+                  <property name="calendarPopup">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+              </layout>
+             </item>
+               </layout>
+              </item>
+            </layout>
+           </item>
+          </layout>
+        </widget>
+      </item>
+    </layout>
+  </widget>
+  <resources/>
+  <connections/>
+</ui>

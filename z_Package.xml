@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8" standalone="no" ?>
+<package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
+  <name>Ondsel</name>
+  <description>Ondsel addon adds cloud services and workspaces support to FreeCAD.</description>
+  <version>0.1</version>
+  <date>2023-04-27</date>
+  <maintainer email="pierrelouis@ondsel.com">Paddle</maintainer>
+  <license file="LICENSE">MIT</license>
+  <url type="repository" branch="master">https://github.com/Ondsel-Development/Ondsel-Addon</url>
+  <url type="readme">https://github.com/Ondsel-Development/Ondsel-Addon/blob/master/Readme.md</url>
+  <url type="documentation">https://ondsel.com/wiki</url>
+  
+  <depend>requests</depend>
+
+
+</package>
