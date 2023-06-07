@@ -79,7 +79,9 @@ class FileListDelegate(QStyledItemDelegate):
         if not index.isValid():
             return
 
-        fileName, status, isFolder = index.data(WorkSpaceModel.NameStatusAndIsFolderRole)
+        fileName, status, isFolder = index.data(
+            WorkSpaceModel.NameStatusAndIsFolderRole
+        )
 
         if option.state & QStyle.State_Selected:
             painter.fillRect(option.rect, option.palette.highlight())
@@ -100,8 +102,8 @@ class FileListDelegate(QStyledItemDelegate):
 
         icon.paint(painter, icon_rect)
         textToDisplay = fileName
-        if status is not "":
-            textToDisplay+=" ("+status+")"
+        if status != "":
+            textToDisplay += " (" + status + ")"
         painter.drawText(text_rect, QtCore.Qt.AlignLeft, textToDisplay)
 
 
@@ -485,6 +487,8 @@ class WorkspaceView(QtGui.QDockWidget):
         elif self.currentWorkspace["type"] == "Ondsel":
 
             fileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
+            print(f"fileId: {fileId}")
+
             if fileId is not None:
                 links_model = ShareLinkModel(fileId, self.apiClient)
                 version_model = None
@@ -560,17 +564,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
-        # elif action == shareAction:
-        #     if self.currentWorkspace["type"] == "Ondsel" and fileId is not None:
-        #         fileData = self.currentWorkspaceModel.apiClient.getModel(fileId)
-        #         dialog = ManageSharingLinksDialog(self.access_token, fileData, self)
-
-        #         if dialog.exec_() == QtGui.QDialog.Accepted:
-        #             print("closed")
-
-        #     else:
-        #         QtGui.QDesktopServices.openUrl(QtCore.QUrl(ondselUrl))
-
         elif action == deleteAction:
             result = QtGui.QMessageBox.question(
                 self.form.fileList,
@@ -588,14 +581,11 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def showLinksContextMenu(self, pos):
         index = self.form.linksView.indexAt(pos)
-        model = index.model()
+        model = self.form.linksView.model()
 
         if index.isValid():
             menu = QtGui.QMenu()
-            # fileId = model.data(index, QtCore.Qt.DisplayRole) #, ShareLinkModel.IdRole)
-            linkId = model.data(
-                index, ShareLinkModel.UrlRole
-            )  # , ShareLinkModel.IdRole)
+            linkId = model.data(index, ShareLinkModel.UrlRole)
             copyLinkAction = menu.addAction("copy link")
             editLinkAction = menu.addAction("edit")
             deleteAction = menu.addAction("Delete")
@@ -609,9 +599,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
             elif action == editLinkAction:
                 linkData = model.data(index, ShareLinkModel.EditLinkRole)
-                print("edit link")
-
-                # dialog = ManageSharingLinksDialog(linkData, self)
 
                 dialog = SharingLinkEditDialog(linkData, self)
 
@@ -620,8 +607,8 @@ class WorkspaceView(QtGui.QDockWidget):
                     model.update_link(index, link_properties)
 
             elif action == deleteAction:
-                # ask for confirmation
                 result = QtGui.QMessageBox.question(
+                    None,
                     "Delete Link",
                     "Are you sure you want to delete this link?",
                     QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
@@ -640,6 +627,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
                 if dialog.exec_() == QtGui.QDialog.Accepted:
                     link_properties = dialog.getLinkProperties()
+
                     model.add_new_link(link_properties)
 
     def openPreferences(self):
@@ -732,7 +720,9 @@ class WorkspaceView(QtGui.QDockWidget):
         for fileUrl in selectedFiles:
             fileName = os.path.basename(fileUrl)
 
-            destFileUrl = Utils.joinPath(self.currentWorkspaceModel.getFullPath(), fileName)
+            destFileUrl = Utils.joinPath(
+                self.currentWorkspaceModel.getFullPath(), fileName
+            )
 
             if Utils.isOpenableByFreeCAD(fileName):
                 try:
@@ -885,200 +875,6 @@ class NewWorkspaceDialog(QtGui.QDialog):
                 )
 
 
-class ManageSharingLinksDialog(QtGui.QDialog):
-    def __init__(self, linkData, parent=None):
-        super(ManageSharingLinksDialog, self).__init__(parent)
-
-        self.linkData = linkData  # self.fileData = fileData
-        # self.access_token = access_token
-
-        # # Load the UI from the .ui file
-        self.dialog = Gui.PySideUic.loadUi(modPath + "/ManageSharingLinksDialog.ui")
-
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.dialog)
-        self.setLayout(layout)
-
-        print(linkData)
-        # self.dialog.infoLabel.setText(
-        #     f"Manage the sharing links of <{linkData['custFileName']}>"
-        # )
-
-        self.dialog.linkDetailsGroupBox.setVisible(False)
-
-        self.dialog.buttonAdd.clicked.connect(self.addLinkClicked)
-
-        # self.updateLinkList()
-
-    def addLinkClicked(self):
-        createDialog = SharingLinkEditDialog(self)
-
-        if createDialog.exec_() == QtGui.QDialog.Accepted:
-            self.createSharedModel(createDialog.getLinkProperties())
-            self.updateLinkList()
-
-    def updateLinkList(self):
-        self.dialog.linksListView.clear()
-
-        listOfSharedModels = self.getSharedModels()
-        for sharedModel in listOfSharedModels:
-            self.dialog.linksListView.addItem(self.createLinkItem(sharedModel))
-
-    def createLinkItem(self, sharedModel):
-        layout = QtGui.QHBoxLayout()
-
-        labelText = f"Link-{sharedModel['_id']} "
-        downloadExts = ""
-        if sharedModel["canExportFCStd"]:
-            downloadExts += ".FCStd"
-        if sharedModel["canExportSTEP"]:
-            if downloadExts != "":
-                downloadExts += ", "
-            downloadExts += ".Step"
-        if sharedModel["canExportSTL"]:
-            if downloadExts != "":
-                downloadExts += ", "
-            downloadExts += ".Stl"
-        if sharedModel["canExportOBJ"]:
-            if downloadExts != "":
-                downloadExts += ", "
-            downloadExts += ".Obj"
-
-        if downloadExts != "":
-            labelText += f"({downloadExts})"
-
-        label = QtGui.QLabel(labelText)
-        layout.addWidget(label)
-        viewingUrl = f"{baseUrl}:8080/share/{sharedModel['_id']}"
-        copyBtn = QtGui.QToolButton()
-        copyBtn.setIcon(
-            QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/edit-copy.svg"))
-        )
-        copyBtn.setToolTip(viewingUrl)
-        copyBtn.clicked.connect(lambda: self.copyBtnClicked(viewingUrl))
-        layout.addWidget(copyBtn)
-
-        settingsBtn = QtGui.QToolButton()
-        settingsBtn.setIcon(
-            QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/preferences-system.svg"))
-        )
-        settingsBtn.clicked.connect(lambda: self.settingsBtnClicked(sharedModel))
-        layout.addWidget(settingsBtn)
-
-        deleteBtn = QtGui.QToolButton()
-        deleteBtn.setIcon(
-            QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/edit_Cancel.svg"))
-        )
-        deleteBtn.clicked.connect(lambda: self.deleteBtnClicked(sharedModel))
-        layout.addWidget(deleteBtn)
-
-        widgetItem = QtGui.QWidget()
-        widgetItem.setLayout(layout)
-
-        item = QtGui.QListWidgetItem()
-        item.setWidget(widgetItem)
-        return item
-
-    def copyBtnClicked(self, viewingUrl):
-        clipboard = QtGui.QApplication.clipboard()
-        clipboard.setText(viewingUrl)
-
-    def settingsBtnClicked(self, sharedModel):
-        linkProperties = SharingLinkProperties(
-            sharedModel["canViewModelAttributes"],
-            sharedModel["canUpdateModel"],
-            sharedModel["canExportFCStd"],
-            sharedModel["canExportSTEP"],
-            sharedModel["canExportSTL"],
-            sharedModel["canExportOBJ"],
-        )
-
-        createDialog = SharingLinkEditDialog(self, linkProperties)
-
-        if createDialog.exec_() == QtGui.QDialog.Accepted:
-            self.updateSharedModel(createDialog.getLinkProperties())
-            self.updateLinkList()
-
-    def deleteBtnClicked(self, sharedModel):
-        result = QtGui.QMessageBox.question(
-            self.form.fileList,
-            "Delete File",
-            "Are you sure you want to delete this sharing link?",
-            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-        )
-
-        if result == QtGui.QMessageBox.Yes:
-            url = f"{baseUrl}/shared-models/{sharedModel['_id']}"
-
-            headers = {
-                "accept": "application/json",
-                "Authorization": "Bearer " + self.access_token,
-            }
-
-            response = requests.delete(url, headers=headers)
-
-            if response.status_code == 200:
-                self.updateLinkList()
-                print(f"Delete request of {sharedModel['_id']} successful.")
-            else:
-                print("Request failed with status code:", response.status_code)
-
-    def createSharedModel(self, linkProperties):
-        # Create a shared model of current model
-        url = f"{baseUrl}/shared-models"
-
-        headers = {
-            "accept": "application/json",
-            "Authorization": "Bearer " + self.access_token,
-            "Content-Type": "application/json",
-        }
-
-        payload = {
-            "cloneModelId": self.fileData["_id"],
-            "canViewModel": True,
-            "canViewModelAttributes": linkProperties.canViewModelAttributes,
-            "canUpdateModel": linkProperties.canUpdateModel,
-            "canExportFCStd": linkProperties.canExportFCStd,
-            "canExportSTEP": linkProperties.canExportSTEP,
-            "canExportSTL": linkProperties.canExportSTL,
-            "canExportOBJ": linkProperties.canExportOBJ,
-        }
-
-        response = requests.post(url, data=json.dumps(payload), headers=headers)
-        if response.status_code == 201:
-            print(response.text)
-            print("Shared Model created")
-        else:
-            print(f"Failed to create model on server, error {response.status_code}")
-
-    # TODO
-    def updateSharedModel(self, linkProperties, modelData):
-        print("TODO : updateSharedModel empty")
-
-    # TODO
-    def getSharedModels(self):
-        # Get all the shared models of current model.
-        # Currently not working.
-        sharedModelList = []
-
-        modelsListUrl = f"{baseUrl}/shared-models?cloneModelId={self.fileData['_id']}"
-
-        headers = {
-            "Authorization": "Bearer " + self.access_token,
-            "Accept": "application/json",
-        }
-
-        response = requests.get(modelsListUrl, headers=headers)
-
-        if response.status_code == 200:
-            sharedModelList = response.json()["data"]
-
-        else:
-            print("Failed to get list of files, error {response.status_code}")
-
-        return sharedModelList
-
-
 class SharingLinkEditDialog(QtGui.QDialog):
     def __init__(self, linkProperties=None, parent=None):
         super(SharingLinkEditDialog, self).__init__(parent)
@@ -1093,27 +889,28 @@ class SharingLinkEditDialog(QtGui.QDialog):
         self.dialog.okBtn.clicked.connect(self.accept)
         self.dialog.cancelBtn.clicked.connect(self.reject)
 
-        self.linkProperties = (
-            SharingLinkProperties() if linkProperties is None else linkProperties
-        )
+        if linkProperties is None:
+
+            self.linkProperties = {
+                "description": "",
+                "canViewModelAttributes": True,
+                "canUpdateModel": True,
+                "canExportFCStd": True,
+                "canExportSTEP": True,
+                "canExportSTL": True,
+                "canExportOBJ": True,
+                "isActive": True,
+                "canViewModel": True,
+                "canDownloadDefaultModel": True,
+            }
+        else:
+            self.linkProperties = linkProperties
 
         self.setLinkProperties()
 
-        # # If we are editing a link, then linkProperties is not None.
-        # if linkProperties is not None:
-        #     self.dialog.canViewModelAttributesCheckBox.setChecked(
-        #         linkProperties.canViewModelAttributesCheckBox
-        #     )
-        #     self.dialog.canUpdateModelCheckBox.setChecked(
-        #         linkProperties.canUpdateModelCheckBox
-        #     )
-        #     self.dialog.canExportFCStdCheckBox.setChecked(linkProperties.canExportFCStd)
-        #     self.dialog.canExportSTEPCheckBox.setChecked(linkProperties.canExportSTEP)
-        #     self.dialog.canExportSTLCheckBox.setChecked(linkProperties.canExportSTL)
-        #     self.dialog.canExportOBJCheckBox.setChecked(linkProperties.canExportOBJ)
-
     def setLinkProperties(self):
         print(self.linkProperties)
+        self.dialog.linkName.setText(self.linkProperties["description"])
         self.dialog.canViewModelAttributesCheckBox.setChecked(
             self.linkProperties["canViewModelAttributes"]
         )
@@ -1121,60 +918,37 @@ class SharingLinkEditDialog(QtGui.QDialog):
             self.linkProperties["canUpdateModel"]
         )
         self.dialog.canExportFCStdCheckBox.setChecked(
-            self.linkProperties["canExportModelFCStd"]
+            self.linkProperties["canExportFCStd"]
         )
         self.dialog.canExportSTEPCheckBox.setChecked(
-            self.linkProperties["canExportModelSTEP"]
+            self.linkProperties["canExportSTEP"]
         )
-        self.dialog.canExportSTLCheckBox.setChecked(
-            self.linkProperties["canExportModelSTL"]
-        )
-        self.dialog.canExportOBJCheckBox.setChecked(
-            self.linkProperties["canExportModelOBJ"]
-        )
-        self.dialog.linkName.setText(self.linkProperties["description"])
+        self.dialog.canExportSTLCheckBox.setChecked(self.linkProperties["canExportSTL"])
+        self.dialog.canExportOBJCheckBox.setChecked(self.linkProperties["canExportOBJ"])
 
     def getLinkProperties(self):
 
-        linkProperties = {
-            "Description": self.dialog.linkName.text(),
-            "canViewModelAttrributes": self.dialog.canViewModelAttributesCheckBox.isChecked(),
-            "canUpdateModel": self.dialog.canUpdateModelCheckBox.isChecked(),
-            "canExportModelFCStd": self.dialog.canExportFCStdCheckBox.isChecked(),
-            "canExportModelSTEP": self.dialog.canExportSTEPCheckBox.isChecked(),
-            "canExportModelSTL": self.dialog.canExportSTLCheckBox.isChecked(),
-            "canExportModelOBJ": self.dialog.canExportOBJCheckBox.isChecked(),
-        }
+        self.linkProperties["description"] = self.dialog.linkName.text()
+        self.linkProperties[
+            "canViewModelAttributes"
+        ] = self.dialog.canViewModelAttributesCheckBox.isChecked()
+        self.linkProperties[
+            "canUpdateModel"
+        ] = self.dialog.canUpdateModelCheckBox.isChecked()
+        self.linkProperties[
+            "canExportFCStd"
+        ] = self.dialog.canExportFCStdCheckBox.isChecked()
+        self.linkProperties[
+            "canExportSTEP"
+        ] = self.dialog.canExportSTEPCheckBox.isChecked()
+        self.linkProperties[
+            "canExportSTL"
+        ] = self.dialog.canExportSTLCheckBox.isChecked()
+        self.linkProperties[
+            "canExportOBJ"
+        ] = self.dialog.canExportOBJCheckBox.isChecked()
 
-        # linkProperties = SharingLinkProperties(
-        #     self.dialog.canViewModelAttributesCheckBox.isChecked(),
-        #     self.dialog.canUpdateModelCheckBox.isChecked(),
-        #     self.dialog.canExportFCStdCheckBox.isChecked(),
-        #     self.dialog.canExportSTEPCheckBox.isChecked(),
-        #     self.dialog.canExportSTLCheckBox.isChecked(),
-        #     self.dialog.canExportOBJCheckBox.isChecked(),
-        # )
-        return linkProperties
-
-
-class SharingLinkProperties:
-    def __init__(
-        self,
-        name,
-        canViewModelAttributes,
-        canUpdateModel,
-        canExportFCStd,
-        canExportSTEP,
-        canExportSTL,
-        canExportOBJ,
-    ):
-        self.canViewModelAttributes = canViewModelAttributes
-        self.canUpdateModel = canUpdateModel
-        self.canExportFCStd = canExportFCStd
-        self.canExportSTEP = canExportSTEP
-        self.canExportSTL = canExportSTL
-        self.canExportOBJ = canExportOBJ
-        self.linkName = name
+        return self.linkProperties
 
 
 class LoginDialog(QtGui.QDialog):

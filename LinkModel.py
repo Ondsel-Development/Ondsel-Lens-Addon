@@ -73,10 +73,12 @@ class ShareLinkModel(QAbstractTableModel):
             return False
 
         link = self.links[row]
-        link.update(linkData)  # Update all fields in link dictionary
-        self.api_client.updateSharedModel(link)
+        linkData["_id"] = link["_id"]
+        self.api_client.updateSharedModel(linkData)
+        self.refresh_model()
 
-        self.dataChanged.emit(index, index, [Qt.EditRole])
+
+        #self.dataChanged.emit(index, index, [Qt.EditRole])
         return True
 
     def rowCount(self, index=QModelIndex()):
@@ -105,15 +107,14 @@ class ShareLinkModel(QAbstractTableModel):
 
                 "_id": model["_id"],
                 "description": model.get("description", ""),
-                # "url": self.compute_url(model["cloneModelId"]),
                 "canViewModel": model["canViewModel"],
                 "canViewModelAttributes": model["canViewModelAttributes"],
                 "canUpdateModel": model["canUpdateModel"],
-                "canExportModelFCStd": model.get("canExportModelFCStd", canExport),
-                "canExportModelSTEP": model.get("canExportModelSTEP", canExport),
-                "canExportModelSTL": model.get("canExportModelSTL", canExport),
-                "canExportModelOBJ": model.get("canExportModelOBJ", canExport),
-                "active": model.get("isActive", True),
+                "canExportFCStd": model.get("canExportFCStd", canExport),
+                "canExportSTEP": model.get("canExportSTEP", canExport),
+                "canExportSTL": model.get("canExportSTL", canExport),
+                "canExportOBJ": model.get("canExportOBJ", canExport),
+                "isActive": model.get("isActive", True),
                 "dummyModelId": model.get("dummyModelId", None),
                 "canDownloadDefaultModel":  model.get("canDownloadDefaultModel", canExport),
                 "cloneModelId": model.get("cloneModelId"),
@@ -132,8 +133,6 @@ class ShareLinkModel(QAbstractTableModel):
             print(link)
 
     def delete_link(self, link_id):
-        print("deleting link")
-        print(link_id)
         try:
             self.api_client.deleteSharedModel(link_id)
             self.refresh_model()
@@ -144,19 +143,23 @@ class ShareLinkModel(QAbstractTableModel):
     def add_new_link(self, link):
         """ public method to add link to the model on server """
 
+        link['cloneModelId'] = self.model_id
+
+        if link.get("isActive", None) is not None:
+            link.pop("isActive")
+
         try:
             result = self.api_client.createSharedModel(link)
-            self._add_link(result)
-            self.dump()
-            return result
+            self.refresh_model()
         except Exception as e:
             raise e  # need to handle connection problem at least 
 
 
     def _add_link(self, link):
         """ private method to add to the qabstractTableModel"""
-        row = len(self.links)
 
+
+        row = len(self.links)
         # Add the new item to the links list
         self.beginInsertRows(QModelIndex(), row, row)
         self.links.append(link)

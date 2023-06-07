@@ -5,7 +5,7 @@ import os
 
 
 class APIClient:
-    def __init__(self, base_url, email, password, access_token = None, user = None):
+    def __init__(self, base_url, email, password, access_token=None, user=None):
         self.base_url = base_url
         if access_token == None:
             self.email = email
@@ -80,8 +80,7 @@ class APIClient:
         headers["Accept"] = "application/json"
         try:
             response = requests.get(
-                f"{self.base_url}/{endpoint}", headers=headers, params=params
-            )
+                f"{self.base_url}/{endpoint}", headers=headers, params=params)
         except requests.exceptions.RequestException as e:
             # Handle connection error
             print(f"Connection Error: {e}")
@@ -218,7 +217,7 @@ class APIClient:
     @authRequired
     def getModels(self, params=None):
 
-        paginationparams = {"$limit": 50, "$skip": 0}
+        paginationparams = {"$limit": 50, "$skip": 0, "isSharedModel": "false"}
 
         endpoint = "models"
         if params is None:
@@ -350,7 +349,14 @@ class APIClient:
 
     @authRequired
     def updateSharedModel(self, fileData):
-        pass
+        endpoint = f"shared-models/{fileData['_id']}"
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        result = self._update(endpoint, headers=headers, data=json.dumps(fileData))
+
+        return result
 
     @authRequired
     def deleteSharedModel(self, ShareModelID):

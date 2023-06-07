@@ -153,33 +153,6 @@ class WorkSpaceModel(QAbstractListModel):
             print(file)
 
 
-    # def dump(self):
-    #     for row in range(self.rowCount()):
-    #         # index = self.index(row, 0)
-    #         file_item = self.files[row]
-    #         print(f"File {row + 1}:")
-    #         print(f"Basename: {file_item.basename}")
-    #         print(f"Path: {file_item.path}")
-    #         print(f"Is Folder: {file_item.is_folder}")
-    #         print(f"Versions: {file_item.versions}")
-    #         print(f"Current Version: {file_item.current_version}")
-    #         print(f"Created At: {file_item.created_at}")
-    #         print(f"Updated At: {file_item.updated_at}")
-    #         print(f"Status: {file_item.status}")
-    #         if file_item.model is not None:
-    #             model = file_item.model
-    #             print(f"ID: {model['_id']}")
-    #             print(f"Customer File Name: {model['custFileName']}")
-    #             print(f"Unique File Name: {model['uniqueFileName']}")
-    #             print(f"Created At: {model['createdAt']}")
-    #             print(f"Updated At: {model['updatedAt']}")
-    #             print(f"Is Shared Model: {model['isSharedModel']}")
-    #             print(f"Attributes: {model['attributes']}")
-    #             print(f"Object URL: {model['objUrl']}")
-    #             print(f"Thumbnail URL: {model['thumbnailUrl']}")
-    #         print()
-
-
 class LocalWorkspaceModel(WorkSpaceModel):
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
@@ -224,7 +197,6 @@ class LocalWorkspaceModel(WorkSpaceModel):
         file_item = self.files[index.row()]
         if file_item.is_folder:
             self.subPath = Utils.joinPath(self.subPath, file_item.name)
-            print(self.subPath)
             self.refreshModel()
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
