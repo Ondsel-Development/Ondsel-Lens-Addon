@@ -79,7 +79,7 @@ class FileListDelegate(QStyledItemDelegate):
         if not index.isValid():
             return
 
-        fileName, isFolder = index.data(WorkSpaceModel.NameAndIsFolderRole)
+        fileName, status, isFolder = index.data(WorkSpaceModel.NameStatusAndIsFolderRole)
 
         if option.state & QStyle.State_Selected:
             painter.fillRect(option.rect, option.palette.highlight())
@@ -99,7 +99,10 @@ class FileListDelegate(QStyledItemDelegate):
             )
 
         icon.paint(painter, icon_rect)
-        painter.drawText(text_rect, QtCore.Qt.AlignLeft, fileName)
+        textToDisplay = fileName
+        if status is not "":
+            textToDisplay+=" ("+status+")"
+        painter.drawText(text_rect, QtCore.Qt.AlignLeft, textToDisplay)
 
 
 class WorkspaceListDelegate(QStyledItemDelegate):

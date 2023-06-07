@@ -31,6 +31,7 @@ class WorkSpaceModel(QAbstractListModel):
     NameRole = Qt.UserRole + 1
     NameAndIsFolderRole = Qt.UserRole + 2
     IdRole = Qt.UserRole + 3
+    NameStatusAndIsFolderRole = Qt.UserRole + 4
     subPath = ""
 
     def __init__(self, workspaceDict, **kwargs):
@@ -127,6 +128,7 @@ class WorkSpaceModel(QAbstractListModel):
             self.NameRole: b"name",
             self.NameAndIsFolderRole: b"nameAndIsFolder",
             self.IdRole: b"id",
+            self.NameStatusAndIsFolderRole: b"nameStatusAndIsFolderRole",
         }
 
     def deleteFile(self, index):
@@ -178,11 +180,6 @@ class WorkSpaceModel(QAbstractListModel):
 
 
 class LocalWorkspaceModel(WorkSpaceModel):
-
-    NameRole = Qt.UserRole + 1
-    NameAndIsFolderRole = Qt.UserRole + 2
-    IdRole = Qt.UserRole + 3
-
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
 
@@ -213,6 +210,8 @@ class LocalWorkspaceModel(WorkSpaceModel):
             return file_item.name, file_item.is_folder
         elif role == self.IdRole:
             return 0
+        elif role == self.NameStatusAndIsFolderRole:
+            return file_item.name, "", file_item.is_folder
 
         return None
 
@@ -232,10 +231,6 @@ class LocalWorkspaceModel(WorkSpaceModel):
 
 
 class ServerWorkspaceModel(WorkSpaceModel):
-
-    NameRole = Qt.UserRole + 1
-    NameAndIsFolderRole = Qt.UserRole + 2
-    IdRole = Qt.UserRole + 3
 
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
@@ -304,6 +299,8 @@ class ServerWorkspaceModel(WorkSpaceModel):
         elif role == self.IdRole:
             if file_item.model is not None:
                 return file_item.model["_id"]
+        elif role == self.NameStatusAndIsFolderRole:
+            return file_item.name, file_item.status, False
 
         return None
 
