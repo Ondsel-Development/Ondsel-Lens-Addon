@@ -138,52 +138,6 @@ class WorkSpaceModel(QAbstractListModel):
 
         self.refreshModel()
 
-    def addCurrentFile(self):
-        # Save current file on the server.
-        doc = FreeCAD.ActiveDocument
-
-        # Get the default name of the file from the document
-        default_name = doc.Label + ".FCStd"
-        default_path = self.getFullPath()
-        default_file_path = Utils.joinPath(default_path, default_name)
-
-        # Open a dialog box for the user to select a file location and name
-        file_name, _ = QtGui.QFileDialog.getSaveFileName(
-            self, "Save File", default_file_path, "FreeCAD file (*.fcstd)"
-        )
-
-        if file_name:
-            # Make sure the file has the correct extension
-            if not file_name.lower().endswith(".fcstd"):
-                file_name += ".FCStd"
-
-            # Save the file
-            FreeCAD.Console.PrintMessage(f"Saving document to file: {file_name}\n")
-            doc.saveAs(file_name)
-
-    def addFileBtnClicked(self):
-        # open file browser dialog to select files to copy
-        selectedFiles, _ = QtGui.QFileDialog.getOpenFileNames(
-            None,
-            "Select Files",
-            os.path.expanduser("~"),
-            "All Files (*);;Text Files (*.txt)",
-        )
-
-        # copy selected files to destination folder
-        for fileUrl in selectedFiles:
-            fileName = os.path.basename(fileUrl)
-
-            destFileUrl = Utils.joinPath(self.getFullPath(), fileName)
-
-            if Utils.isOpenableByFreeCAD(fileName):
-                try:
-                    shutil.copy(fileUrl, destFileUrl)
-                except:
-                    QtGui.QMessageBox.warning(
-                        None, "Error", "Failed to copy file " + fileName
-                    )
-
     def dump(self):
         """
         useful for debugging.  This will return the contents in a printable form
