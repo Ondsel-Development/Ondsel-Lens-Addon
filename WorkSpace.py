@@ -253,7 +253,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
             foundLocal = False
             for i, localFile in enumerate(files):
                 if model["custFileName"] == localFile.name:
-                    filesData.model = model
+                    localFile.model = model
 
                     if model["updatedAt"] < localFile.updatedAt:
                         localFile.status = "ToUpload"
