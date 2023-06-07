@@ -230,10 +230,11 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.versionsView.doubleClicked.connect(self.versionClicked)
 
-
         self.form.linksView.doubleClicked.connect(self.linksListDoubleClicked)
         self.form.linksView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.form.linksView.customContextMenuRequested.connect(self.showLinksContextMenu)
+        self.form.linksView.customContextMenuRequested.connect(
+            self.showLinksContextMenu
+        )
 
         addFileMenu = QtGui.QMenu(self.form.addFileBtn)
         addFileAction = QtGui.QAction("Add current file", self.form.addFileBtn)
@@ -289,7 +290,11 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def tokenExpired(self, token):
         try:
-            decoded_token = jwt.decode(token, audience="https://yourdomain.com", options={"verify_signature": False})
+            decoded_token = jwt.decode(
+                token,
+                audience="https://yourdomain.com",
+                options={"verify_signature": False},
+            )
         except Exception as e:
             print(e)
             print(token)
@@ -380,7 +385,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.currentWorkspaceModel.getWorkspacePath()
         )
 
-    def linksListDoubleClicked (self, index):
+    def linksListDoubleClicked(self, index):
         print("linksListDoubleClicked")
 
         self.currentWorkspaceModel.openLink(index)
@@ -575,7 +580,9 @@ class WorkspaceView(QtGui.QDockWidget):
         if index.isValid():
             menu = QtGui.QMenu()
             # fileId = model.data(index, QtCore.Qt.DisplayRole) #, ShareLinkModel.IdRole)
-            linkId = model.data(index, ShareLinkModel.UrlRole) #, ShareLinkModel.IdRole)
+            linkId = model.data(
+                index, ShareLinkModel.UrlRole
+            )  # , ShareLinkModel.IdRole)
             copyLinkAction = menu.addAction("copy link")
             editLinkAction = menu.addAction("edit")
             deleteAction = menu.addAction("Delete")
@@ -583,18 +590,31 @@ class WorkspaceView(QtGui.QDockWidget):
             action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
 
             if action == copyLinkAction:
-                url = model.compute_url(linkId) 
+                url = model.compute_url(linkId)
                 clipboard = QApplication.clipboard()
                 clipboard.setText(url)
 
             elif action == editLinkAction:
                 linkData = model.data(index, ShareLinkModel.EditLinkRole)
-                print(linkData)
                 print("edit link")
-                # print(model.data(index))
+
+                # dialog = ManageSharingLinksDialog(linkData, self)
+
+                dialog = SharingLinkEditDialog(linkData, self)
+
+                if dialog.exec_() == QtGui.QDialog.Accepted:
+                    link_properties = dialog.getLinkProperties()
+                    model.update_link(index, link_properties)
 
             elif action == deleteAction:
-                print("delete link")
+                # ask for confirmation
+                result = QtGui.QMessageBox.question(
+                    "Delete Link",
+                    "Are you sure you want to delete this link?",
+                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                )
+                if result == QtGui.QMessageBox.Yes:
+                    model.delete_link(linkId)
 
         else:
             menu = QtGui.QMenu()
@@ -603,9 +623,11 @@ class WorkspaceView(QtGui.QDockWidget):
             action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
 
             if action == addLinkAction:
-                print("add link")
-                # print(model.data(index))
+                dialog = SharingLinkEditDialog(None, self)
 
+                if dialog.exec_() == QtGui.QDialog.Accepted:
+                    link_properties = dialog.getLinkProperties()
+                    model.add_new_link(link_properties)
 
     def openPreferences(self):
         print("Preferences clicked")
@@ -811,10 +833,10 @@ class NewWorkspaceDialog(QtGui.QDialog):
 
 
 class ManageSharingLinksDialog(QtGui.QDialog):
-    def __init__(self, access_token, linkId, parent=None):
+    def __init__(self, linkData, parent=None):
         super(ManageSharingLinksDialog, self).__init__(parent)
-        pass        
-        # self.fileData = fileData
+
+        self.linkData = linkData  # self.fileData = fileData
         # self.access_token = access_token
 
         # # Load the UI from the .ui file
@@ -824,9 +846,10 @@ class ManageSharingLinksDialog(QtGui.QDialog):
         layout.addWidget(self.dialog)
         self.setLayout(layout)
 
-        self.dialog.infoLabel.setText(
-            f"Manage the sharing links of <{fileData['custFileName']}>"
-        )
+        print(linkData)
+        # self.dialog.infoLabel.setText(
+        #     f"Manage the sharing links of <{linkData['custFileName']}>"
+        # )
 
         self.dialog.linkDetailsGroupBox.setVisible(False)
 
@@ -1004,7 +1027,7 @@ class ManageSharingLinksDialog(QtGui.QDialog):
 
 
 class SharingLinkEditDialog(QtGui.QDialog):
-    def __init__(self, parent=None, linkProperties=None):
+    def __init__(self, linkProperties=None, parent=None):
         super(SharingLinkEditDialog, self).__init__(parent)
 
         # Load the UI from the .ui file
@@ -1017,34 +1040,74 @@ class SharingLinkEditDialog(QtGui.QDialog):
         self.dialog.okBtn.clicked.connect(self.accept)
         self.dialog.cancelBtn.clicked.connect(self.reject)
 
-        # If we are editing a link, then linkProperties is not None.
-        if linkProperties is not None:
-            self.dialog.canViewModelAttributesCheckBox.setChecked(
-                linkProperties.canViewModelAttributesCheckBox
-            )
-            self.dialog.canUpdateModelCheckBox.setChecked(
-                linkProperties.canUpdateModelCheckBox
-            )
-            self.dialog.canExportFCStdCheckBox.setChecked(linkProperties.canExportFCStd)
-            self.dialog.canExportSTEPCheckBox.setChecked(linkProperties.canExportSTEP)
-            self.dialog.canExportSTLCheckBox.setChecked(linkProperties.canExportSTL)
-            self.dialog.canExportOBJCheckBox.setChecked(linkProperties.canExportOBJ)
+        self.linkProperties = (
+            SharingLinkProperties() if linkProperties is None else linkProperties
+        )
+
+        self.setLinkProperties()
+
+        # # If we are editing a link, then linkProperties is not None.
+        # if linkProperties is not None:
+        #     self.dialog.canViewModelAttributesCheckBox.setChecked(
+        #         linkProperties.canViewModelAttributesCheckBox
+        #     )
+        #     self.dialog.canUpdateModelCheckBox.setChecked(
+        #         linkProperties.canUpdateModelCheckBox
+        #     )
+        #     self.dialog.canExportFCStdCheckBox.setChecked(linkProperties.canExportFCStd)
+        #     self.dialog.canExportSTEPCheckBox.setChecked(linkProperties.canExportSTEP)
+        #     self.dialog.canExportSTLCheckBox.setChecked(linkProperties.canExportSTL)
+        #     self.dialog.canExportOBJCheckBox.setChecked(linkProperties.canExportOBJ)
+
+    def setLinkProperties(self):
+        print(self.linkProperties)
+        self.dialog.canViewModelAttributesCheckBox.setChecked(
+            self.linkProperties["canViewModelAttributes"]
+        )
+        self.dialog.canUpdateModelCheckBox.setChecked(
+            self.linkProperties["canUpdateModel"]
+        )
+        self.dialog.canExportFCStdCheckBox.setChecked(
+            self.linkProperties["canExportModelFCStd"]
+        )
+        self.dialog.canExportSTEPCheckBox.setChecked(
+            self.linkProperties["canExportModelSTEP"]
+        )
+        self.dialog.canExportSTLCheckBox.setChecked(
+            self.linkProperties["canExportModelSTL"]
+        )
+        self.dialog.canExportOBJCheckBox.setChecked(
+            self.linkProperties["canExportModelOBJ"]
+        )
+        self.dialog.linkName.setText(self.linkProperties["description"])
 
     def getLinkProperties(self):
-        linkProperties = SharingLinkProperties(
-            self.dialog.canViewModelAttributesCheckBox.isChecked(),
-            self.dialog.canUpdateModelCheckBox.isChecked(),
-            self.dialog.canExportFCStdCheckBox.isChecked(),
-            self.dialog.canExportSTEPCheckBox.isChecked(),
-            self.dialog.canExportSTLCheckBox.isChecked(),
-            self.dialog.canExportOBJCheckBox.isChecked(),
-        )
+
+        linkProperties = {
+            "Description": self.dialog.linkName.text(),
+            "canViewModelAttrributes": self.dialog.canViewModelAttributesCheckBox.isChecked(),
+            "canUpdateModel": self.dialog.canUpdateModelCheckBox.isChecked(),
+            "canExportModelFCStd": self.dialog.canExportFCStdCheckBox.isChecked(),
+            "canExportModelSTEP": self.dialog.canExportSTEPCheckBox.isChecked(),
+            "canExportModelSTL": self.dialog.canExportSTLCheckBox.isChecked(),
+            "canExportModelOBJ": self.dialog.canExportOBJCheckBox.isChecked(),
+        }
+
+        # linkProperties = SharingLinkProperties(
+        #     self.dialog.canViewModelAttributesCheckBox.isChecked(),
+        #     self.dialog.canUpdateModelCheckBox.isChecked(),
+        #     self.dialog.canExportFCStdCheckBox.isChecked(),
+        #     self.dialog.canExportSTEPCheckBox.isChecked(),
+        #     self.dialog.canExportSTLCheckBox.isChecked(),
+        #     self.dialog.canExportOBJCheckBox.isChecked(),
+        # )
         return linkProperties
 
 
 class SharingLinkProperties:
     def __init__(
         self,
+        name,
         canViewModelAttributes,
         canUpdateModel,
         canExportFCStd,
@@ -1058,6 +1121,7 @@ class SharingLinkProperties:
         self.canExportSTEP = canExportSTEP
         self.canExportSTL = canExportSTL
         self.canExportOBJ = canExportOBJ
+        self.linkName = name
 
 
 class LoginDialog(QtGui.QDialog):

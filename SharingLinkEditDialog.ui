@@ -1,142 +1,161 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
-  <class>SharingLinkEditDialog</class>
-  <widget class="QDialog" name="SharingLinkEditDialog">
-    <property name="windowTitle">
-      <string>Sharing Link Settings</string>
-    </property>
-          <layout class="QVBoxLayout">
-            <item>
-             <widget class="QCheckBox" name="canViewModelAttributesCheckBox">
-              <property name="text">
-               <string>Show model attributes</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QCheckBox" name="canUpdateModelCheckBox">
-              <property name="text">
-               <string>Allow updating the model</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <layout  class="QHBoxLayout">
-              <item>
-               <widget class="QGroupBox" name="downloadOptionsGroupBox">
-                <property name="title">
-                  <string>Download options</string>
-                </property>
-                <layout class="QVBoxLayout" name="verticalLayout">
-                  <item>
-                    <widget class="QCheckBox" name="canExportFCStdCheckBox">
-                      <property name="text">
-                        <string>.FCStd</string>
-                      </property>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QCheckBox" name="canExportSTEPCheckBox">
-                      <property name="text">
-                        <string>.step</string>
-                      </property>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QCheckBox" name="canExportSTLCheckBox">
-                      <property name="text">
-                        <string>.Stl</string>
-                      </property>
-                    </widget>
-                  </item>
-                  <item>
-                    <widget class="QCheckBox" name="canExportOBJCheckBox">
-                      <property name="text">
-                        <string>.Obj</string>
-                      </property>
-                    </widget>
-                  </item>
-                </layout>
-              </widget>
-              </item>
-			  <item>
-               <layout class="QVBoxLayout">
-			    <item>
-                 <widget class="QCheckBox" name="expCheckBox">
-                  <property name="text">
-                   <string>Set expiration date</string>
-                  </property>
-                  <property name="enabled">
-                   <bool>false</bool>
-                  </property>
-                 </widget>
-          	    </item>
-			  <item>
-               <layout class="QHBoxLayout">
-                <item>
-                 <widget class="QLabel" name="expirationLabel">
-                  <property name="text">
-                   <string>Expiration date:</string>
-                  </property>
-                  <property name="enabled">
-                   <bool>false</bool>
-                  </property>
-                 </widget>
-                </item>
-                <item>
-                 <widget class="QDateEdit" name="dateEdit">
-                  <property name="calendarPopup">
-                   <bool>true</bool>
-                  </property>
-                  <property name="enabled">
-                   <bool>false</bool>
-                  </property>
-                 </widget>
-                </item>
-              </layout>
-             </item>
-               </layout>
-              </item>
-            </layout>
-           </item>
-            <item>
-             <layout  class="QHBoxLayout">
-              <item>
-               <widget class="QPushButton" name="cancelBtn">
-                <property name="text">
-                 <string>Cancel</string>
-                </property>
-               </widget>
-              </item>
-			  <item>
-               <spacer name="horizontalSpacer">
-                <property name="orientation">
-                 <enum>Qt::Horizontal</enum>
-                </property>
-                <property name="sizeHint" stdset="0">
-                 <size>
-                  <width>40</width>
-                  <height>20</height>
-                 </size>
-                </property>
-                <property name="sizePolicy">
-                 <SizePolicy hsizetype="MinimumExpanding" vsizetype="Minimum"/>
-                </property>
-               </spacer>
-				</item>
-              <item>
-               <widget class="QPushButton" name="okBtn">
-                <property name="text">
-                 <string>Ok</string>
-                </property>
-               </widget>
-              </item>
-             </layout>
-            </item>
-		   
-          </layout>
-
-  </widget>
-  <resources/>
-  <connections/>
+ <class>SharingLinkEditDialog</class>
+ <widget class="QDialog" name="SharingLinkEditDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>415</width>
+    <height>316</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Sharing Link Settings</string>
+  </property>
+  <layout class="QVBoxLayout">
+   <item>
+    <widget class="QLabel" name="label">
+     <property name="text">
+      <string>Link Name</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="linkName"/>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="canViewModelAttributesCheckBox">
+     <property name="text">
+      <string>Show model attributes</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="canUpdateModelCheckBox">
+     <property name="text">
+      <string>Allow updating the model</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout">
+     <item>
+      <widget class="QGroupBox" name="downloadOptionsGroupBox">
+       <property name="title">
+        <string>Download options</string>
+       </property>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <widget class="QCheckBox" name="canExportFCStdCheckBox">
+          <property name="text">
+           <string>.FCStd</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="canExportSTEPCheckBox">
+          <property name="text">
+           <string>.step</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="canExportSTLCheckBox">
+          <property name="text">
+           <string>.Stl</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QCheckBox" name="canExportOBJCheckBox">
+          <property name="text">
+           <string>.Obj</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <layout class="QVBoxLayout">
+       <item>
+        <widget class="QCheckBox" name="expCheckBox">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="text">
+          <string>Set expiration date</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout">
+         <item>
+          <widget class="QLabel" name="expirationLabel">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="text">
+            <string>Expiration date:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QDateEdit" name="dateEdit">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="calendarPopup">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout">
+     <item>
+      <widget class="QPushButton" name="cancelBtn">
+       <property name="text">
+        <string>Cancel</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="horizontalSpacer">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Minimum">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="orientation">
+        <enum>Qt::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="okBtn">
+       <property name="text">
+        <string>Ok</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
 </ui>
