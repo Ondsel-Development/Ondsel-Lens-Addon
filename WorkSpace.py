@@ -6,6 +6,9 @@ from PySide.QtCore import (
     Signal,
     QFileSystemWatcher,
 )
+from PySide.QtGui import (
+    QFileDialog,
+)
 import Utils
 import os
 import FreeCAD
@@ -245,46 +248,44 @@ class ServerWorkspaceModel(WorkSpaceModel):
             os.makedirs(self.path)
 
     def refreshModel(self):
+        self.clearModel()
 
+        files = self.getLocalFiles()
+
+        remoteFilesToAdd = []
         models = self.API_Client.getModels()
-        files = []
         for model in models:
-            fullFileName = Utils.joinPath(self.getFullPath(), model["custFileName"])
+            foundLocal = False
+            for i, localFile in enumerate(files):
+                if model["custFileName"] == localFile.name:
+                    filesData.model = model
 
-            if not os.path.isfile(fullFileName):  # file on server but not local
-                model["status"] = "ToDownload"
-                files.append(model)
+                    if model["updatedAt"] < localFile.updatedAt:
+                        localFile.status = "ToUpload"
 
-                continue
-            lastUpdate = os.path.getmtime(fullFileName)
+                    elif model["updatedAt"] > localFile.updatedAt:
+                        localFile.status = "ToDownload"
 
-            if model["updatedAt"] < lastUpdate:
-                model.status = "ToUpload"
-            elif model["updatedAt"] > lastUpdate:
-                model["status"] = "ToDownload"
-            else:
-                model["status"] = "Synced"
-            files.append(model)
-
-        # Add files that exist locally but not on server
-        candidates = self.getLocalFiles()
-
-        for candidate in candidates:
-            if candidate.is_folder:
-                continue
-
-            found = False
-            for model in models:
-                if candidate.name == model["custFileName"]:
-                    found = True
+                    else:
+                        localFile.status = "Synced"
+                    foundLocal = True
                     break
-
-            if not found:
-                candidate.status = "ToUpload"
-                models.append(candidate)
+            if not foundLocal: # local doesnt have this file
+                file_item = FileItem(
+                    model["custFileName"],
+                    self.getFullPath(),
+                    False,
+                    [model["custFileName"]],
+                    model["custFileName"],
+                    model["createdAt"],
+                    model["updatedAt"],
+                    "ToDownload",
+                    model,
+                )
+                remoteFilesToAdd.append(file_item)
+        files += remoteFilesToAdd
 
         self.beginResetModel()
-        self.clearModel()
         self.files = files
         self.endResetModel()
 
@@ -297,11 +298,12 @@ class ServerWorkspaceModel(WorkSpaceModel):
         if role == Qt.DisplayRole:
             return file_item
         elif role == self.NameRole:
-            return file_item["custFileName"]
+            return file_item.name
         elif role == self.NameAndIsFolderRole:
-            return file_item["custFileName"], False
+            return file_item.name, False
         elif role == self.IdRole:
-            return file_item["_id"]
+            if file_item.model is not None:
+                return file_item.model["_id"]
 
         return None
 
