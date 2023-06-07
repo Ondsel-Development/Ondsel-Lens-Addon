@@ -335,8 +335,8 @@ class FileItem:
         is_folder,
         versions,
         current_version,
-        created_at,
-        updated_at,
+        createdAt,
+        updatedAt,
         status="Untracked",
         model=None,
     ):
@@ -345,7 +345,7 @@ class FileItem:
         self.is_folder = is_folder
         self.versions = versions
         self.current_version = current_version
-        self.created_at = created_at
-        self.updated_at = updated_at
+        self.createdAt = createdAt
+        self.updatedAt = updatedAt
         self.status = status
         self.model = model
