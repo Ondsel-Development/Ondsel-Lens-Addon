@@ -239,7 +239,7 @@ class APIClient:
         return result
 
     @authRequired
-    def createModel(self, fileData):
+    def createModel(self, fileName, uniqueName):
         endpoint = "models"
 
         headers = {
@@ -247,8 +247,8 @@ class APIClient:
         }
 
         payload = {
-            "custFileName": fileData["custFileName"],
-            "uniqueFileName": fileData["uniqueFileName"],
+            "custFileName": fileName,
+            "uniqueFileName": uniqueName,
             "shouldStartObjGeneration": True,
             "errorMsg": "",
         }
@@ -258,8 +258,8 @@ class APIClient:
         return result
 
     @authRequired
-    def regenerateModelObj(self, fileData):
-        endpoint = f"models/{fileData['_id']}"
+    def regenerateModelObj(self, fileId):
+        endpoint = f"models/{fileId}"
 
         headers = {
             "Content-Type": "application/json",
@@ -280,30 +280,23 @@ class APIClient:
     #  Upload Functions
 
     @authRequired
-    def uploadFileToServer(self, fileData, workspacepath):
+    def uploadFileToServer(self, uniqueName, filename):
         # files to be uploaded needs to have a unique name generated with uuid (use str(uuid.uuid4()) ) : test.fcstd -> c4481734-c18f-4b8c-8867-9694ae2a9f5a.fcstd
         endpoint = "upload"
-
-        fileData["uniqueFileName"] = f"{str(uuid.uuid4())}.fcstd"
-        filename = os.path.normpath(
-            os.path.join(workspacepath, fileData["custFileName"])
-        )
 
         if not os.path.isfile(filename):
             raise FileNotFoundError
 
         with open(filename, "rb") as f:
             fileWithUniqueName = (
-                fileData["uniqueFileName"],
+                uniqueName,
                 f,
                 "application/octet-stream",
             )
 
-            # Add the new file object to the files dictionary
             files = {"file": fileWithUniqueName}
             result = self._post(endpoint, files=files)
 
-        return fileData
 
     @authRequired
     def downloadFileFromServer(self, uniqueName, filename):

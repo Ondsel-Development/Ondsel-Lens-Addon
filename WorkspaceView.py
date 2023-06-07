@@ -545,13 +545,18 @@ class WorkspaceView(QtGui.QDockWidget):
         menu = QtGui.QMenu()
         openOnlineAction = menu.addAction("Open Online")
         # shareAction = menu.addAction("Share")
+        uploadAction = menu.addAction("Upload to Lens")
+        downloadAction = menu.addAction("Download from Lens")
+        menu.addSeparator()
         deleteAction = menu.addAction("Delete File")
+
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
+
         if action == openOnlineAction:
             url = ondselUrl
 
             if self.currentWorkspace["type"] == "Ondsel" and fileId is not None:
-                url = f"{baseUrl}:8080/{fileId}"
+                url = f"{baseUrl}:8080/model/{fileId}"
 
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
@@ -575,6 +580,11 @@ class WorkspaceView(QtGui.QDockWidget):
             )
             if result == QtGui.QMessageBox.Yes:
                 self.currentWorkspaceModel.deleteFile(index)
+        elif self.currentWorkspace["type"] == "Ondsel":
+            if action == downloadAction:
+                self.currentWorkspaceModel.downloadFile(index)
+            elif action == uploadAction:
+                self.currentWorkspaceModel.uploadFile(index)
 
     def showLinksContextMenu(self, pos):
         index = self.form.linksView.indexAt(pos)

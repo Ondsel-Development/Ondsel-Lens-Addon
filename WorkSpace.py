@@ -13,6 +13,7 @@ import Utils
 import os
 import FreeCAD
 import shutil
+import uuid
 
 
 class WorkSpaceModelFactory:
@@ -256,10 +257,10 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     localFile.model = model
 
                     if model["updatedAt"] < localFile.updatedAt:
-                        localFile.status = "ToUpload"
+                        localFile.status = "Server's outdated'"
 
                     elif model["updatedAt"] > localFile.updatedAt:
-                        localFile.status = "ToDownload"
+                        localFile.status = "Local's outdated'"
 
                     else:
                         localFile.status = "Synced"
@@ -274,7 +275,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     model["custFileName"],
                     model["createdAt"],
                     model["updatedAt"],
-                    "ToDownload",
+                    "Server only",
                     model,
                 )
                 remoteFilesToAdd.append(file_item)
@@ -325,6 +326,39 @@ class ServerWorkspaceModel(WorkSpaceModel):
             self.API_Client.deleteModel(fileId)
 
         super.deleteFile(index)
+
+    def downloadFile(self, index):
+        print("downloading file...")
+        file_item = self.files[index.row()]
+        if file_item.is_folder:
+            print('Download of folders not supported yet.')
+        else:
+            file_path = Utils.joinPath(self.getFullPath(), file_item.name)
+            self.API_Client.downloadFileFromServer(
+                file_item.model["uniqueFileName"], file_path
+            )
+        self.refreshModel()
+
+    def uploadFile(self, index):
+        print("uploading file...")
+        file_item = self.files[index.row()]
+        if file_item.is_folder:
+            print('Upload of folders not supported yet.')
+        else:
+            # unique file name is always generated even if file is already on the server under another uniqueFileName.
+            uniqueName = f"{str(uuid.uuid4())}.fcstd"
+
+            file_path = Utils.joinPath(self.getFullPath(), file_item.name)
+            self.API_Client.uploadFileToServer(uniqueName, file_path)
+
+            if file_item.model is None:
+                # First time the file is uploaded.
+                self.API_Client.createModel(file_item.name, uniqueName)
+            else:
+                self.API_Client.regenerateModelObj(file_item.model["_id"])
+
+        self.refreshModel()
+
 
 
 class FileItem:
