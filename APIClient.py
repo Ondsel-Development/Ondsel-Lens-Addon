@@ -239,6 +239,7 @@ class APIClient:
 
     @authRequired
     def createModel(self, fileName, uniqueName):
+        print("Creating the model...")
         endpoint = "models"
 
         headers = {
@@ -257,17 +258,20 @@ class APIClient:
         return result
 
     @authRequired
-    def regenerateModelObj(self, fileId):
+    def regenerateModelObj(self, fileId, uniqueFileName):
+        print("Regenerating the model OBJ...")
         endpoint = f"models/{fileId}"
 
         headers = {
             "Content-Type": "application/json",
         }
 
-        payload = {"shouldStartObjGeneration": True}
+        payload = {
+            "uniqueFileName": uniqueFileName,
+            "shouldStartObjGeneration": True
+        }
 
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))
-        return result
 
     @authRequired
     def deleteModel(self, _id):

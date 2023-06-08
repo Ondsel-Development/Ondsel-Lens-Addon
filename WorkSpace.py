@@ -327,7 +327,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 # First time the file is uploaded.
                 self.API_Client.createModel(file_item.name, uniqueName)
             else:
-                self.API_Client.regenerateModelObj(file_item.model["_id"])
+                self.API_Client.regenerateModelObj(file_item.model["_id"], uniqueName)
 
         self.refreshModel()
 
