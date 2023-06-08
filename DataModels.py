@@ -22,7 +22,7 @@ class WorkspaceListModel(QAbstractListModel):
     def __init__(self, parent=None, filename=None):
         super(WorkspaceListModel, self).__init__(parent)
         self.workspaceListFile = (
-            f"{modPath}/workspaceList.txt" if filename is None else filename
+            f"{modPath}/workspaceList.json" if filename is None else filename
         )
 
         self.load()
