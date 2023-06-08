@@ -37,6 +37,10 @@ from PySide.QtGui import (
     QMessageBox,
     QHeaderView,
     QApplication,
+    QIcon,
+    QAction,
+    QActionGroup,
+    QMenu,
 )
 
 mw = Gui.getMainWindow()
@@ -189,31 +193,14 @@ class WorkspaceView(QtGui.QDockWidget):
         self.setWidget(self.form)
         self.setWindowTitle("Workspace View")
 
-        # print("Ondsel widget loading...")
-        menu = QtGui.QMenu(self.form.userBtn)
-        actions = QtGui.QActionGroup(menu)
+        self.createOndselButtonMenus()
 
-        a = QtGui.QAction("Ondsel Account", actions)
-        a.triggered.connect(self.ondselAccount)
-        menu.addAction(a)
+        self.ondselIcon = QIcon(iconsPath + "OndselWorkbench.svg")
+        self.ondselIconOff = QIcon(iconsPath + "OndselWorkbench-off.svg")
+        self.form.userBtn.setFixedSize(48,48);
+        self.form.userBtn.setIconSize(QtCore.QSize(48, 48));
+        self.form.userBtn.clicked.connect(self.form.userBtn.showMenu)
 
-        a2 = QtGui.QAction("Add new workspace", actions)
-        a2.triggered.connect(self.newWorkspaceBtnClicked)
-        menu.addAction(a2)
-
-        a3 = QtGui.QAction("Preferences", actions)
-        a3.triggered.connect(self.openPreferences)
-        menu.addAction(a3)
-
-        a4 = QtGui.QAction("Log out", actions)
-        a4.triggered.connect(self.logout)
-        menu.addAction(a4)
-
-        self.form.userBtn.setMenu(menu)
-
-        self.form.loginBtn.clicked.connect(self.loginBtnClicked)
-        self.form.signupBtn.clicked.connect(self.showOndselSignUpPage)
-        self.form.buttonAdd.clicked.connect(self.newWorkspaceBtnClicked)
         self.form.buttonBack.clicked.connect(self.backClicked)
 
         self.workspacesModel = WorkspaceListModel()
@@ -256,8 +243,6 @@ class WorkspaceView(QtGui.QDockWidget):
         # Check if user is already logged in.
         loginDataStr = p.GetString("loginData", "")
         if loginDataStr != "":
-            self.setUIForLogin(True)
-
             loginData = json.loads(loginDataStr)
             self.access_token = loginData["accessToken"]
             # self.access_token = self.generate_expired_token()
@@ -267,13 +252,11 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.logout()
             else:
                 user = loginData["user"]
-                self.form.userBtn.setText(
-                    f"{user['lastName']} {user['firstName'][:1]}."
-                )
+
+            self.setUIForLogin(True, user)
         else:
             user = None
             self.setUIForLogin(False)
-            self.form.userBtn.setText("")
 
         self.switchView()
 
@@ -293,6 +276,39 @@ class WorkspaceView(QtGui.QDockWidget):
     #     token = jwt.encode(payload, secret_key, algorithm="HS256")
     #     return token
 
+    def createOndselButtonMenus(self):
+        # Ondsel Button's menu when logged in
+        self.userMenu = QMenu(self.form.userBtn)
+        userActions = QActionGroup(self.userMenu)
+
+        a = QAction("Ondsel Account", userActions)
+        a.triggered.connect(self.ondselAccount)
+        self.userMenu.addAction(a)
+
+        a2 = QAction("Add new workspace", userActions)
+        a2.triggered.connect(self.newWorkspaceBtnClicked)
+        self.userMenu.addAction(a2)
+
+        a3 = QAction("Preferences", userActions)
+        a3.triggered.connect(self.openPreferences)
+        self.userMenu.addAction(a3)
+
+        a4 = QAction("Log out", userActions)
+        a4.triggered.connect(self.logout)
+        self.userMenu.addAction(a4)
+
+        # Ondsel Button's menu when user not logged in
+        self.guestMenu = QMenu(self.form.userBtn)
+        guestActions = QActionGroup(self.guestMenu)
+
+        a5 = QAction("Login", guestActions)
+        a5.triggered.connect(self.loginBtnClicked)
+        self.guestMenu.addAction(a5)
+
+        a6 = QAction("Sign up", guestActions)
+        a6.triggered.connect(self.showOndselSignUpPage)
+        self.guestMenu.addAction(a6)
+
     def tokenExpired(self, token):
         try:
             decoded_token = jwt.decode(
@@ -307,10 +323,20 @@ class WorkspaceView(QtGui.QDockWidget):
         current_time = datetime.now()
         return current_time > expiration_time
 
-    def setUIForLogin(self, state):
+    def setUIForLogin(self, state, user=None):
         """Toggle the visibility of UI elements based on if user is logged in"""
-        self.form.UserDetails.setVisible(state)
-        self.form.LoginDetails.setVisible(not state)
+        
+        if state:
+            self.form.userNameLabel.setText(
+                user["lastName"] + " " + user["firstName"][:1] + "."
+            )
+            self.form.userBtn.setIcon(self.ondselIcon)
+            self.form.userBtn.setMenu(self.userMenu)
+        else:
+            self.form.userNameLabel.setText("")
+            self.form.userBtn.setIcon(self.ondselIconOff)
+            self.form.userBtn.setMenu(self.guestMenu)
+
 
     def enterWorkspace(self, index):
         print("entering workspace")
@@ -358,7 +384,6 @@ class WorkspaceView(QtGui.QDockWidget):
         print("switchView")
         isFileView = self.currentWorkspace is not None
         self.form.workspaceListView.setVisible(not isFileView)
-        self.form.buttonAdd.setVisible(not isFileView)
         self.form.buttonBack.setVisible(isFileView)
         self.form.addFileBtn.setVisible(isFileView)
         self.form.buttonSync.setVisible(
@@ -660,11 +685,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
                 self.access_token = self.apiClient.access_token
 
-                user = self.apiClient.user
-                self.setUIForLogin(True)
-                self.form.userBtn.setText(
-                    user["lastName"] + " " + user["firstName"][:1] + "."
-                )
+                self.setUIForLogin(True, self.apiClient.user)
 
                 self.workspacesModel.addWorkspace(
                     "Ondsel",
