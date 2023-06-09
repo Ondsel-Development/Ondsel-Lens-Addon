@@ -420,12 +420,14 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def linksListDoubleClicked(self, index):
         print("linksListDoubleClicked")
+        model = self.form.linksView.model()
+        linkData = model.data(index, ShareLinkModel.EditLinkRole)
 
-        self.currentWorkspaceModel.openLink(index)
+        dialog = SharingLinkEditDialog(linkData, self)
 
-        self.form.workspaceNameLabel.setText(
-            self.currentWorkspaceModel.getWorkspacePath()
-        )
+        if dialog.exec_() == QtGui.QDialog.Accepted:
+            link_properties = dialog.getLinkProperties()
+            model.update_link(index, link_properties)
 
     def versionClicked(self, index):
         model = self.form.versionsView.model()
@@ -536,14 +538,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.versionsView.setModel(version_model)
         self.form.linksView.setModel(links_model)
-
-        if links_model is not None:
-            self.form.linksView.horizontalHeader().setSectionResizeMode(
-                1, QHeaderView.Stretch
-            )
-
-        # Adjust the header to fill the entire width
-        self.form.linksView.horizontalHeader().setStretchLastSection(True)
 
     def showWorkspaceContextMenu(self, pos):
         index = self.form.workspaceListView.indexAt(pos)

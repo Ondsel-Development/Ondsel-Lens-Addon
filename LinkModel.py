@@ -1,7 +1,7 @@
-from PySide.QtCore import Qt, QAbstractTableModel, QModelIndex, QDateTime
+from PySide.QtCore import Qt, QAbstractListModel, QModelIndex, QDateTime
 
 
-class ShareLinkModel(QAbstractTableModel):
+class ShareLinkModel(QAbstractListModel):
     """
     Manages a list of ShareLinks.  Links have the following attributes
     link = {
@@ -27,7 +27,6 @@ class ShareLinkModel(QAbstractTableModel):
 
     def __init__(self, model_id, api_client, parent=None):
         super().__init__(parent)
-        self.headers = ["Description", "url", "active"]
         self.links = []
         self.model_id = model_id
         self.api_client = api_client
@@ -41,25 +40,14 @@ class ShareLinkModel(QAbstractTableModel):
         rowdata = self.links[index.row()]
 
         if role == Qt.DisplayRole:
-            if index.column() == 0:
-                return rowdata["description"]
-            elif index.column() == 1:
-                return rowdata["cloneModelId"]
+            return f"{rowdata['description']}"
         elif role == self.UrlRole:
-                return rowdata["_id"]
+            return rowdata["_id"]
         elif role == self.ActiveRole:
-                return rowdata["active"]
+            return rowdata["active"]
         elif role == self.EditLinkRole:
             row_data = self.links[index.row()]
             return row_data
-
-            # elif index.column() == 2:
-            #     created = rowdata["created"]
-            #     return QDateTime.fromString(created)
-
-        elif role == Qt.CheckStateRole and index.column() == 3:
-            active = rowdata["active"]
-            return Qt.Checked if active else Qt.Unchecked
 
         return None
 
@@ -83,14 +71,6 @@ class ShareLinkModel(QAbstractTableModel):
 
     def rowCount(self, index=QModelIndex()):
         return len(self.links)
-
-    def columnCount(self, parent=QModelIndex()):
-        return len(self.headers)
-
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.headers[section]
-        return None
 
     def refresh_model(self):
         print("refreshing model")
