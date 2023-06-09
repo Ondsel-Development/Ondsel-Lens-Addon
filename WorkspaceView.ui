@@ -103,20 +103,6 @@
        </spacer>
       </item>
       <item>
-       <widget class="QToolButton" name="buttonSync">
-        <property name="visible">
-         <bool>true</bool>
-        </property>
-        <property name="toolTip">
-         <string>Synchronize your local folder with the Ondsel server</string>
-        </property>
-        <property name="icon">
-         <iconset>
-          <normaloff>:/icons/view-refresh.svg</normaloff>:/icons/view-refresh.svg</iconset>
-        </property>
-       </widget>
-      </item>
-      <item>
        <widget class="QPushButton" name="addFileBtn">
         <property name="sizePolicy">
          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
