@@ -197,8 +197,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.ondselIcon = QIcon(iconsPath + "OndselWorkbench.svg")
         self.ondselIconOff = QIcon(iconsPath + "OndselWorkbench-off.svg")
-        self.form.userBtn.setFixedSize(48,48);
-        self.form.userBtn.setIconSize(QtCore.QSize(48, 48));
+        #self.form.userBtn.setFixedSize(48,48);
+        self.form.userBtn.setIconSize(QtCore.QSize(32, 32));
+        self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon);
         self.form.userBtn.clicked.connect(self.form.userBtn.showMenu)
 
         self.form.buttonBack.clicked.connect(self.backClicked)
@@ -333,13 +334,13 @@ class WorkspaceView(QtGui.QDockWidget):
         """Toggle the visibility of UI elements based on if user is logged in"""
         
         if state:
-            self.form.userNameLabel.setText(
+            self.form.userBtn.setText(
                 user["lastName"] + " " + user["firstName"][:1] + "."
             )
             self.form.userBtn.setIcon(self.ondselIcon)
             self.form.userBtn.setMenu(self.userMenu)
         else:
-            self.form.userNameLabel.setText("")
+            self.form.userBtn.setText("Local Only")
             self.form.userBtn.setIcon(self.ondselIconOff)
             self.form.userBtn.setMenu(self.guestMenu)
 
