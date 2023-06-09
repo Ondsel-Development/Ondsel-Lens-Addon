@@ -1,4 +1,4 @@
-from PySide.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PySide.QtCore import Qt, QAbstractListModel, QModelIndex
 from tzlocal import get_localzone
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
@@ -25,12 +25,9 @@ class LocalVersionModelUpdater(FileSystemEventHandler):
         self.model.refreshModel()
 
 
-class VersionModel(QAbstractTableModel):
+class VersionModel(QAbstractListModel):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.headers = ["created", "uniqueName"]
-        self.sort_column = 0  # Column index for sorting
-        self.sort_order = Qt.DescendingOrder  # Sort order
         self.versions = []
 
     def refreshModel(self):
@@ -44,30 +41,17 @@ class VersionModel(QAbstractTableModel):
 
     def data(self, index, role):
         row = index.row()
-        column = index.column()
         rowdata = self.versions[row]
 
         if role == Qt.DisplayRole:
-            if column == 0:
-                return rowdata["created"]
-            elif column == 1:
-                return rowdata["uniqueName"]
+            return rowdata["created"]
+            #return rowdata["uniqueName"]
 
         # Additional role for accessing the full filename
         if role == Qt.UserRole:
             return rowdata["resource"]
 
         return None
-
-    def sort(self, column, order):
-        self.layoutAboutToBeChanged.emit()
-        self.sort_column = column
-        self.sort_order = order
-        self.data.sort(
-            key=lambda x: x[self.sort_column],
-            reverse=self.sort_order == Qt.DescendingOrder,
-        )
-        self.layoutChanged.emit()
 
     def convertTime(self, time_str):
         """
@@ -87,7 +71,7 @@ class VersionModel(QAbstractTableModel):
             )
 
             # Format the local time as a friendly string
-            local_time_str = local_time_obj.strftime("%Y-%m-%d %H:%M:%S %Z")
+            local_time_str = local_time_obj.strftime("%Y-%m-%d %H:%M:%S")
 
             return local_time_str
         except ValueError:
@@ -101,17 +85,12 @@ class VersionModel(QAbstractTableModel):
         data = []
 
         for row in range(self.rowCount()):
-            row_data = {}
 
-            for column in range(self.columnCount(None)):
-                index = self.index(row, column, QModelIndex())
-                value = self.data(index, Qt.DisplayRole)
-                header = self.headerData(column, Qt.Horizontal, Qt.DisplayRole)
+            index = self.index(row, QModelIndex())
+            value = self.data(index, Qt.DisplayRole)
 
-                row_data[header] = value
-
-            data.append(row_data)
-            print(f"{row_data}/n")
+            data.append(value)
+            print(data)
 
     def addNewVersion(self, filename):
         pass  # Implemented in subclasses
@@ -119,12 +98,6 @@ class VersionModel(QAbstractTableModel):
     def rowCount(self, index=QModelIndex()):
         return len(self.versions)
 
-    def columnCount(self, parent):
-        return len(self.headers)
-
-    def headerData(self, section, orientation, role=Qt.DisplayRole):
-        if orientation == Qt.Horizontal and role == Qt.DisplayRole:
-            return self.headers[section]
 
 
 class LocalVersionModel(VersionModel):
@@ -226,7 +199,7 @@ class LocalVersionModel(VersionModel):
 
         # Add the new item to the versions list
         self.beginInsertRows(QModelIndex(), row, row)
-        self.versions.append(version)
+        self.versions.insert(0, version)
         self.endInsertRows()
 
     def startMonitoringFileSystem(self, directory):

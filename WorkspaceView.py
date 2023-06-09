@@ -537,19 +537,12 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.versionsView.setModel(version_model)
         self.form.linksView.setModel(links_model)
 
-        if version_model is not None:
-            # Set the size policy of the second column to expand
-            self.form.versionsView.horizontalHeader().setSectionResizeMode(
-                1, QHeaderView.Stretch
-            )
-
         if links_model is not None:
             self.form.linksView.horizontalHeader().setSectionResizeMode(
                 1, QHeaderView.Stretch
             )
 
         # Adjust the header to fill the entire width
-        self.form.versionsView.horizontalHeader().setStretchLastSection(True)
         self.form.linksView.horizontalHeader().setStretchLastSection(True)
 
     def showWorkspaceContextMenu(self, pos):

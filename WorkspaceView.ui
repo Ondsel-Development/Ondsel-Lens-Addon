@@ -145,7 +145,7 @@
       </attribute>
       <layout class="QFormLayout" name="formLayout">
        <item row="0" column="0" colspan="2">
-        <widget class="QTableView" name="versionsView"/>
+        <widget class="QListView" name="versionsView"/>
        </item>
       </layout>
      </widget>
