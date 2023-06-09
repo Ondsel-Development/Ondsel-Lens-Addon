@@ -238,7 +238,6 @@ class WorkspaceView(QtGui.QDockWidget):
         addFileMenu.addAction(addFileAction2)
         self.form.addFileBtn.setMenu(addFileMenu)
 
-        self.form.WorkspaceDetails.setVisible(True)
         self.form.fileDetails.setVisible(False)
 
         # Check if user is already logged in.
@@ -393,10 +392,8 @@ class WorkspaceView(QtGui.QDockWidget):
         print("switchView")
         isFileView = self.currentWorkspace is not None
         self.form.workspaceListView.setVisible(not isFileView)
-        self.form.buttonBack.setVisible(isFileView)
-        self.form.addFileBtn.setVisible(isFileView)
         self.form.fileList.setVisible(isFileView)
-        self.form.workspaceNameLabel.setVisible(isFileView)
+        self.form.WorkspaceDetails.setVisible(isFileView)
 
     def backClicked(self):
         if self.currentWorkspace is None:
