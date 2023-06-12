@@ -5,6 +5,9 @@ from PySide.QtCore import (
     QModelIndex,
     Signal,
     QFileSystemWatcher,
+    QThread,
+    QTimer,
+    QObject,
 )
 from PySide.QtGui import (
     QFileDialog,
@@ -27,6 +30,14 @@ class WorkSpaceModelFactory:
         elif workspaceDict["type"] == "External":
             return None
 
+
+class TokenRefreshThread(QThread):
+    token_refreshed = Signal()
+
+    def run(self):
+        while True:
+            self.token_refreshed.emit()
+            self.sleep(600)
 
 class WorkSpaceModel(QAbstractListModel):
     NameRole = Qt.UserRole + 1
@@ -158,7 +169,6 @@ class LocalWorkspaceModel(WorkSpaceModel):
         super().__init__(workspaceDict, **kwargs)
 
         self.refreshModel()
-        self.refreshModel()
 
     def refreshModel(self):
         self.clearModel()
@@ -214,6 +224,12 @@ class ServerWorkspaceModel(WorkSpaceModel):
         # if the folder doesnt exist, create it
         if not os.path.exists(self.path):
             os.makedirs(self.path)
+
+        # Create an instance of the token refresh thread
+        self.refresh_thread = TokenRefreshThread()
+        self.refresh_thread.token_refreshed.connect(self.refreshModel)
+        self.refresh_thread.start()
+
 
     def refreshModel(self):
         self.clearModel()
