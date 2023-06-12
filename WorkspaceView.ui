@@ -129,36 +129,70 @@
     </widget>
    </item>
    <item>
-    <widget class="QTabWidget" name="fileDetails">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="currentIndex">
-      <number>0</number>
-     </property>
-     <widget class="QWidget" name="Versions">
-      <attribute name="title">
-       <string>Versions</string>
-      </attribute>
-      <layout class="QFormLayout" name="formLayout">
-       <item row="0" column="0" colspan="2">
-        <widget class="QListView" name="versionsView"/>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="ShareLinks">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <attribute name="title">
-       <string>Share Links</string>
-      </attribute>
-      <layout class="QFormLayout" name="formLayout_2">
-       <item row="0" column="0" colspan="2">
-        <widget class="QListView" name="linksView"/>
-       </item>
-      </layout>
-     </widget>
+    <widget class="QFrame" name="fileDetails">
+     <layout class="QHBoxLayout">
+      <item>
+       <widget class="QLabel" name="thumbnail_label">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QVBoxLayout">
+        <item>
+         <widget class="QLabel" name="fileNameLabel">
+          <property name="text">
+           <string>part.FCStd</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QComboBox" name="versionsComboBox"/>
+        </item>
+        <item>
+         <layout class="QHBoxLayout">
+          <item>
+           <widget class="QPushButton" name="viewOnlineBtn">
+            <property name="toolTip">
+             <string>Open this model in your webbrowser through Ondsel Lens</string>
+            </property>
+            <property name="text">
+             <string>View in Lens</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_4">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QToolButton" name="shareBtn">
+            <property name="toolTip">
+             <string>Create and manage share links of this model</string>
+            </property>
+            <property name="text">
+             <string></string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
+      </item>
+     </layout>
     </widget>
    </item>
   </layout>

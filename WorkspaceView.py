@@ -35,6 +35,7 @@ from PySide.QtGui import (
     QAction,
     QActionGroup,
     QMenu,
+    QPixmap,
 )
 
 mw = Gui.getMainWindow()
@@ -53,29 +54,6 @@ ondselUrl = "https://www.ondsel.com/"
 #     lensUrl = config.lens_url
 # except ImportError:
 #     pass
-
-
-class CheckboxDelegate(QStyledItemDelegate):
-    def createEditor(self, parent, option, index):
-        checkbox = QCheckBox(parent)
-        checkbox.setTristate(False)
-        return checkbox
-
-    def setEditorData(self, editor, index):
-        value = index.data(QtCore.Qt.DisplayRole)
-        checked = (
-            value
-            if value in (QtCore.Qt.Checked, QtCore.Qt.Unchecked)
-            else QtCore.Qt.Unchecked
-        )
-        editor.setCheckState(checked)
-
-    def setModelData(self, editor, model, index):
-        checked = editor.checkState()
-        model.setData(index, checked, QtCore.Qt.EditRole)
-
-    def updateEditorGeometry(self, editor, option, index):
-        editor.setGeometry(option.rect)
 
 
 # Simple delegate drawing an icon and text
@@ -199,9 +177,8 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.ondselIcon = QIcon(iconsPath + "OndselWorkbench.svg")
         self.ondselIconOff = QIcon(iconsPath + "OndselWorkbench-off.svg")
-        # self.form.userBtn.setFixedSize(48,48);
-        self.form.userBtn.setIconSize(QtCore.QSize(32, 32))
-        self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
+        self.form.userBtn.setIconSize(QtCore.QSize(32, 32));
+        self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon);
         self.form.userBtn.clicked.connect(self.form.userBtn.showMenu)
 
         self.form.buttonBack.clicked.connect(self.backClicked)
@@ -223,13 +200,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.fileList.customContextMenuRequested.connect(self.showFileContextMenu)
         self.form.fileList.clicked.connect(self.fileListClicked)
 
-        self.form.versionsView.doubleClicked.connect(self.versionClicked)
-
-        self.form.linksView.doubleClicked.connect(self.linksListDoubleClicked)
-        self.form.linksView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.form.linksView.customContextMenuRequested.connect(
-            self.showLinksContextMenu
-        )
+        self.form.versionsComboBox.activated.connect(self.versionClicked)
 
         addFileMenu = QtGui.QMenu(self.form.addFileBtn)
         addFileAction = QtGui.QAction("Add current file", self.form.addFileBtn)
@@ -239,6 +210,10 @@ class WorkspaceView(QtGui.QDockWidget):
         addFileAction2.triggered.connect(self.addFileBtnClicked)
         addFileMenu.addAction(addFileAction2)
         self.form.addFileBtn.setMenu(addFileMenu)
+        
+        self.form.shareBtn.setIcon(QIcon(iconsPath + "share.svg"))
+        self.form.shareBtn.clicked.connect(self.openShareLinks)
+        self.form.viewOnlineBtn.clicked.connect(self.openModelOnline)
 
         self.form.fileDetails.setVisible(False)
 
@@ -260,10 +235,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.setUIForLogin(False)
 
         self.switchView()
-
-        checkboxDelegate = CheckboxDelegate()
-        linksView = self.form.linksView  # window.findChild(QTableView, "linksView")
-        linksView.setItemDelegateForColumn(3, checkboxDelegate)
+        
         # linksView.setModel(self.linksModel)
 
     # def generate_expired_token(self):
@@ -424,19 +396,9 @@ class WorkspaceView(QtGui.QDockWidget):
             self.currentWorkspaceModel.getWorkspacePath()
         )
 
-    def linksListDoubleClicked(self, index):
-        # print("linksListDoubleClicked")
-        model = self.form.linksView.model()
-        linkData = model.data(index, ShareLinkModel.EditLinkRole)
-
-        dialog = SharingLinkEditDialog(linkData, self)
-
-        if dialog.exec_() == QtGui.QDialog.Accepted:
-            link_properties = dialog.getLinkProperties()
-            model.update_link(index, link_properties)
-
-    def versionClicked(self, index):
-        model = self.form.versionsView.model()
+    def versionClicked(self, row):
+        model = self.form.versionsComboBox.model()
+        index = model.index(row, 0)
         backupfilename = model.data(index, role=QtCore.Qt.UserRole)
 
         idx = self.form.fileList.currentIndex()
@@ -498,27 +460,35 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def fileListClicked(self, index):
 
-        version_tab = self.form.fileDetails.widget(0)
-        link_tab = self.form.fileDetails.widget(1)
-
-        fileName, isFolder = self.currentWorkspaceModel.data(
+        self.currentFileName, isFolder = self.currentWorkspaceModel.data(
             index, WorkSpaceModel.NameAndIsFolderRole
         )
+        print(self.currentFileName)
+
+        self.currentFileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
+        
+        if isFolder:
+            self.form.thumbnail_label.hide()
+        else:
+            self.form.thumbnail_label.show()
+            pixmap = Utils.extract_thumbnail(f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}")
+            self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
+            self.form.thumbnail_label.setPixmap(pixmap)
+
+        self.form.fileNameLabel.setText(self.currentFileName)
 
         if isFolder:
             version_model = None
-            links_model = None
+            self.links_model = None
 
         elif self.currentWorkspace["type"] == "Local":
-            version_tab.setDisabled(False)
-            fullFileName = f"{self.currentWorkspaceModel.getFullPath()}/{fileName}"
+            fullFileName = f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}"
             self.form.fileDetails.setVisible(True)
 
             version_model = LocalVersionModel(fullFileName)
-            links_model = None
+            self.links_model = None
 
-            link_tab.setEnabled(False)
-            version_tab.setEnabled(True)
+            #link_tab.setEnabled(False)
 
         elif self.currentWorkspace["type"] == "Ondsel":
 
@@ -526,25 +496,38 @@ class WorkspaceView(QtGui.QDockWidget):
             print(f"fileId: {fileId}")
 
             if fileId is not None:
-                links_model = ShareLinkModel(fileId, self.apiClient)
+                self.links_model = ShareLinkModel(fileId, self.apiClient)
                 version_model = None
 
-                self.form.linksView.setModel(links_model)
-                self.form.versionsView.setModel(None)
+                self.setVersionListModel(None)
                 self.form.fileDetails.setVisible(True)
 
-            version_tab.setEnabled(False)
-            link_tab.setEnabled(True)
+            #link_tab.setEnabled(True)
         else:
             self.form.fileDetails.setVisible(False)
-            version_tab.setEnabled(False)
-            link_tab.setEnabled(False)
-            links_model = None
+            self.links_model = None
             version_model = None
 
-        self.form.versionsView.setModel(version_model)
-        self.form.linksView.setModel(links_model)
+        self.setVersionListModel(version_model)
+    
+    def setVersionListModel(self, model):
+        if model == None:
+            self.form.versionsComboBox.clear()
+            emptyModel = QtCore.QStringListModel()
+            self.form.versionsComboBox.setModel(emptyModel)
+            self.form.versionsComboBox.setVisible(False)
+        else:
+            self.form.versionsComboBox.setModel(model)
+            self.form.versionsComboBox.setVisible(True)
 
+        self.form.versionsComboBox.adjustSize()
+
+    def openShareLinks(self):
+        if self.links_model != None:
+            dialog = ManageSharingLinksDialog(self.links_model, self.currentFileName, self)
+
+            dialog.exec_()
+        
     def showWorkspaceContextMenu(self, pos):
         index = self.form.workspaceListView.indexAt(pos)
 
@@ -565,27 +548,20 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
-        fileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
+        self.currentFileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
 
         menu = QtGui.QMenu()
-        openOnlineAction = menu.addAction("Open Online")
-        # shareAction = menu.addAction("Share")
-        uploadAction = menu.addAction("Upload to Lens")
-        downloadAction = menu.addAction("Download from Lens")
-        menu.addSeparator()
+        if self.currentWorkspace["type"] == "Ondsel":
+            openOnlineAction = menu.addAction("View in Lens")
+            # shareAction = menu.addAction("Share")
+            uploadAction = menu.addAction("Upload to Lens")
+            downloadAction = menu.addAction("Download from Lens")
+            menu.addSeparator()
         deleteAction = menu.addAction("Delete File")
 
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
 
-        if action == openOnlineAction:
-            url = ondselUrl
-
-            if self.currentWorkspace["type"] == "Ondsel" and fileId is not None:
-                url = f"{lensUrl}model/{fileId}"
-
-            QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
-
-        elif action == deleteAction:
+        if action == deleteAction:
             result = QtGui.QMessageBox.question(
                 self.form.fileList,
                 "Delete File",
@@ -595,62 +571,21 @@ class WorkspaceView(QtGui.QDockWidget):
             if result == QtGui.QMessageBox.Yes:
                 self.currentWorkspaceModel.deleteFile(index)
         elif self.currentWorkspace["type"] == "Ondsel":
-            if action == downloadAction:
+            if action == openOnlineAction:
+                self.openModelOnline()
+            elif action == downloadAction:
                 self.currentWorkspaceModel.downloadFile(index)
             elif action == uploadAction:
                 self.currentWorkspaceModel.uploadFile(index)
 
-    def showLinksContextMenu(self, pos):
-        index = self.form.linksView.indexAt(pos)
-        model = self.form.linksView.model()
+    def openModelOnline(self):
+        url = ondselUrl
 
-        if index.isValid():
-            menu = QtGui.QMenu()
-            linkId = model.data(index, ShareLinkModel.UrlRole)
-            copyLinkAction = menu.addAction("copy link")
-            editLinkAction = menu.addAction("edit")
-            deleteAction = menu.addAction("Delete")
+        if self.currentWorkspace["type"] == "Ondsel" and self.currentFileId is not None:
+            url = f"{baseUrl}:8080/model/{self.currentFileId}"
 
-            action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
-
-            if action == copyLinkAction:
-                url = model.compute_url(linkId)
-                clipboard = QApplication.clipboard()
-                clipboard.setText(url)
-
-            elif action == editLinkAction:
-                linkData = model.data(index, ShareLinkModel.EditLinkRole)
-
-                dialog = SharingLinkEditDialog(linkData, self)
-
-                if dialog.exec_() == QtGui.QDialog.Accepted:
-                    link_properties = dialog.getLinkProperties()
-                    model.update_link(index, link_properties)
-
-            elif action == deleteAction:
-                result = QtGui.QMessageBox.question(
-                    None,
-                    "Delete Link",
-                    "Are you sure you want to delete this link?",
-                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                )
-                if result == QtGui.QMessageBox.Yes:
-                    model.delete_link(linkId)
-
-        else:
-            menu = QtGui.QMenu()
-            addLinkAction = menu.addAction("add link")
-
-            action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
-
-            if action == addLinkAction:
-                dialog = SharingLinkEditDialog(None, self)
-
-                if dialog.exec_() == QtGui.QDialog.Accepted:
-                    link_properties = dialog.getLinkProperties()
-
-                    model.add_new_link(link_properties)
-
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+        
     def openPreferences(self):
         print("Preferences clicked")
 
@@ -900,6 +835,98 @@ class NewWorkspaceDialog(QtGui.QDialog):
                 )
 
 
+class ManageSharingLinksDialog(QtGui.QDialog):
+    def __init__(self, model, fileName, parent=None):
+        super(ManageSharingLinksDialog, self).__init__(parent)
+
+        # Load the UI from the .ui file
+        self.form = Gui.PySideUic.loadUi(modPath + "/ManageSharingLinksDialog.ui")
+
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(self.form)
+        self.setLayout(layout)
+
+        self.form.infoLabel.setText(f"Manage the sharing links of <{fileName}>")
+
+        self.form.linkDetailsGroupBox.setVisible(False)
+        self.model = model
+        self.form.linksView.setModel(self.model)
+        self.form.linksView.doubleClicked.connect(self.linksListDoubleClicked)
+        self.form.linksView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        self.form.linksView.customContextMenuRequested.connect(
+            self.showLinksContextMenu
+        )
+
+        self.form.buttonAdd.clicked.connect(self.addLinkClicked)
+                
+    def linksListDoubleClicked(self, index):
+        print("linksListDoubleClicked")
+        if self.model == None:
+            return
+
+        linkData = self.model.data(index, ShareLinkModel.EditLinkRole)
+
+        dialog = SharingLinkEditDialog(linkData, self)
+
+        if dialog.exec_() == QtGui.QDialog.Accepted:
+            link_properties = dialog.getLinkProperties()
+            self.model.update_link(index, link_properties)
+
+    def showLinksContextMenu(self, pos):
+        index = self.form.linksView.indexAt(pos)
+
+        if index.isValid():
+            menu = QtGui.QMenu()
+            linkId = self.model.data(index, ShareLinkModel.UrlRole)
+            copyLinkAction = menu.addAction("copy link")
+            editLinkAction = menu.addAction("edit")
+            deleteAction = menu.addAction("Delete")
+
+            action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
+
+            if action == copyLinkAction:
+                url = self.model.compute_url(linkId)
+                clipboard = QApplication.clipboard()
+                clipboard.setText(url)
+
+            elif action == editLinkAction:
+                linkData = self.model.data(index, ShareLinkModel.EditLinkRole)
+
+                dialog = SharingLinkEditDialog(linkData, self)
+
+                if dialog.exec_() == QtGui.QDialog.Accepted:
+                    link_properties = dialog.getLinkProperties()
+                    self.model.update_link(index, link_properties)
+
+            elif action == deleteAction:
+                result = QtGui.QMessageBox.question(
+                    None,
+                    "Delete Link",
+                    "Are you sure you want to delete this link?",
+                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                )
+                if result == QtGui.QMessageBox.Yes:
+                    self.model.delete_link(linkId)
+
+        else:
+            menu = QtGui.QMenu()
+            addLinkAction = menu.addAction("add link")
+
+            action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
+
+            if action == addLinkAction:
+                self.addLinkClicked()
+
+    def addLinkClicked(self):
+        dialog = SharingLinkEditDialog(None, self)
+
+        if dialog.exec_() == QtGui.QDialog.Accepted:
+            link_properties = dialog.getLinkProperties()
+
+            self.model.add_new_link(link_properties)
+
+
+      
 class SharingLinkEditDialog(QtGui.QDialog):
     def __init__(self, linkProperties=None, parent=None):
         super(SharingLinkEditDialog, self).__init__(parent)
