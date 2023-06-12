@@ -17,6 +17,7 @@ import math
 import tempfile
 
 import jwt
+from jwt.exceptions import ExpiredSignatureError
 import FreeCAD
 import FreeCADGui as Gui
 
@@ -321,9 +322,14 @@ class WorkspaceView(QtGui.QDockWidget):
                 audience="https://yourdomain.com",
                 options={"verify_signature": False},
             )
+        except ExpiredSignatureError:
+            self.logout()
+
+            self.setUIForLogin(False)
+            return False
+
         except Exception as e:
             print(e)
-            print(token)
         expiration_time = datetime.fromtimestamp(decoded_token["exp"])
         current_time = datetime.now()
         return current_time > expiration_time
