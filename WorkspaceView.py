@@ -252,8 +252,7 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.logout()
             else:
                 user = loginData["user"]
-
-            self.setUIForLogin(True, user)
+                self.setUIForLogin(True, user)
         else:
             user = None
             self.setUIForLogin(False)
