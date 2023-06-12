@@ -73,8 +73,6 @@ class ShareLinkModel(QAbstractListModel):
         return len(self.links)
 
     def refresh_model(self):
-        print("refreshing model")
-
         self.beginResetModel()
         self.links = []
 
