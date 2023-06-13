@@ -9,11 +9,8 @@ import Utils
 from PySide import QtCore, QtGui
 import os
 from datetime import datetime, timedelta
-import requests
 import json
 import shutil
-import uuid
-import math
 import tempfile
 import re
 
@@ -23,7 +20,7 @@ import FreeCAD
 import FreeCADGui as Gui
 
 from DataModels import WorkspaceListModel
-from VersionModel import LocalVersionModel, OndselVersionModel
+from VersionModel import LocalVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import APIClient, CustomAuthenticationError
 from WorkSpace import WorkSpaceModel, WorkSpaceModelFactory
@@ -31,13 +28,8 @@ from WorkSpace import WorkSpaceModel, WorkSpaceModelFactory
 from PySide.QtGui import (
     QStyledItemDelegate,
     QCheckBox,
-    QComboBox,
-    QPushButton,
-    QLabel,
     QStyle,
-    QWidget,
     QMessageBox,
-    QHeaderView,
     QApplication,
     QIcon,
     QAction,
@@ -325,7 +317,6 @@ class WorkspaceView(QtGui.QDockWidget):
         self.guestMenu.addAction(a2)
 
     def tokenExpired(self, token):
-        print(token)
         try:
             decoded_token = jwt.decode(
                 token,
@@ -360,7 +351,6 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.userBtn.setMenu(self.guestMenu)
 
     def enterWorkspace(self, index):
-        print("entering workspace")
 
         self.currentWorkspace = self.workspacesModel.data(index)
 
@@ -406,7 +396,6 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.fileDetails.setVisible(False)
 
     def switchView(self):
-        print("switchView")
         isFileView = self.currentWorkspace is not None
         self.form.workspaceListView.setVisible(not isFileView)
         self.form.fileList.setVisible(isFileView)
@@ -427,7 +416,7 @@ class WorkspaceView(QtGui.QDockWidget):
             )
 
     def fileListDoubleClicked(self, index):
-        print("fileListDoubleClicked")
+        # print("fileListDoubleClicked")
 
         self.currentWorkspaceModel.openFile(index)
 
@@ -436,7 +425,7 @@ class WorkspaceView(QtGui.QDockWidget):
         )
 
     def linksListDoubleClicked(self, index):
-        print("linksListDoubleClicked")
+        # print("linksListDoubleClicked")
         model = self.form.linksView.model()
         linkData = model.data(index, ShareLinkModel.EditLinkRole)
 
@@ -706,6 +695,8 @@ class WorkspaceView(QtGui.QDockWidget):
                     )
                 else:
                     print("Authentication failed")
+
+                break
             else:
                 break  # Exit the login loop if the dialog is canceled
 
