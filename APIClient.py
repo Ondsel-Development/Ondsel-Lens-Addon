@@ -212,7 +212,7 @@ class APIClient:
 
     @authRequired
     def get_base_url(self):
-        return self.base_url
+        return self.lens_url
 
     # User/Authentication fuctions
 
