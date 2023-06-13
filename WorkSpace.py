@@ -6,11 +6,6 @@ from PySide.QtCore import (
     Signal,
     QFileSystemWatcher,
     QThread,
-    QTimer,
-    QObject,
-)
-from PySide.QtGui import (
-    QFileDialog,
 )
 import Utils
 import os
@@ -22,7 +17,6 @@ import uuid
 class WorkSpaceModelFactory:
     @staticmethod
     def createWorkspace(workspaceDict, **kwargs):
-        print(workspaceDict)
         if workspaceDict["type"] == "Ondsel":
             return ServerWorkspaceModel(workspaceDict, **kwargs)
         elif workspaceDict["type"] == "Local":
@@ -38,6 +32,7 @@ class TokenRefreshThread(QThread):
         while True:
             self.token_refreshed.emit()
             self.sleep(600)
+
 
 class WorkSpaceModel(QAbstractListModel):
     NameRole = Qt.UserRole + 1
@@ -214,7 +209,6 @@ class LocalWorkspaceModel(WorkSpaceModel):
 
 
 class ServerWorkspaceModel(WorkSpaceModel):
-
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
 
@@ -229,7 +223,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
         self.refresh_thread = TokenRefreshThread()
         self.refresh_thread.token_refreshed.connect(self.refreshModel)
         self.refresh_thread.start()
-
 
     def refreshModel(self):
         self.clearModel()
@@ -254,7 +247,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
                         localFile.status = "Synced"
                     foundLocal = True
                     break
-            if not foundLocal: # local doesnt have this file
+            if not foundLocal:  # local doesnt have this file
                 file_item = FileItem(
                     model["custFileName"],
                     self.getFullPath(),
@@ -319,7 +312,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         print("downloading file...")
         file_item = self.files[index.row()]
         if file_item.is_folder:
-            print('Download of folders not supported yet.')
+            print("Download of folders not supported yet.")
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
             self.API_Client.downloadFileFromServer(
@@ -331,7 +324,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         print("uploading file...")
         file_item = self.files[index.row()]
         if file_item.is_folder:
-            print('Upload of folders not supported yet.')
+            print("Upload of folders not supported yet.")
         else:
             # unique file name is always generated even if file is already on the server under another uniqueFileName.
             uniqueName = f"{str(uuid.uuid4())}.fcstd"
@@ -346,7 +339,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 self.API_Client.regenerateModelObj(file_item.model["_id"], uniqueName)
 
         self.refreshModel()
-
 
 
 class FileItem:

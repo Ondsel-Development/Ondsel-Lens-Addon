@@ -9,12 +9,10 @@ import Utils
 from PySide import QtCore, QtGui
 import os
 from datetime import datetime, timedelta
-import requests
 import json
 import shutil
-import uuid
-import math
 import tempfile
+import re
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError
@@ -22,21 +20,16 @@ import FreeCAD
 import FreeCADGui as Gui
 
 from DataModels import WorkspaceListModel
-from VersionModel import LocalVersionModel, OndselVersionModel
+from VersionModel import LocalVersionModel
 from LinkModel import ShareLinkModel
-from APIClient import APIClient
+from APIClient import APIClient, CustomAuthenticationError
 from WorkSpace import WorkSpaceModel, WorkSpaceModelFactory
 
 from PySide.QtGui import (
     QStyledItemDelegate,
     QCheckBox,
-    QComboBox,
-    QPushButton,
-    QLabel,
     QStyle,
-    QWidget,
     QMessageBox,
-    QHeaderView,
     QApplication,
     QIcon,
     QAction,
@@ -324,7 +317,6 @@ class WorkspaceView(QtGui.QDockWidget):
         self.guestMenu.addAction(a2)
 
     def tokenExpired(self, token):
-        print(token)
         try:
             decoded_token = jwt.decode(
                 token,
@@ -359,7 +351,6 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.userBtn.setMenu(self.guestMenu)
 
     def enterWorkspace(self, index):
-        print("entering workspace")
 
         self.currentWorkspace = self.workspacesModel.data(index)
 
@@ -405,7 +396,6 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.fileDetails.setVisible(False)
 
     def switchView(self):
-        print("switchView")
         isFileView = self.currentWorkspace is not None
         self.form.workspaceListView.setVisible(not isFileView)
         self.form.fileList.setVisible(isFileView)
@@ -426,7 +416,7 @@ class WorkspaceView(QtGui.QDockWidget):
             )
 
     def fileListDoubleClicked(self, index):
-        print("fileListDoubleClicked")
+        # print("fileListDoubleClicked")
 
         self.currentWorkspaceModel.openFile(index)
 
@@ -435,7 +425,7 @@ class WorkspaceView(QtGui.QDockWidget):
         )
 
     def linksListDoubleClicked(self, index):
-        print("linksListDoubleClicked")
+        # print("linksListDoubleClicked")
         model = self.form.linksView.model()
         linkData = model.data(index, ShareLinkModel.EditLinkRole)
 
@@ -673,34 +663,42 @@ class WorkspaceView(QtGui.QDockWidget):
         QtGui.QDesktopServices.openUrl(url)
 
     def loginBtnClicked(self):
+        while True:
+            # Show a login dialog to get the user's email and password
+            dialog = LoginDialog()
+            if dialog.exec_() == QtGui.QDialog.Accepted:
+                email, password = dialog.get_credentials()
+                try:
+                    self.apiClient = APIClient(email, password, baseUrl, lensUrl)
+                    self.apiClient._authenticate()
+                except CustomAuthenticationError as e:
+                    print("Handling authentication error:", str(e))
+                    continue  # Present the login dialog again if authentication fails
 
-        # Show a login dialog to get the user's email and password
-        dialog = LoginDialog()
-        if dialog.exec_() == QtGui.QDialog.Accepted:
-            email, password = dialog.get_credentials()
-            self.apiClient = APIClient(email, password, baseUrl, lensUrl)
-            self.apiClient._authenticate()
+                # Check if the request was successful (201 status code)
+                if self.apiClient.access_token is not None:
+                    loginData = {
+                        "accessToken": self.apiClient.access_token,
+                        "user": self.apiClient.user,
+                    }
+                    p.SetString("loginData", json.dumps(loginData))
 
-            # Check if the request was successful (201 status code)
-            if self.apiClient.access_token is not None:
-                loginData = {
-                    "accessToken": self.apiClient.access_token,
-                    "user": self.apiClient.user,
-                }
-                p.SetString("loginData", json.dumps(loginData))
+                    self.access_token = self.apiClient.access_token
 
-                self.access_token = self.apiClient.access_token
+                    self.setUIForLogin(True, self.apiClient.user)
 
-                self.setUIForLogin(True, self.apiClient.user)
+                    self.workspacesModel.addWorkspace(
+                        "Ondsel",
+                        "For now single Ondsel workspace of user",
+                        "Ondsel",
+                        cachePath + "ondsel",
+                    )
+                else:
+                    print("Authentication failed")
 
-                self.workspacesModel.addWorkspace(
-                    "Ondsel",
-                    "For now single Ondsel workspace of user",
-                    "Ondsel",
-                    cachePath + "ondsel",
-                )
+                break
             else:
-                print("Authentication failed")
+                break  # Exit the login loop if the dialog is canceled
 
     def logout(self):
         self.setUIForLogin(False)
@@ -982,20 +980,73 @@ class LoginDialog(QtGui.QDialog):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Login")
+
         self.email_label = QtGui.QLabel("Email:")
         self.email_input = QtGui.QLineEdit()
+
         self.password_label = QtGui.QLabel("Password:")
         self.password_input = QtGui.QLineEdit()
         self.password_input.setEchoMode(QtGui.QLineEdit.Password)
-        self.submit_button = QtGui.QPushButton("Login")
-        self.submit_button.clicked.connect(self.accept)
+
+        self.login_button = QtGui.QPushButton("Login")
+        self.login_button.clicked.connect(self.login)
+        self.cancel_button = QtGui.QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.reject)
+
+        self.login_button.setEnabled(False)
+
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.email_label)
         layout.addWidget(self.email_input)
         layout.addWidget(self.password_label)
         layout.addWidget(self.password_input)
-        layout.addWidget(self.submit_button)
+
+        buttons_layout = QtGui.QHBoxLayout()
+        buttons_layout.addWidget(self.login_button)
+        buttons_layout.addWidget(self.cancel_button)
+
+        layout.addLayout(buttons_layout)
+
         self.setLayout(layout)
+
+        # Connect textChanged signals to enable/disable login button
+        self.email_input.textChanged.connect(self.check_credentials)
+        self.password_input.textChanged.connect(self.check_credentials)
+
+    def check_credentials(self):
+        email = self.email_input.text()
+        password = self.password_input.text()
+        valid_credentials = self.validate_credentials(email, password)
+        self.login_button.setEnabled(valid_credentials)
+
+    def login(self):
+        email = self.email_input.text()
+        password = self.password_input.text()
+
+        # Perform login validation and authentication here
+        if self.validate_credentials(email, password):
+            self.accept()
+        else:
+            self.show_error_message("Invalid credentials")
+
+    def validate_credentials(self, email, password):
+        # Check if email is a valid email address using a simple regular expression
+        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+            return False
+
+        # Check if a password has been entered
+        if not password:
+            return False
+
+        # Add additional validation logic here if needed
+        # Example: Check against a user database or external authentication service
+
+        return True  # Return True if credentials are valid, False otherwise
+
+    def show_error_message(self, message):
+        # Add code to display an error message dialog to the user
+        # You can use QMessageBox or your own custom dialog implementation
+        pass
 
     def get_credentials(self):
         email = self.email_input.text()
