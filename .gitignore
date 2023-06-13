@@ -1,6 +1,10 @@
 workspaceList.txt
 config.py
 workspaceList.json
+testshape.fcstd
 Cache/
 *.orig
 *.pyc
+*.fcstd
+*.FCStd
+*.FCBak

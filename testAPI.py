@@ -2,7 +2,9 @@ from APIClient import APIClient
 import unittest
 import tempfile
 import os
+import sys
 import config  # .gitignored file containing credentials
+import uuid
 
 
 class APIClientTest(unittest.TestCase):
@@ -11,8 +13,9 @@ class APIClientTest(unittest.TestCase):
         self.base_url = config.base_url
         self.username = config.username
         self.password = config.password
+        self.lens_url = config.lens_url
         self.access_token = None
-        self.api_client = APIClient(self.base_url, self.username, self.password)
+        self.api_client = APIClient(self.username, self.password, self.base_url, self.lens_url)
 
     def test_10(self):
         user = self.api_client.get_user()
@@ -58,6 +61,13 @@ class APIClientTest(unittest.TestCase):
         testfile = "testshape.FCStd"
 
         url, basename = os.path.split(testfile)
+        modpath = os.path.abspath(sys.modules['__main__'].__file__)
+        path, _ = os.path.split(modpath)
+        basename = os.path.join(path, basename)
+        print(basename)
+        print(os.path.isfile(basename))
+
+        uniqueName = f"{str(uuid.uuid4())}.fcstd"
 
         created_time = os.path.getctime(testfile)
         modified_time = os.path.getmtime(testfile)
@@ -72,9 +82,10 @@ class APIClientTest(unittest.TestCase):
             "status": "Untracked",
             "shouldStartObjGeneration": True,
         }
-        result = self.api_client.uploadFileToServer(fileData, url)
+        result = self.api_client.uploadFileToServer(uniqueName, basename)
+        print(result)
 
-        fileData["uniqueFileName"] = result["uniqueFileName"]
+        fileData["uniqueFileName"] =  uniqueName
 
         # Test creating a model on the server
         model = self.api_client.createModel(fileData)

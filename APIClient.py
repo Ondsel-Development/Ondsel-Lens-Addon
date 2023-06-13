@@ -5,8 +5,10 @@ import os
 
 
 class APIClient:
-    def __init__(self, base_url, email, password, access_token=None, user=None):
-        self.base_url = base_url
+    def __init__(self, email, password, api_url, lens_url, access_token=None, user=None):
+        self.base_url = api_url
+        self.lens_url = lens_url
+
         if access_token == None:
             self.email = email
             self.password = password
@@ -284,6 +286,7 @@ class APIClient:
 
     @authRequired
     def uploadFileToServer(self, uniqueName, filename):
+        print(filename)
         # files to be uploaded needs to have a unique name generated with uuid (use str(uuid.uuid4()) ) : test.fcstd -> c4481734-c18f-4b8c-8867-9694ae2a9f5a.fcstd
         endpoint = "upload"
 
@@ -299,6 +302,7 @@ class APIClient:
 
             files = {"file": fileWithUniqueName}
             result = self._post(endpoint, files=files)
+            return result
 
 
     @authRequired
