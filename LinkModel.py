@@ -108,8 +108,7 @@ class ShareLinkModel(QAbstractListModel):
         self.endResetModel()
 
     def compute_url(self, model_id):
-        port = ":8080"
-        return f"{self.api_client.get_base_url()}{port}/share/{model_id}"
+        return f"{self.api_client.get_base_url()}share/{model_id}"
 
     def dump(self):
         print("dumping model")
