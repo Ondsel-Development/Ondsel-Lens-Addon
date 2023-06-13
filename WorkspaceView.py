@@ -582,7 +582,7 @@ class WorkspaceView(QtGui.QDockWidget):
         url = ondselUrl
 
         if self.currentWorkspace["type"] == "Ondsel" and self.currentFileId is not None:
-            url = f"{baseUrl}:8080/model/{self.currentFileId}"
+            url = f"{lensUrl}model/{self.currentFileId}"
 
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
         
