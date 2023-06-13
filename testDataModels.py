@@ -1,3 +1,9 @@
+# ***********************************************************************
+# *                                                                     *
+# * Copyright (c) 2023 Ondsel                                           *
+# *                                                                     *
+# ***********************************************************************
+
 from DataModels import ShareLinkModel, VersionModel
 
 from PySide.QtCore import Qt

@@ -1,4 +1,8 @@
-
+# ***********************************************************************
+# *                                                                     *
+# * Copyright (c) 2023 Ondsel                                           *
+# *                                                                     *
+# ***********************************************************************
 import unittest
 from unittest.mock import patch, MagicMock
 from PySide2.QtCore import Qt, QModelIndex
