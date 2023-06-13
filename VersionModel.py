@@ -1,28 +1,9 @@
-from PySide.QtCore import Qt, QAbstractListModel, QModelIndex
+from PySide.QtCore import Qt, QAbstractListModel, QModelIndex, QFileSystemWatcher
 from tzlocal import get_localzone
-from watchdog.events import FileSystemEventHandler
-from watchdog.observers import Observer
 import datetime
 import os
-import threading
-import time
 import xml.etree.ElementTree as ET
 import zipfile
-
-
-class LocalVersionModelUpdater(FileSystemEventHandler):
-    def __init__(self, model, directory):
-        super().__init__()
-        self.model = model
-        self.directory = directory
-
-    def on_deleted(self, event):
-        time.sleep(0.1)
-        self.model.refreshModel()
-
-    def on_moved(self, event):
-        time.sleep(0.1)
-        self.model.refreshModel()
 
 
 class VersionModel(QAbstractListModel):
@@ -45,7 +26,7 @@ class VersionModel(QAbstractListModel):
 
         if role == Qt.DisplayRole:
             return rowdata["created"]
-            #return rowdata["uniqueName"]
+            # return rowdata["uniqueName"]
 
         # Additional role for accessing the full filename
         if role == Qt.UserRole:
@@ -99,7 +80,6 @@ class VersionModel(QAbstractListModel):
         return len(self.versions)
 
 
-
 class LocalVersionModel(VersionModel):
     def __init__(self, filename, parent=None):
         """
@@ -115,13 +95,12 @@ class LocalVersionModel(VersionModel):
         file = os.path.basename(self.filename)
         base, extension = os.path.splitext(file)
 
-        self.refreshModel()
+        self.watcher = QFileSystemWatcher()
+        self.watcher.fileChanged.connect(self.refreshModel)
+        self.watcher.directoryChanged.connect(self.refreshModel)
+        self.watcher.addPath(self.path)
 
-        thread = threading.Thread(
-            target=self.startMonitoringFileSystem, args=(self.path,)
-        )
-        thread.daemon = True
-        thread.start()
+        self.refreshModel()
 
     def refreshModel(self):
         self.clearModel()
@@ -201,19 +180,6 @@ class LocalVersionModel(VersionModel):
         self.beginInsertRows(QModelIndex(), row, row)
         self.versions.insert(0, version)
         self.endInsertRows()
-
-    def startMonitoringFileSystem(self, directory):
-        event_handler = LocalVersionModelUpdater(self, directory)
-        observer = Observer()
-        observer.schedule(event_handler, directory, recursive=False)
-        observer.start()
-
-        try:
-            while True:
-                time.sleep(1)
-        except KeyboardInterrupt:
-            observer.stop()
-        observer.join()
 
 
 class OndselVersionModel(VersionModel):
