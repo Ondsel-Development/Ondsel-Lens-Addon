@@ -32,18 +32,22 @@ def isOpenableByFreeCAD(filename):
     return False
 
 def extract_thumbnail(file_path):
-    try:
-        # Open the FCStd file as a zip archive
-        with zipfile.ZipFile(file_path, 'r') as zip_ref:
-            # Read the contents of the thumbnail image file
-            thumbnail_data = zip_ref.read('thumbnails/Thumbnail.png')
+    if os.path.exists(file_path):
+        try:
+            # Open the FCStd file as a zip archive
+            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                # Read the contents of the thumbnail image file
+                thumbnail_data = zip_ref.read('thumbnails/Thumbnail.png')
 
-            # Create a QPixmap from the thumbnail data
-            pixmap = QPixmap()
-            pixmap.loadFromData(thumbnail_data)
+                # Create a QPixmap from the thumbnail data
+                pixmap = QPixmap()
+                pixmap.loadFromData(thumbnail_data)
 
-            return pixmap
+                return pixmap
 
-    except (zipfile.BadZipFile, KeyError):
-        # Handle the case where the thumbnail file doesn't exist
+        except (zipfile.BadZipFile, KeyError):
+            # Handle the case where the thumbnail file doesn't exist
+            return QPixmap(f"{modPath}/Resources/thumbTest.png")
+    else:
+        # If file doesn't exist then the file is on the server only. We could fetch the server thumbnail.
         return QPixmap(f"{modPath}/Resources/thumbTest.png")
