@@ -19,10 +19,11 @@ class TestLinkModel(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.base_url = config.base_url
+        cls.lens_url = config.lens_url
         cls.username = config.username
         cls.password = config.password
         cls.access_token = None
-        cls.api_client = APIClient(cls.base_url, cls.username, cls.password)
+        cls.api_client = APIClient(cls.username, cls.password, cls.base_url, cls.lens_url)
 
         testfile = "testshape.FCStd"
 

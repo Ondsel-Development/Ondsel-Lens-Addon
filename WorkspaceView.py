@@ -50,8 +50,16 @@ modPath = os.path.dirname(__file__).replace("\\", "/")
 iconsPath = f"{modPath}/Resources/icons/"
 cachePath = f"{modPath}/Cache/"
 
-baseUrl = "http://ec2-54-234-132-150.compute-1.amazonaws.com"
+baseUrl = "http://lens-api.ondsel.com/"
+lensUrl = "http://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
+
+# try:
+#     import config
+#     baseUrl = config.base_url
+#     lensUrl = config.lens_url
+# except ImportError:
+#     pass
 
 
 class CheckboxDelegate(QStyledItemDelegate):
@@ -198,9 +206,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.ondselIcon = QIcon(iconsPath + "OndselWorkbench.svg")
         self.ondselIconOff = QIcon(iconsPath + "OndselWorkbench-off.svg")
-        #self.form.userBtn.setFixedSize(48,48);
-        self.form.userBtn.setIconSize(QtCore.QSize(32, 32));
-        self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon);
+        # self.form.userBtn.setFixedSize(48,48);
+        self.form.userBtn.setIconSize(QtCore.QSize(32, 32))
+        self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.form.userBtn.clicked.connect(self.form.userBtn.showMenu)
 
         self.form.buttonBack.clicked.connect(self.backClicked)
@@ -316,11 +324,12 @@ class WorkspaceView(QtGui.QDockWidget):
         self.guestMenu.addAction(a2)
 
     def tokenExpired(self, token):
+        print(token)
         try:
             decoded_token = jwt.decode(
                 token,
-                audience="https://yourdomain.com",
-                options={"verify_signature": False},
+                audience="lens.ondsel.com",
+                options={"verify_signature": False, "verify_aud": False},
             )
         except ExpiredSignatureError:
             self.logout()
@@ -330,13 +339,14 @@ class WorkspaceView(QtGui.QDockWidget):
 
         except Exception as e:
             print(e)
+            raise e
         expiration_time = datetime.fromtimestamp(decoded_token["exp"])
         current_time = datetime.now()
         return current_time > expiration_time
 
     def setUIForLogin(self, state, user=None):
         """Toggle the visibility of UI elements based on if user is logged in"""
-        
+
         if state:
             self.form.userBtn.setText(
                 user["lastName"] + " " + user["firstName"][:1] + "."
@@ -347,7 +357,6 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.userBtn.setText("Local Only")
             self.form.userBtn.setIcon(self.ondselIconOff)
             self.form.userBtn.setMenu(self.guestMenu)
-
 
     def enterWorkspace(self, index):
         print("entering workspace")
@@ -364,7 +373,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
             if self.apiClient is None and self.access_token is not None:
                 self.apiClient = APIClient(
-                    baseUrl, "", "", self.access_token, self.user
+                    "", "", baseUrl, lensUrl, self.access_token, self.user
                 )
 
         self.currentWorkspaceModel = WorkSpaceModelFactory.createWorkspace(
@@ -377,7 +386,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.fileList.setModel(self.currentWorkspaceModel)
         self.synchronizeAction.setVisible(True)
-        self.synchronizeAction.triggered.connect(self.currentWorkspaceModel.refreshModel)
+        self.synchronizeAction.triggered.connect(
+            self.currentWorkspaceModel.refreshModel
+        )
 
         self.switchView()
 
@@ -580,7 +591,7 @@ class WorkspaceView(QtGui.QDockWidget):
             url = ondselUrl
 
             if self.currentWorkspace["type"] == "Ondsel" and fileId is not None:
-                url = f"{baseUrl}:8080/model/{fileId}"
+                url = f"{lensUrl}model/{fileId}"
 
             QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
@@ -654,11 +665,11 @@ class WorkspaceView(QtGui.QDockWidget):
         print("Preferences clicked")
 
     def ondselAccount(self):
-        url = f"{baseUrl}:8080/login"
+        url = f"{lensUrl}login"
         QtGui.QDesktopServices.openUrl(url)
 
     def showOndselSignUpPage(self):
-        url = f"{baseUrl}:8080/signup"
+        url = f"{lensUrl}signup"
         QtGui.QDesktopServices.openUrl(url)
 
     def loginBtnClicked(self):
@@ -667,7 +678,7 @@ class WorkspaceView(QtGui.QDockWidget):
         dialog = LoginDialog()
         if dialog.exec_() == QtGui.QDialog.Accepted:
             email, password = dialog.get_credentials()
-            self.apiClient = APIClient(baseUrl, email, password)
+            self.apiClient = APIClient(email, password, baseUrl, lensUrl)
             self.apiClient._authenticate()
 
             # Check if the request was successful (201 status code)
