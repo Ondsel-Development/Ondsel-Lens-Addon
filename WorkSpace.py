@@ -306,7 +306,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         if fileId is not None:
             self.API_Client.deleteModel(fileId)
 
-        super.deleteFile(index)
+        super().deleteFile(index)
 
     def downloadFile(self, index):
         print("downloading file...")
