@@ -1,3 +1,9 @@
+# ***********************************************************************
+# *                                                                     *
+# * Copyright (c) 2023 Ondsel                                           *
+# *                                                                     *
+# ***********************************************************************
+
 from PySide.QtCore import Qt, QAbstractListModel, QModelIndex, QFileSystemWatcher
 from tzlocal import get_localzone
 import datetime

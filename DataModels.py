@@ -1,3 +1,9 @@
+# ***********************************************************************
+# *                                                                     *
+# * Copyright (c) 2023 Ondsel                                           *
+# *                                                                     *
+# ***********************************************************************
+
 from PySide.QtCore import Qt, QAbstractTableModel, QAbstractListModel, QModelIndex
 from PySide import QtCore
 import os

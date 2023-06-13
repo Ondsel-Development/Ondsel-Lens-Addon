@@ -1,3 +1,9 @@
+# ***********************************************************************
+# *                                                                     *
+# * Copyright (c) 2023 Ondsel                                           *
+# *                                                                     *
+# ***********************************************************************
+
 import unittest
 from PySide2.QtCore import Qt, QModelIndex
 from DataModels import FileListModel
