@@ -3,6 +3,11 @@ import json
 import uuid
 import os
 
+class CustomAuthenticationError(Exception):
+    pass
+
+class CustomConnectionError(Exception):
+    pass
 
 class APIClient:
     def __init__(self, email, password, api_url, lens_url, access_token=None, user=None):
@@ -46,8 +51,14 @@ class APIClient:
             self.access_token = data["accessToken"]
             self.user = data["user"]
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
+            raise CustomConnectionError("Connection Error")
+
+        except CustomAuthenticationError as e:
+            raise CustomAuthenticationError("Authentication Error")
+
+        except Exception as e:
+            raise e
+
 
     def _delete(self, endpoint, headers={}, params=None):
 
@@ -116,6 +127,8 @@ class APIClient:
 
         if response.status_code in [201, 200]:
             return response.json()
+        elif response.status_code == 401:
+            raise CustomAuthenticationError("Not Authenticated")
         else:
             callData = {
                 "endpoint": endpoint,
