@@ -238,10 +238,10 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     localFile.model = model
 
                     if model["updatedAt"] < localFile.updatedAt:
-                        localFile.status = "Server's outdated'"
+                        localFile.status = "Server copy outdated"
 
                     elif model["updatedAt"] > localFile.updatedAt:
-                        localFile.status = "Local's outdated'"
+                        localFile.status = "Local copy outdated"
 
                     else:
                         localFile.status = "Synced"
