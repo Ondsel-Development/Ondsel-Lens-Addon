@@ -471,10 +471,11 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.thumbnail_label.hide()
         else:
             self.form.thumbnail_label.show()
-            pixmap = Utils.extract_thumbnail(f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}")
+            path = self.currentWorkspaceModel.getFullPath()
+            pixmap = Utils.extract_thumbnail(f"{path}/{self.currentFileName}")
             if pixmap == None:
                 if self.currentWorkspace["type"] == "Ondsel":
-                    pixmap = self.currentWorkspaceModel.getServerThumbnail(self.currentFileId)
+                    pixmap = self.getServerThumbnail(self.currentFileName, path, self.currentFileId)
 
                 if pixmap == None:
                     pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
@@ -516,6 +517,21 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.setVersionListModel(version_model)
     
+    def getServerThumbnail(self, fileName, path, fileId):
+        # check if we have stored the thumbnail locally already.
+        if not os.path.exists(f"{path}/.thumbnails"):
+            os.makedirs(f"{path}/.thumbnails")
+
+        localThumbPath = f"{path}/.thumbnails/{fileName}.png"
+        if os.path.exists(localThumbPath):
+            pixmap = QPixmap(localThumbPath)
+        else:
+            pixmap = self.currentWorkspaceModel.getServerThumbnail(fileId)
+            if pixmap != None:
+                pixmap.save(localThumbPath, "PNG")
+
+        return pixmap
+
     def setVersionListModel(self, model):
         if model == None:
             self.form.versionsComboBox.clear()
