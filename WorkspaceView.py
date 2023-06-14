@@ -477,18 +477,19 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.fileNameLabel.setText(self.currentFileName)
 
+        version_model = None
+        self.links_model = None
+        self.form.viewOnlineBtn.setVisible(False)
+        self.form.shareBtn.setVisible(False)
+
         if isFolder:
-            version_model = None
-            self.links_model = None
+            pass
 
         elif self.currentWorkspace["type"] == "Local":
             fullFileName = f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}"
             self.form.fileDetails.setVisible(True)
-            self.form.viewOnlineBtn.setVisible(False)
-            self.form.shareBtn.setVisible(False)
 
             version_model = LocalVersionModel(fullFileName)
-            self.links_model = None
 
             #link_tab.setEnabled(False)
 
@@ -496,21 +497,16 @@ class WorkspaceView(QtGui.QDockWidget):
 
             fileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
             print(f"fileId: {fileId}")
+            self.form.fileDetails.setVisible(True)
+            self.setVersionListModel(None)
 
             if fileId is not None:
                 self.links_model = ShareLinkModel(fileId, self.apiClient)
-                version_model = None
-
-                self.setVersionListModel(None)
-                self.form.fileDetails.setVisible(True)
                 self.form.viewOnlineBtn.setVisible(True)
                 self.form.shareBtn.setVisible(True)
 
-            #link_tab.setEnabled(True)
         else:
             self.form.fileDetails.setVisible(False)
-            self.links_model = None
-            version_model = None
 
         self.setVersionListModel(version_model)
     
