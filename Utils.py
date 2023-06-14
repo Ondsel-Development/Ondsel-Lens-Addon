@@ -47,7 +47,7 @@ def extract_thumbnail(file_path):
 
         except (zipfile.BadZipFile, KeyError):
             # Handle the case where the thumbnail file doesn't exist
-            return QPixmap(f"{modPath}/Resources/thumbTest.png")
+            return None
     else:
         # If file doesn't exist then the file is on the server only. We could fetch the server thumbnail.
-        return QPixmap(f"{modPath}/Resources/thumbTest.png")
+        return None

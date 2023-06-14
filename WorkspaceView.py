@@ -472,6 +472,12 @@ class WorkspaceView(QtGui.QDockWidget):
         else:
             self.form.thumbnail_label.show()
             pixmap = Utils.extract_thumbnail(f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}")
+            if pixmap == None:
+                if self.currentWorkspace["type"] == "Ondsel":
+                    pixmap = self.currentWorkspaceModel.getServerThumbnail(self.currentFileId)
+
+                if pixmap == None:
+                    pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
             self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
             self.form.thumbnail_label.setPixmap(pixmap)
 

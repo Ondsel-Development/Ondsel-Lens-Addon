@@ -7,11 +7,15 @@ from PySide.QtCore import (
     QFileSystemWatcher,
     QThread,
 )
+from PySide.QtGui import (
+    QPixmap,
+)
 import Utils
 import os
 import FreeCAD
 import shutil
 import uuid
+import requests
 
 
 class WorkSpaceModelFactory:
@@ -286,6 +290,28 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 return file_item.model["_id"]
         elif role == self.NameStatusAndIsFolderRole:
             return file_item.name, file_item.status, False
+
+        return None
+
+    def getServerThumbnail(self, fileId):
+        for file_item in self.files:
+            if file_item.model is not None and file_item.model["_id"] == fileId:
+                thumbnailUrl = file_item.model["thumbnailUrl"]
+                response = requests.get(thumbnailUrl)
+                image_data = response.content
+                pixmap = QPixmap()
+                pixmap.loadFromData(image_data)
+
+                # Crop the image to a square
+                width = pixmap.width()
+                height = pixmap.height()
+                size = min(width, height)
+                diff = abs(width - height)
+                left = diff // 2
+                pixmap = pixmap.copy(left, 0, size, size)
+
+                pixmap = pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio)
+                return pixmap
 
         return None
 
