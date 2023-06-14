@@ -484,6 +484,8 @@ class WorkspaceView(QtGui.QDockWidget):
         elif self.currentWorkspace["type"] == "Local":
             fullFileName = f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}"
             self.form.fileDetails.setVisible(True)
+            self.form.viewOnlineBtn.setVisible(False)
+            self.form.shareBtn.setVisible(False)
 
             version_model = LocalVersionModel(fullFileName)
             self.links_model = None
@@ -501,6 +503,8 @@ class WorkspaceView(QtGui.QDockWidget):
 
                 self.setVersionListModel(None)
                 self.form.fileDetails.setVisible(True)
+                self.form.viewOnlineBtn.setVisible(True)
+                self.form.shareBtn.setVisible(True)
 
             #link_tab.setEnabled(True)
         else:
