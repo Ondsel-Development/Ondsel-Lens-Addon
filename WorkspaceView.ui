@@ -180,16 +180,6 @@
               </property>
              </spacer>
             </item>
-            <item>
-             <widget class="QToolButton" name="shareBtn">
-              <property name="toolTip">
-               <string>Create and manage share links of this model</string>
-              </property>
-              <property name="text">
-               <string></string>
-              </property>
-             </widget>
-            </item>
            </layout>
           </item>
          </layout>

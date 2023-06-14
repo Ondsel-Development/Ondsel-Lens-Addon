@@ -217,8 +217,6 @@ class WorkspaceView(QtGui.QDockWidget):
         addFileMenu.addAction(addFileAction2)
         self.form.addFileBtn.setMenu(addFileMenu)
         
-        self.form.shareBtn.setIcon(QIcon(iconsPath + "share.svg"))
-        self.form.shareBtn.clicked.connect(self.openShareLinks)
         self.form.viewOnlineBtn.clicked.connect(self.openModelOnline)
 
         self.form.fileDetails.setVisible(False)
@@ -503,7 +501,6 @@ class WorkspaceView(QtGui.QDockWidget):
         version_model = None
         self.links_model = None
         self.form.viewOnlineBtn.setVisible(False)
-        self.form.shareBtn.setVisible(False)
         self.form.linksView.setVisible(False)
 
         if isFolder:
@@ -526,7 +523,6 @@ class WorkspaceView(QtGui.QDockWidget):
             if fileId is not None:
                 self.links_model = ShareLinkModel(fileId, self.apiClient)
                 self.form.viewOnlineBtn.setVisible(True)
-                self.form.shareBtn.setVisible(True)
                 self.form.linksView.setVisible(True)
 
         else:
@@ -561,12 +557,6 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.versionsComboBox.setVisible(True)
 
         self.form.versionsComboBox.adjustSize()
-
-    def openShareLinks(self):
-        if self.links_model != None:
-            dialog = ManageSharingLinksDialog(self.links_model, self.currentFileName, self)
-
-            dialog.exec_()
         
     def showWorkspaceContextMenu(self, pos):
         index = self.form.workspaceListView.indexAt(pos)
@@ -923,98 +913,6 @@ class NewWorkspaceDialog(QtGui.QDialog):
                     "The URL you entered is not correct.",
                     QtGui.QMessageBox.Ok,
                 )
-
-
-class ManageSharingLinksDialog(QtGui.QDialog):
-    def __init__(self, model, fileName, parent=None):
-        super(ManageSharingLinksDialog, self).__init__(parent)
-
-        # Load the UI from the .ui file
-        self.form = Gui.PySideUic.loadUi(modPath + "/ManageSharingLinksDialog.ui")
-
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.form)
-        self.setLayout(layout)
-
-        self.form.infoLabel.setText(f"Manage the sharing links of <{fileName}>")
-
-        self.form.linkDetailsGroupBox.setVisible(False)
-        self.model = model
-        self.form.linksView.setModel(self.model)
-        self.form.linksView.doubleClicked.connect(self.linksListDoubleClicked)
-        self.form.linksView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.form.linksView.customContextMenuRequested.connect(
-            self.showLinksContextMenu
-        )
-
-        self.form.buttonAdd.clicked.connect(self.addLinkClicked)
-                
-    def linksListDoubleClicked(self, index):
-        print("linksListDoubleClicked")
-        if self.model == None:
-            return
-
-        linkData = self.model.data(index, ShareLinkModel.EditLinkRole)
-
-        dialog = SharingLinkEditDialog(linkData, self)
-
-        if dialog.exec_() == QtGui.QDialog.Accepted:
-            link_properties = dialog.getLinkProperties()
-            self.model.update_link(index, link_properties)
-
-    def showLinksContextMenu(self, pos):
-        index = self.form.linksView.indexAt(pos)
-
-        if index.isValid():
-            menu = QtGui.QMenu()
-            linkId = self.model.data(index, ShareLinkModel.UrlRole)
-            copyLinkAction = menu.addAction("copy link")
-            editLinkAction = menu.addAction("edit")
-            deleteAction = menu.addAction("Delete")
-
-            action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
-
-            if action == copyLinkAction:
-                url = self.model.compute_url(linkId)
-                clipboard = QApplication.clipboard()
-                clipboard.setText(url)
-
-            elif action == editLinkAction:
-                linkData = self.model.data(index, ShareLinkModel.EditLinkRole)
-
-                dialog = SharingLinkEditDialog(linkData, self)
-
-                if dialog.exec_() == QtGui.QDialog.Accepted:
-                    link_properties = dialog.getLinkProperties()
-                    self.model.update_link(index, link_properties)
-
-            elif action == deleteAction:
-                result = QtGui.QMessageBox.question(
-                    None,
-                    "Delete Link",
-                    "Are you sure you want to delete this link?",
-                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                )
-                if result == QtGui.QMessageBox.Yes:
-                    self.model.delete_link(linkId)
-
-        else:
-            menu = QtGui.QMenu()
-            addLinkAction = menu.addAction("add link")
-
-            action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
-
-            if action == addLinkAction:
-                self.addLinkClicked()
-
-    def addLinkClicked(self):
-        dialog = SharingLinkEditDialog(None, self)
-
-        if dialog.exec_() == QtGui.QDialog.Accepted:
-            link_properties = dialog.getLinkProperties()
-
-            self.model.add_new_link(link_properties)
-
 
       
 class SharingLinkEditDialog(QtGui.QDialog):
