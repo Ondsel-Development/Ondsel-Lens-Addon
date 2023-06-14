@@ -9,8 +9,10 @@ from PySide import QtCore
 import os
 import json
 import shutil
+import FreeCAD
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
+p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 
 class WorkspaceListModel(QAbstractListModel):
     """Workspaces is a list of dicts
@@ -49,6 +51,12 @@ class WorkspaceListModel(QAbstractListModel):
         self.save()
 
     def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl):
+        for i in range(len(self.workspaces) - 1, -1, -1):
+            if self.workspaces[i]["name"] == workspaceName:
+                if workspaceType == "Ondsel" and self.workspaces[i]["type"] == "Local":
+                    self.workspaces[i]["type"] = "Ondsel"
+                return
+
         self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
         self.workspaces.append(
             {
@@ -73,13 +81,16 @@ class WorkspaceListModel(QAbstractListModel):
 
         for i in range(len(self.workspaces) - 1, -1, -1):
             if self.workspaces[i]["type"] == "Ondsel":
-                # Delete the Ondsel local Folder
-                try:
-                    shutil.rmtree(self.workspaces[i]["url"])
-                except FileNotFoundError:
-                    print("Directory does not exist")
+                if p.GetBool("clearCache", False):
+                    # Delete the Ondsel local Folder
+                    try:
+                        shutil.rmtree(self.workspaces[i]["url"])
+                    except FileNotFoundError:
+                        print("Directory does not exist")
 
-                self.workspaces.remove(self.workspaces[i])
+                    self.workspaces.remove(self.workspaces[i])
+                else:
+                    self.workspaces[i]["type"] = "Local"
 
         self.endResetModel()
         self.save()

@@ -294,9 +294,14 @@ class WorkspaceView(QtGui.QDockWidget):
         a2.triggered.connect(self.newWorkspaceBtnClicked)
         self.userMenu.addAction(a2)
 
-        a3 = QAction("Preferences", userActions)
-        a3.triggered.connect(self.openPreferences)
-        self.userMenu.addAction(a3)
+        # Preferences
+        submenu = QMenu("Preferences", self.userMenu)
+        clearCacheAction = QAction("Clear Cache on logout", submenu)
+        clearCacheAction.setCheckable(True)
+        clearCacheAction.setChecked(p.GetBool("clearCache", False))
+        clearCacheAction.triggered.connect(lambda state: p.SetBool("clearCache", state))
+        submenu.addAction(clearCacheAction)
+        self.userMenu.addMenu(submenu)
 
         a4 = QAction("Log out", userActions)
         a4.triggered.connect(self.logout)
