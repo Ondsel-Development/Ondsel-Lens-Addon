@@ -90,6 +90,61 @@ class FileListDelegate(QStyledItemDelegate):
             textToDisplay += " (" + status + ")"
         painter.drawText(text_rect, QtCore.Qt.AlignLeft, textToDisplay)
 
+class LinkListDelegate(QStyledItemDelegate):
+    iconCopyClicked = QtCore.Signal(QtCore.QModelIndex)
+    iconEditClicked = QtCore.Signal(QtCore.QModelIndex)
+    iconDeleteClicked = QtCore.Signal(QtCore.QModelIndex)
+
+    def paint(self, painter, option, index):
+        if not index.isValid():
+            return
+
+        name = index.data(QtCore.Qt.DisplayRole)
+
+        if option.state & QStyle.State_Selected:
+            painter.fillRect(option.rect, option.palette.highlight())
+
+        icon_copy_rect = QtCore.QRect(option.rect.right() - 60, option.rect.top(), 16, 16)
+        icon_edit_rect = QtCore.QRect(option.rect.right() - 40, option.rect.top(), 16, 16)
+        icon_delete_rect = QtCore.QRect(option.rect.right() - 20, option.rect.top(), 16, 16)
+        text_rect = QtCore.QRect(
+            option.rect.left() + 4,
+            option.rect.top(),
+            option.rect.width() - 60,
+            option.rect.height(),
+        )
+
+        icon_copy = QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/edit-copy.svg"))
+        icon_edit = QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/Std_DlgParameter.svg"))
+        icon_delete = QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/edit_Cancel.svg"))
+
+        icon_copy.paint(painter, icon_copy_rect)
+        icon_edit.paint(painter, icon_edit_rect)
+        icon_delete.paint(painter, icon_delete_rect)
+        painter.drawText(text_rect, QtCore.Qt.AlignLeft, name)
+
+    def editorEvent(self, event, model, option, index):
+        if not index.isValid():
+            return False
+
+        if event.type() == QtCore.QEvent.MouseButtonPress and event.button() == QtCore.Qt.LeftButton:
+            icon_copy_rect = QtCore.QRect(option.rect.right() - 60, option.rect.top(), 16, 16)
+            icon_edit_rect = QtCore.QRect(option.rect.right() - 40, option.rect.top(), 16, 16)
+            icon_delete_rect = QtCore.QRect(option.rect.right() - 20, option.rect.top(), 16, 16)
+
+            if icon_copy_rect.contains(event.pos()):
+                self.iconCopyClicked.emit(index)
+                return True
+            elif icon_edit_rect.contains(event.pos()):
+                self.iconEditClicked.emit(index)
+                return True
+            elif icon_delete_rect.contains(event.pos()):
+                self.iconDeleteClicked.emit(index)
+                return True
+
+        # If the click wasn't on any icon, select the item as normal
+        return super().editorEvent(event, model, option, index)
+
 
 class WorkspaceListDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
@@ -202,11 +257,17 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.versionsComboBox.activated.connect(self.versionClicked)
         
+        self.linksDelegate = LinkListDelegate(self)
+        self.linksDelegate.iconCopyClicked.connect(self.copyShareLinkClicked)
+        self.linksDelegate.iconEditClicked.connect(self.editShareLinkClicked)
+        self.linksDelegate.iconDeleteClicked.connect(self.deleteShareLinkClicked)
+        self.form.linksView.setItemDelegate(self.linksDelegate)
         self.form.linksView.doubleClicked.connect(self.linksListDoubleClicked)
         self.form.linksView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         self.form.linksView.customContextMenuRequested.connect(
             self.showLinksContextMenu
         )
+
         self.form.addLinkBtn.clicked.connect(self.addShareLink)
 
         addFileMenu = QtGui.QMenu(self.form.addFileBtn)
@@ -609,10 +670,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def showLinksContextMenu(self, pos):
         index = self.form.linksView.indexAt(pos)
-        model = self.form.linksView.model()
+
         if index.isValid():
             menu = QtGui.QMenu()
-            linkId = model.data(index, ShareLinkModel.UrlRole)
             copyLinkAction = menu.addAction("copy link")
             editLinkAction = menu.addAction("edit")
             deleteAction = menu.addAction("Delete")
@@ -620,28 +680,13 @@ class WorkspaceView(QtGui.QDockWidget):
             action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
 
             if action == copyLinkAction:
-                url = model.compute_url(linkId)
-                clipboard = QApplication.clipboard()
-                clipboard.setText(url)
+                self.copyShareLinkClicked(index)
 
             elif action == editLinkAction:
-                linkData = model.data(index, ShareLinkModel.EditLinkRole)
-
-                dialog = SharingLinkEditDialog(linkData, self)
-
-                if dialog.exec_() == QtGui.QDialog.Accepted:
-                    link_properties = dialog.getLinkProperties()
-                    model.update_link(index, link_properties)
+                self.editShareLinkClicked(index)
 
             elif action == deleteAction:
-                result = QtGui.QMessageBox.question(
-                    None,
-                    "Delete Link",
-                    "Are you sure you want to delete this link?",
-                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                )
-                if result == QtGui.QMessageBox.Yes:
-                    model.delete_link(linkId)
+                self.deleteShareLinkClicked(index)
 
         else:
             menu = QtGui.QMenu()
@@ -652,6 +697,36 @@ class WorkspaceView(QtGui.QDockWidget):
             if action == addLinkAction:
                 self.addShareLink()
     
+    def copyShareLinkClicked(self, index):
+        model = self.form.linksView.model()
+        linkId = model.data(index, ShareLinkModel.UrlRole)
+        url = model.compute_url(linkId)
+        clipboard = QApplication.clipboard()
+        clipboard.setText(url)
+        print("Link copied!")
+
+    def editShareLinkClicked(self, index):
+        model = self.form.linksView.model()
+        linkData = model.data(index, ShareLinkModel.EditLinkRole)
+
+        dialog = SharingLinkEditDialog(linkData, self)
+
+        if dialog.exec_() == QtGui.QDialog.Accepted:
+            link_properties = dialog.getLinkProperties()
+            model.update_link(index, link_properties)
+
+    def deleteShareLinkClicked(self, index):
+        model = self.form.linksView.model()
+        linkId = model.data(index, ShareLinkModel.UrlRole)
+        result = QtGui.QMessageBox.question(
+            None,
+            "Delete Link",
+            "Are you sure you want to delete this link?",
+            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+        )
+        if result == QtGui.QMessageBox.Yes:
+            model.delete_link(linkId)
+
     def addShareLink(self):
         dialog = SharingLinkEditDialog(None, self)
 
