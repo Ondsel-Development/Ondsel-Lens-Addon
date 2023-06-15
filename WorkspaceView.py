@@ -207,6 +207,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.linksView.customContextMenuRequested.connect(
             self.showLinksContextMenu
         )
+        self.form.addLinkBtn.clicked.connect(self.addShareLink)
 
         addFileMenu = QtGui.QMenu(self.form.addFileBtn)
         addFileAction = QtGui.QAction("Add current file", self.form.addFileBtn)
@@ -501,7 +502,7 @@ class WorkspaceView(QtGui.QDockWidget):
         version_model = None
         self.links_model = None
         self.form.viewOnlineBtn.setVisible(False)
-        self.form.linksView.setVisible(False)
+        self.form.linkDetails.setVisible(False)
 
         if isFolder:
             pass
@@ -512,8 +513,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
             version_model = LocalVersionModel(fullFileName)
 
-            #link_tab.setEnabled(False)
-
         elif self.currentWorkspace["type"] == "Ondsel":
 
             fileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
@@ -523,7 +522,7 @@ class WorkspaceView(QtGui.QDockWidget):
             if fileId is not None:
                 self.links_model = ShareLinkModel(fileId, self.apiClient)
                 self.form.viewOnlineBtn.setVisible(True)
-                self.form.linksView.setVisible(True)
+                self.form.linkDetails.setVisible(True)
 
         else:
             self.form.fileDetails.setVisible(False)
@@ -651,12 +650,15 @@ class WorkspaceView(QtGui.QDockWidget):
             action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
 
             if action == addLinkAction:
-                dialog = SharingLinkEditDialog(None, self)
+                self.addShareLink()
+    
+    def addShareLink(self):
+        dialog = SharingLinkEditDialog(None, self)
 
-                if dialog.exec_() == QtGui.QDialog.Accepted:
-                    link_properties = dialog.getLinkProperties()
+        if dialog.exec_() == QtGui.QDialog.Accepted:
+            link_properties = dialog.getLinkProperties()
 
-                    model.add_new_link(link_properties)
+            self.form.linksView.model().add_new_link(link_properties)
 
     def openModelOnline(self):
         url = ondselUrl

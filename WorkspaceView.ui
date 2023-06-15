@@ -187,23 +187,63 @@
        </layout>
       </item>
       <item>
-       <widget class="QLabel" name="shareLinksLabel">
-        <property name="text">
-         <string>Share links</string>
+       <widget class="QFrame" name="linkDetails">
+        <layout class="QVBoxLayout">
+        <property name="margin">
+         <number>0</number>
         </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QListView" name="linksView">
-        <property name="maximumHeight">
-         <number>90</number>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
+	     <item>
+          <layout class="QHBoxLayout">
+           <item>
+            <widget class="QLabel" name="shareLinksLabel">
+             <property name="text">
+              <string>Share links</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QToolButton" name="addLinkBtn">
+             <property name="toolTip">
+              <string>Create a new share link</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset>
+               <normaloff>:/icons/list-add.svg</normaloff>:/icons/list-add.svg</iconset>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <widget class="QListView" name="linksView">
+           <property name="maximumHeight">
+            <number>90</number>
+           </property>
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+          </widget>
+         </item>
+        </layout>
        </widget>
       </item>
      </layout>
