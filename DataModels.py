@@ -51,10 +51,10 @@ class WorkspaceListModel(QAbstractListModel):
         self.save()
 
     def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl):
-        for i in range(len(self.workspaces) - 1, -1, -1):
-            if self.workspaces[i]["name"] == workspaceName:
-                if workspaceType == "Ondsel" and self.workspaces[i]["type"] == "Local":
-                    self.workspaces[i]["type"] = "Ondsel"
+        for workspace in reversed(self.workspaces):
+            if workspace["name"] == workspaceName:
+                if workspaceType == "Ondsel" and workspace["type"] == "Local":
+                    workspace["type"] = "Ondsel"
                 return
 
         self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
@@ -79,18 +79,18 @@ class WorkspaceListModel(QAbstractListModel):
     def removeOndselWorkspaces(self):
         self.beginResetModel()
 
-        for i in range(len(self.workspaces) - 1, -1, -1):
-            if self.workspaces[i]["type"] == "Ondsel":
+        for workspace in reversed(self.workspaces):
+            if workspace["type"] == "Ondsel":
                 if p.GetBool("clearCache", False):
                     # Delete the Ondsel local Folder
                     try:
-                        shutil.rmtree(self.workspaces[i]["url"])
+                        shutil.rmtree(workspace["url"])
                     except FileNotFoundError:
                         print("Directory does not exist")
 
-                    self.workspaces.remove(self.workspaces[i])
+                    self.workspaces.remove(workspace)
                 else:
-                    self.workspaces[i]["type"] = "Local"
+                    workspace["type"] = "Local"
 
         self.endResetModel()
         self.save()
