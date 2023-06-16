@@ -224,7 +224,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         self.refresh_thread.token_refreshed.connect(self.refreshModel)
         self.refresh_thread.start()
 
-    def refreshModel(self):
+    def refreshModel(self, firstCall=True):
         self.clearModel()
 
         files = self.getLocalFiles()
@@ -265,6 +265,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
         self.beginResetModel()
         self.files = files
         self.endResetModel()
+
+        if firstCall:
+            self.uploadUntrackedFiles()
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
@@ -340,6 +343,22 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
         self.refreshModel()
 
+    def uploadUntrackedFiles(self):
+        # This function upload untracked files automatically to Server.
+        # It is called in refreshModel (and not only into addCurrentFile and addFiles)
+        # in order to also catch when user add file manually to the folder.
+        # A parameter to refreshModel is added to prevent infinite loops just in case.
+        refreshRequired = False
+        for file_item in self.files:
+            if file_item.status == "Untracked":
+                uniqueName = f"{str(uuid.uuid4())}.fcstd"
+                file_path = Utils.joinPath(self.getFullPath(), file_item.name)
+                self.API_Client.uploadFileToServer(uniqueName, file_path)
+                self.API_Client.createModel(file_item.name, uniqueName)
+                refreshRequired = True
+
+        if refreshRequired:
+            self.refreshModel(False)
 
 class FileItem:
     def __init__(
