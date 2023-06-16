@@ -27,9 +27,7 @@ def isOpenableByFreeCAD(filename):
     if ext:
         if ext[0] == ".":
             ext = ext[1:]
-    if ext in extensions:
-        return True
-    return False
+    return ext in extensions
 
 def extract_thumbnail(file_path):
     if os.path.exists(file_path):
