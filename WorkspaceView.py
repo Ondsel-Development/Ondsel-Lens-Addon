@@ -628,20 +628,29 @@ class WorkspaceView(QtGui.QDockWidget):
     def showWorkspaceContextMenu(self, pos):
         index = self.form.workspaceListView.indexAt(pos)
 
-        menu = QtGui.QMenu()
+        if index.isValid():
+            menu = QtGui.QMenu()
 
-        deleteAction = menu.addAction("Delete")
-        action = menu.exec_(self.form.workspaceListView.viewport().mapToGlobal(pos))
+            deleteAction = menu.addAction("Delete")
+            action = menu.exec_(self.form.workspaceListView.viewport().mapToGlobal(pos))
 
-        if action == deleteAction:
-            result = QtGui.QMessageBox.question(
-                self,
-                "Delete Workspace",
-                "Are you sure you want to delete this workspace?",
-                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-            )
-            if result == QtGui.QMessageBox.Yes:
-                self.workspacesModel.removeWorkspace(index)
+            if action == deleteAction:
+                result = QtGui.QMessageBox.question(
+                    self,
+                    "Delete Workspace",
+                    "Are you sure you want to delete this workspace?",
+                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+                )
+                if result == QtGui.QMessageBox.Yes:
+                    self.workspacesModel.removeWorkspace(index)
+        else:
+            menu = QtGui.QMenu()
+            addAction = menu.addAction("Add workspace")
+
+            action = menu.exec_(self.form.workspaceListView.viewport().mapToGlobal(pos))
+
+            if action == addAction:
+                self.newWorkspaceBtnClicked()
 
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
