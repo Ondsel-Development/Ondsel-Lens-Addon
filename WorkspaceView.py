@@ -646,15 +646,20 @@ class WorkspaceView(QtGui.QDockWidget):
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
         self.currentFileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
+        fileStatus = self.currentWorkspaceModel.data(index, WorkSpaceModel.StatusRole)
 
         menu = QtGui.QMenu()
         if self.currentWorkspace["type"] == "Ondsel":
             openOnlineAction = menu.addAction("View in Lens")
-            # shareAction = menu.addAction("Share")
             uploadAction = menu.addAction("Upload to Lens")
             downloadAction = menu.addAction("Download from Lens")
             menu.addSeparator()
         deleteAction = menu.addAction("Delete File")
+
+        if fileStatus == "Server only":
+            uploadAction.setEnabled(False)
+        if fileStatus == "Untracked":
+            downloadAction.setEnabled(False)
 
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
 
@@ -811,6 +816,10 @@ class WorkspaceView(QtGui.QDockWidget):
     def addCurrentFile(self):
         # Save current file on the server.
         doc = FreeCAD.ActiveDocument
+
+        if doc is None:
+            QMessageBox.information(self, "No FreeCAD File Opened", "You don't have any FreeCAD file opened now.")
+            return
 
         # Get the default name of the file from the document
         default_name = doc.Label + ".FCStd"
