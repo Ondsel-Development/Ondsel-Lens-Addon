@@ -639,15 +639,20 @@ class WorkspaceView(QtGui.QDockWidget):
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
         self.currentFileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
+        fileStatus = self.currentWorkspaceModel.data(index, WorkSpaceModel.StatusRole)
 
         menu = QtGui.QMenu()
         if self.currentWorkspace["type"] == "Ondsel":
             openOnlineAction = menu.addAction("View in Lens")
-            # shareAction = menu.addAction("Share")
             uploadAction = menu.addAction("Upload to Lens")
             downloadAction = menu.addAction("Download from Lens")
             menu.addSeparator()
         deleteAction = menu.addAction("Delete File")
+
+        if fileStatus == "Server only":
+            uploadAction.setEnabled(False)
+        if fileStatus == "Untracked":
+            downloadAction.setEnabled(False)
 
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
 
