@@ -34,9 +34,12 @@ to install them manually.
 Open the Python console in FreeCAD and enter the following code
 
 ```
-import subprocess
-subprocess.check_output(['python3', '-m', 'pip', 'install', '--upgrade', 'tzlocal'])
+import addonmanager_dependency_installer
+depsInstaller = addonmanager_dependency_installer.DependencyInstaller([],['pyjwt','requests','tzlocal'],[])
+depsInstaller._install_python_packages()
 ```
+
+Note: ```pip install jwt``` installs the wrong library. You need ```pip install pyjwt```.
 
 ## First Use (What does the addon do?)
 
