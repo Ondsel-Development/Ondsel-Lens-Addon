@@ -805,6 +805,10 @@ class WorkspaceView(QtGui.QDockWidget):
         # Save current file on the server.
         doc = FreeCAD.ActiveDocument
 
+        if doc is None:
+            QMessageBox.information(self, "No FreeCAD File Opened", "You don't have any FreeCAD file opened now.")
+            return
+
         # Get the default name of the file from the document
         default_name = doc.Label + ".FCStd"
         default_path = self.currentWorkspaceModel.getFullPath()
