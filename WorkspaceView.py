@@ -328,9 +328,9 @@ class WorkspaceView(QtGui.QDockWidget):
         self.synchronizeAction.setVisible(False)
         self.userMenu.addAction(self.synchronizeAction)
 
-        a2 = QAction("Add new workspace", userActions)
-        a2.triggered.connect(self.newWorkspaceBtnClicked)
-        self.userMenu.addAction(a2)
+        self.newWorkspaceAction = QAction("Add new workspace", userActions)
+        self.newWorkspaceAction.triggered.connect(self.newWorkspaceBtnClicked)
+        self.userMenu.addAction(self.newWorkspaceAction)
 
         # Preferences
         submenu = QMenu("Preferences", self.userMenu)
@@ -357,7 +357,7 @@ class WorkspaceView(QtGui.QDockWidget):
         a6.triggered.connect(self.showOndselSignUpPage)
         self.guestMenu.addAction(a6)
 
-        self.guestMenu.addAction(a2)
+        self.guestMenu.addAction(self.newWorkspaceAction)
 
     def tokenExpired(self, token):
         try:
@@ -419,16 +419,18 @@ class WorkspaceView(QtGui.QDockWidget):
         )
 
         self.form.fileList.setModel(self.currentWorkspaceModel)
-        self.synchronizeAction.setVisible(True)
+        self.synchronizeAction.setVisible(self.currentWorkspace["type"] == "Ondsel")
         self.synchronizeAction.triggered.connect(
             self.currentWorkspaceModel.refreshModel
         )
+        self.newWorkspaceAction.setVisible(False)
 
         self.switchView()
 
     def leaveWorkspace(self):
         if self.currentWorkspace is None:
             return
+        self.newWorkspaceAction.setVisible(True)
         self.synchronizeAction.setVisible(False)
         self.synchronizeAction.triggered.disconnect()
         self.currentWorkspace = None
