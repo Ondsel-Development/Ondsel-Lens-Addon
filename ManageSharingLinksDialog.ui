@@ -31,7 +31,7 @@
        </layout>
       </item>
       <item>
-        <widget class="QListWidget" name="linksListView"/>
+        <widget class="QListView" name="linksView"/>
       </item>
       <item>
         <widget class="QGroupBox" name="linkDetailsGroupBox">
