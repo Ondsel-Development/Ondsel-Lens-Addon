@@ -266,7 +266,7 @@ class APIClient:
             "uniqueFileName": uniqueName,
             "shouldStartObjGeneration": True,
             "errorMsg": "",
-            #"fileUpdatedAt" : fileUpdatedAt
+            "fileUpdatedAt" : fileUpdatedAt
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))

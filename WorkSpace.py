@@ -391,7 +391,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
             if file_item.status == "Untracked":
                 uniqueName = f"{str(uuid.uuid4())}.fcstd"
                 file_path = Utils.joinPath(self.getFullPath(), file_item.name)
-                fileUpdateDate = utils.getFileUpdatedAt(file_path)
+                fileUpdateDate = Utils.getFileUpdatedAt(file_path)
                 self.API_Client.uploadFileToServer(uniqueName, file_path)
                 self.API_Client.createModel(file_item.name, fileUpdateDate, uniqueName)
                 refreshRequired = True
