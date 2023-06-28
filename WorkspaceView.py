@@ -302,6 +302,12 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.switchView()
         
+        # Set a timer to check regularly the server
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.timerTick)
+        self.timer.setInterval(60000)
+        self.timer.start()
+
         # linksView.setModel(self.linksModel)
 
     # def generate_expired_token(self):
@@ -394,7 +400,6 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.userBtn.setMenu(self.guestMenu)
 
     def enterWorkspace(self, index):
-
         self.currentWorkspace = self.workspacesModel.data(index)
 
         # Create a workspace model and set it to the list
@@ -821,6 +826,10 @@ class WorkspaceView(QtGui.QDockWidget):
         self.leaveWorkspace()
 
         self.workspacesModel.removeOndselWorkspaces()
+
+    def timerTick(self):
+        if self.currentWorkspace != None and self.currentWorkspace["type"] == "Ondsel":
+            self.currentWorkspaceModel.refreshModel()
 
     def addCurrentFile(self):
         # Save current file on the server.
