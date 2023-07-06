@@ -9,6 +9,7 @@ from PySide.QtCore import (
 )
 from PySide.QtGui import (
     QPixmap,
+    QMessageBox,
 )
 import Utils
 import os
@@ -253,6 +254,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
                     else:
                         localFile.status = "Synced"
+
                     foundLocal = True
                     break
             if not foundLocal:  # local doesnt have this file
@@ -360,10 +362,26 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
     def uploadFile(self, index):
         print("uploading file...")
+
         file_item = self.files[index.row()]
         if file_item.is_folder:
             print("Upload of folders not supported yet.")
         else:
+            # First we refresh to make sure the file status have not changed.
+            self.refreshModel()
+
+            # Check if the file is not newer on the server first.
+            if file_item.status == "Local copy outdated":
+                msg_box = QMessageBox()
+                msg_box.setWindowTitle("Confirmation")
+                msg_box.setText("The server version is newer than your local copy. Uploading will override the server version.\nAre you sure you want to proceed?")
+                msg_box.setIcon(QMessageBox.Warning)
+                msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+                msg_box.setDefaultButton(QMessageBox.No)
+
+                if msg_box.exec_() == QMessageBox.No:
+                    return
+
             # unique file name is always generated even if file is already on the server under another uniqueFileName.
             uniqueName = f"{str(uuid.uuid4())}.fcstd"
 
