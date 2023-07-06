@@ -244,9 +244,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
             for i, localFile in enumerate(files):
                 if model["custFileName"] == localFile.name:
                     localFile.model = model
-                    serverDate = model["fileUpdatedAt"]
+                    serverDate = model["file"]["currentVersion"]["additionalData"]["fileUpdatedAt"]
                     localDate = localFile.updatedAt
-                    print(f"update date are : {serverDate} - {localDate}")
+                    # print(f"update date are : {serverDate} - {localDate}")
                     if serverDate < localDate:
                         localFile.status = "Server copy outdated"
 
@@ -349,6 +349,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         super().deleteFile(index)
 
     def downloadFile(self, index):
+        # This will download the latest version.
         print("downloading file...")
         file_item = self.files[index.row()]
         if file_item.is_folder:
@@ -372,7 +373,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
             self.API_Client.uploadFileToServer(uniqueName, file_path)
             
-            fileUpdateDate = utils.getFileUpdatedAt(file_path)
+            fileUpdateDate = Utils.getFileUpdatedAt(file_path)
             if file_item.model is None:
                 # First time the file is uploaded.
                 self.API_Client.createModel(file_item.name, fileUpdateDate, uniqueName)

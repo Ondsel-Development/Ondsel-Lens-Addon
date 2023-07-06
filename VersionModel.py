@@ -27,20 +27,9 @@ class VersionModel(QAbstractListModel):
         self.endResetModel()
 
     def data(self, index, role):
-        row = index.row()
-        rowdata = self.versions[row]
+        pass  # Implemented in subclasses
 
-        if role == Qt.DisplayRole:
-            return rowdata["created"]
-            # return rowdata["uniqueName"]
-
-        # Additional role for accessing the full filename
-        if role == Qt.UserRole:
-            return rowdata["resource"]
-
-        return None
-
-    def convertTime(self, time_str):
+    def convertTime(self, time):
         """
         This converts a time string to the user's local timezone using tzlocal
         and outputs it in a friendly format
@@ -48,9 +37,13 @@ class VersionModel(QAbstractListModel):
         # Get the user's local timezone
         user_timezone = get_localzone()
 
+
         try:
             # Convert the time string to a datetime object
-            time_obj = datetime.datetime.strptime(time_str, "%Y-%m-%dT%H:%M:%SZ")
+            if isinstance(time, int):
+                time_obj = datetime.datetime.fromtimestamp(time)
+            else:
+                time_obj = datetime.datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
 
             # Convert the time to the user's local timezone
             local_time_obj = time_obj.replace(tzinfo=datetime.timezone.utc).astimezone(
@@ -187,20 +180,47 @@ class LocalVersionModel(VersionModel):
         self.versions.insert(0, version)
         self.endInsertRows()
 
+    def data(self, index, role):
+        row = index.row()
+        version = self.versions[row]
+
+        if role == Qt.DisplayRole:
+            return version["created"]
+            # return version["uniqueName"]
+
+        # Additional role for accessing the full filename
+        if role == Qt.UserRole:
+            return version["resource"]
+
+        return None
 
 class OndselVersionModel(VersionModel):
-    def __init__(self, modelId, parent=None):
-        """
-        expects an Ondsel modelID
-        """
+
+    def __init__(self, model_id, API_Client, parent=None):
         super().__init__(parent)
+        self.model_id = model_id
+        self.API_Client = API_Client
+
+        self.refreshModel()
 
     def refreshModel(self):
         self.clearModel()
+        model = self.API_Client.getModel(self.model_id)
 
-    def addNewVersion(self, modelId):
-        """
-        evaluates a filename.  Adds a version if it's a backup file to the
-        document file
-        """
-        pass
+        self.beginResetModel()
+        self.versions = model["file"]["versions"][::-1]
+        self.endResetModel()
+
+
+    def data(self, index, role):
+        row = index.row()
+        version = self.versions[row]
+
+        if role == Qt.DisplayRole:
+            return self.convertTime(version["createdAt"] // 1000)
+
+        # Additional role for accessing the unique filename
+        if role == Qt.UserRole:
+            return version["uniqueFileName"]
+
+        return None

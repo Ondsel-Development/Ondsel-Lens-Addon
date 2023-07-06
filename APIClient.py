@@ -281,11 +281,14 @@ class APIClient:
         headers = {
             "Content-Type": "application/json",
         }
-
         payload = {
-            "uniqueFileName": uniqueFileName,
-            "shouldStartObjGeneration": True,
-            "fileUpdatedAt" : fileUpdatedAt
+            "shouldCommitNewVersion": True,
+            "version" : {
+                "uniqueFileName": uniqueFileName,
+                "fileUpdatedAt" : fileUpdatedAt,
+                "message" : "Commit message"
+            },
+            "shouldStartObjGeneration": True
         }
 
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))

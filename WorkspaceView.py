@@ -20,7 +20,7 @@ import FreeCAD
 import FreeCADGui as Gui
 
 from DataModels import WorkspaceListModel
-from VersionModel import LocalVersionModel
+from VersionModel import LocalVersionModel, OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import APIClient, CustomAuthenticationError
 from WorkSpace import WorkSpaceModel, WorkSpaceModelFactory
@@ -484,15 +484,6 @@ class WorkspaceView(QtGui.QDockWidget):
             model.update_link(index, link_properties)
 
     def versionClicked(self, row):
-        model = self.form.versionsComboBox.model()
-        index = model.index(row, 0)
-        backupfilename = model.data(index, role=QtCore.Qt.UserRole)
-
-        idx = self.form.fileList.currentIndex()
-        fileName = self.currentWorkspaceModel.data(idx, WorkSpaceModel.NameRole)
-        fullFileName = f"{self.currentWorkspace['url']}/{fileName}"
-
-        # Create the QMessageBox dialog
         message_box = QMessageBox()
         message_box.setWindowTitle("Confirmation")
         message_box.setText(
@@ -505,45 +496,85 @@ class WorkspaceView(QtGui.QDockWidget):
         # Show the dialog and retrieve the user's choice
         choice = message_box.exec_()
 
-        # Process the user's choice
-        if choice == QMessageBox.Save:
-
-            # make sure the document is open and get a reference
-            doc = FreeCAD.open(fullFileName)
-
-            # create a temporary copy of the backup so it isn't lost by backup policy
-            temp_dir = tempfile.gettempdir()
-            temp_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
-            temp_file_path = temp_file.name
-            temp_file.close()
-
-            shutil.copy(backupfilename, temp_file_path)
-
-            # Save and close the original to create the new backup
-            doc.save()
-            FreeCAD.closeDocument(doc.Name)
-
-            # move the tempfile back to the original
-            try:
-                shutil.move(temp_file_path, fullFileName)
-            except OSError as e:
-                print(f"Error renaming file: {e}")
-
-            # reopen the original
-            doc = FreeCAD.open(fullFileName)
-
-        elif choice == QMessageBox.Discard:
-
-            try:
-                shutil.move(backupfilename, fullFileName)
-            except OSError as e:
-                print(f"Error renaming file: {e}")
-
-            doc = FreeCAD.open(fullFileName)
-            doc.restore()
-
-        elif choice == QMessageBox.Cancel:
+        if choice == QMessageBox.Cancel:
             return
+
+        model = self.form.versionsComboBox.model()
+        index = model.index(row, 0)
+
+        idx = self.form.fileList.currentIndex()
+        fileName = self.currentWorkspaceModel.data(idx, WorkSpaceModel.NameRole)
+        fullFileName = f"{self.currentWorkspace['url']}/{fileName}"
+
+        if self.currentWorkspace["type"] == "Local":
+            backupfilename = model.data(index, role=QtCore.Qt.UserRole)
+
+            # Process the user's choice
+            if choice == QMessageBox.Save:
+
+                # make sure the document is open and get a reference
+                doc = FreeCAD.open(fullFileName)
+
+                # create a temporary copy of the backup so it isn't lost by backup policy
+                temp_dir = tempfile.gettempdir()
+                temp_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
+                temp_file_path = temp_file.name
+                temp_file.close()
+
+                shutil.copy(backupfilename, temp_file_path)
+
+                # Save and close the original to create the new backup
+                doc.save()
+                FreeCAD.closeDocument(doc.Name)
+
+                # move the tempfile back to the original
+                try:
+                    shutil.move(temp_file_path, fullFileName)
+                except OSError as e:
+                    print(f"Error renaming file: {e}")
+
+                # reopen the original
+                doc = FreeCAD.open(fullFileName)
+
+            elif choice == QMessageBox.Discard:
+
+                try:
+                    shutil.move(backupfilename, fullFileName)
+                except OSError as e:
+                    print(f"Error renaming file: {e}")
+
+                doc = FreeCAD.open(fullFileName)
+                doc.restore()
+
+
+        elif self.currentWorkspace["type"] == "Ondsel":
+            versionUniqueFileName = model.data(index, role=QtCore.Qt.UserRole)
+
+            # Process the user's choice
+            if choice == QMessageBox.Save:
+                # Save and upload the current version
+                doc = FreeCAD.open(fullFileName)
+                doc.save()
+                self.currentWorkspaceModel.uploadFile(idx)
+                FreeCAD.closeDocument(doc.Name)
+
+                # Download (and override) the required version from the server
+                model.API_Client.downloadFileFromServer(
+                    versionUniqueFileName, fullFileName
+                )
+
+                # re-open the file
+                doc = FreeCAD.open(fullFileName)
+
+            elif choice == QMessageBox.Discard:
+                # Download (and override) the required version from the server
+                model.API_Client.downloadFileFromServer(
+                    versionUniqueFileName, fullFileName
+                )
+
+                doc = FreeCAD.open(fullFileName)
+                doc.restore()
+            model.refreshModel()
 
     def fileListClicked(self, index):
 
@@ -587,13 +618,14 @@ class WorkspaceView(QtGui.QDockWidget):
         elif self.currentWorkspace["type"] == "Ondsel":
 
             fileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
-            print(f"fileId: {fileId}")
+            # print(f"fileId: {fileId}")
             self.form.fileDetails.setVisible(True)
 
             if fileId is not None:
                 self.links_model = ShareLinkModel(fileId, self.apiClient)
                 self.form.viewOnlineBtn.setVisible(True)
                 self.form.linkDetails.setVisible(True)
+                version_model = OndselVersionModel(fileId, self.apiClient)
 
         else:
             self.form.fileDetails.setVisible(False)
@@ -625,9 +657,7 @@ class WorkspaceView(QtGui.QDockWidget):
         else:
             self.form.versionsComboBox.setModel(model)
             self.form.versionsComboBox.setVisible(True)
-
-        self.form.versionsComboBox.adjustSize()
-        
+            
     def showWorkspaceContextMenu(self, pos):
         index = self.form.workspaceListView.indexAt(pos)
 
@@ -691,6 +721,7 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.currentWorkspaceModel.downloadFile(index)
             elif action == uploadAction:
                 self.currentWorkspaceModel.uploadFile(index)
+                self.form.versionsComboBox.model().refreshModel()
 
     def showLinksContextMenu(self, pos):
         index = self.form.linksView.indexAt(pos)
