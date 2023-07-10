@@ -12,9 +12,10 @@
 
   <content>
     <workbench>
-      <name>Ondsel Lens Addon</name>
-      <description>Workspace Manager for Ondsel and Local Workspaces</description>
       <classname>WorkspaceView</classname>
+      <name>Ondsel Lens Addon</name>
+      <subdirectory>./</subdirectory>
+      <description>Workspace Manager for Ondsel and Local Workspaces</description>
       <icon>Resources/icons/OndselWorkbench.svg</icon>
       <tag>developers</tag>
 
