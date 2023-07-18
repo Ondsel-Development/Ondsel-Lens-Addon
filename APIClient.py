@@ -253,7 +253,7 @@ class APIClient:
         return result
 
     @authRequired
-    def createModel(self, fileName, uniqueName):
+    def createModel(self, fileName, fileUpdatedAt, uniqueName):
         print("Creating the model...")
         endpoint = "models"
 
@@ -266,6 +266,7 @@ class APIClient:
             "uniqueFileName": uniqueName,
             "shouldStartObjGeneration": True,
             "errorMsg": "",
+            "fileUpdatedAt" : fileUpdatedAt
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
@@ -273,16 +274,20 @@ class APIClient:
         return result
 
     @authRequired
-    def regenerateModelObj(self, fileId, uniqueFileName):
-        print("Regenerating the model OBJ...")
+    def regenerateModelObj(self, fileId, fileUpdatedAt, uniqueFileName):
+        print(f"Regenerating the model OBJ... {fileUpdatedAt}")
         endpoint = f"models/{fileId}"
 
         headers = {
             "Content-Type": "application/json",
         }
-
         payload = {
-            "uniqueFileName": uniqueFileName,
+            "shouldCommitNewVersion": True,
+            "version" : {
+                "uniqueFileName": uniqueFileName,
+                "fileUpdatedAt" : fileUpdatedAt,
+                "message" : "Commit message"
+            },
             "shouldStartObjGeneration": True
         }
 

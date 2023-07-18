@@ -7,6 +7,7 @@
 import os
 import FreeCAD
 import zipfile
+import math
 from PySide2.QtGui import QPixmap
 modPath = os.path.dirname(__file__).replace("\\", "/")
 
@@ -49,3 +50,9 @@ def extract_thumbnail(file_path):
     else:
         # If file doesn't exist then the file is on the server only. We could fetch the server thumbnail.
         return None
+
+def getFileUpdatedAt(file_path):
+    return math.floor(os.path.getmtime(file_path) * 1000)
+
+def getFileCreateddAt(file_path):
+    return math.floor(os.path.getctime(file_path) * 1000)

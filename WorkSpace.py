@@ -96,8 +96,8 @@ class WorkSpaceModel(QAbstractListModel):
             if Utils.isOpenableByFreeCAD(basename):
                 # Retrieve file creation and modification dates
                 file_path = Utils.joinPath(self.getFullPath(), basename)
-                created_time = os.path.getctime(file_path)
-                modified_time = os.path.getmtime(file_path)
+                created_time = Utils.getFileCreateddAt(file_path)
+                modified_time = Utils.getFileUpdatedAt(file_path)
                 file_item = FileItem(
                     basename,
                     file_path,
@@ -245,11 +245,13 @@ class ServerWorkspaceModel(WorkSpaceModel):
             for i, localFile in enumerate(files):
                 if model["custFileName"] == localFile.name:
                     localFile.model = model
-
-                    if model["updatedAt"] < localFile.updatedAt:
+                    serverDate = model["file"]["currentVersion"]["additionalData"]["fileUpdatedAt"]
+                    localDate = localFile.updatedAt
+                    # print(f"update date are : {serverDate} - {localDate}")
+                    if serverDate < localDate:
                         localFile.status = "Server copy outdated"
 
-                    elif model["updatedAt"] > localFile.updatedAt:
+                    elif serverDate > localDate:
                         localFile.status = "Local copy outdated"
 
                     else:
@@ -349,6 +351,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         super().deleteFile(index)
 
     def downloadFile(self, index):
+        # This will download the latest version.
         print("downloading file...")
         file_item = self.files[index.row()]
         if file_item.is_folder:
@@ -387,12 +390,13 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
             self.API_Client.uploadFileToServer(uniqueName, file_path)
-
+            
+            fileUpdateDate = Utils.getFileUpdatedAt(file_path)
             if file_item.model is None:
                 # First time the file is uploaded.
-                self.API_Client.createModel(file_item.name, uniqueName)
+                self.API_Client.createModel(file_item.name, fileUpdateDate, uniqueName)
             else:
-                self.API_Client.regenerateModelObj(file_item.model["_id"], uniqueName)
+                self.API_Client.regenerateModelObj(file_item.model["_id"], fileUpdateDate, uniqueName)
 
         self.refreshModel()
 
@@ -406,8 +410,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
             if file_item.status == "Untracked":
                 uniqueName = f"{str(uuid.uuid4())}.fcstd"
                 file_path = Utils.joinPath(self.getFullPath(), file_item.name)
+                fileUpdateDate = Utils.getFileUpdatedAt(file_path)
                 self.API_Client.uploadFileToServer(uniqueName, file_path)
-                self.API_Client.createModel(file_item.name, uniqueName)
+                self.API_Client.createModel(file_item.name, fileUpdateDate, uniqueName)
                 refreshRequired = True
 
         if refreshRequired:
