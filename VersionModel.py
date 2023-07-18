@@ -162,7 +162,7 @@ class LocalVersionModel(VersionModel):
         document file
         """
 
-        if not self._isBackupFile(filename):
+        if not self._isBackupFile(filename) and filename != os.path.basename(self.filename):
             return
 
         resource = f"{self.path}/{filename}"
