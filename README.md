@@ -7,30 +7,25 @@ currently in private beta and requires manual installation.
 
 ## Installation
 
-Switch to the location where FreeCAD is installed. 
-Change into the Mod directory.
+Open FreeCAD and go to the Addon-manager preferences (Edit -> Preferences -> Addon-manager).
 
-Clone the addon source:
+In the 'Custom repositories' section, click on the '+' button to add a new external repository with :
+Repository URL : https://github.com/Ondsel-Development/Ondsel-Lens
+Branch : master
 
-`git clone git@github.com:Ondsel-Development/Ondsel-Lens.git`
+Close preferences and open the Addon-manager. Find in the list 'Ondsel-Lens' and install it.
 
-or 
+Restart FreeCAD.
 
-`git clone https://github.com/Ondsel-Development/Ondsel-Lens.git`
-
-Start FreeCAD.
-
-You should see the Ondsel Addon shown on the right side of FreeCAD
+You should see the Ondsel Addon shown on the right side of FreeCAD. If it doesn't appear, right-click on the toolbar area and toggle the visibility of the 'Workspace View'.
 
 ![image](https://github.com/Ondsel-Development/Ondsel-Lens/assets/538057/4ecccf11-6797-4c81-815e-1fc66db87b08)
 
 ## Dependencies
 
-The addon requires a couple of additional Python dependencies that might not
-be installed on your machine. Once the addon is available throug the FreeCAD
-addon manager, these will be installed automatically.  For now, you may need
-to install them manually.
+The addon requires a couple of additional Python dependencies that should be installed automatically by the FreeCAD addon manager, these will be installed automatically.  For now, you may need to install them manually.
 
+If you have a problem you can install them manually by :
 Open the Python console in FreeCAD and enter the following code
 
 ```
@@ -76,9 +71,9 @@ download formats.
 
 ## The state of the Beta
 
-This is an _early_ beta.  We know there are many bugs and missing features. Expect
-the UI to change significantly.  This will require you to pull the latest code
-from the GitHub repository.  
+This is an _early_ beta.  We know there are many bugs and missing features. Expect the UI to change significantly.  This will require you to pull the latest code from the GitHub repository.  
+
+During this beta, backward compatibility may not be supported between versions for the models you upload on the server. If you encounter errors messages such as 'fileUpdatedAt key does not exist' it is a backward compatibility issue and you will have to delete your old models from the server and upload them again.
 
 We are grateful to you for trying the addon and letting us know what you think.
 The best place to talk with us about bugs and features is in the Telegram group:
