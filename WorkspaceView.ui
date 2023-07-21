@@ -256,6 +256,16 @@
      </layout>
     </widget>
    </item>
+   <item>
+    <widget class="QLabel" name="updateAvailable">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string> </string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
  <resources/>

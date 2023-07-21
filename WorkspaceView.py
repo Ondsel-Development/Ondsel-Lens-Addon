@@ -13,6 +13,7 @@ import json
 import shutil
 import tempfile
 import re
+import requests
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError
@@ -310,6 +311,9 @@ class WorkspaceView(QtGui.QDockWidget):
         self.timer.timeout.connect(self.timerTick)
         self.timer.setInterval(60000)
         self.timer.start()
+
+        self.check_for_update()
+
 
         # linksView.setModel(self.linksModel)
 
@@ -941,6 +945,44 @@ class WorkspaceView(QtGui.QDockWidget):
             self.workspacesModel.addWorkspace(
                 workspaceName, workspaceDesc, workspaceType, workspaceUrl
             )
+
+    def get_server_package_file(self):
+        remote_version_url = "https://raw.githubusercontent.com/Ondsel-Development/Ondsel-Lens/master/package.xml"
+        response = requests.get(remote_version_url)
+        if response.status_code == 200:
+            return response.text
+        return None
+
+    def get_local_package_file(self):
+        local_version_url = f"{modPath}/package.xml"
+        try:
+            with open(local_version_url, "r") as file_:
+                return file_.read()
+        except FileNotFoundError:
+            pass
+        return None
+
+    def get_version_from_package_file(self, packageFileStr):
+        if packageFileStr is None:
+            return None
+
+        lines = packageFileStr.split('\n')
+        for line in lines:
+            if "<version>" in line:
+                version = line.strip().lstrip("<version>").rstrip("</version>")
+                return version
+
+    def check_for_update(self):
+        local_version = self.get_version_from_package_file(self.get_local_package_file())
+        remote_version = self.get_version_from_package_file(self.get_server_package_file())
+
+        if local_version and remote_version and local_version != remote_version:
+            self.form.updateAvailable.setText(f"<a href=\"https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/changeLog.md">Ondsel Lens v{remote_version} available!</a>")
+            self.form.updateAvailable.setTextFormat(QtCore.Qt.RichText)
+            self.form.updateAvailable.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
+            self.form.updateAvailable.setOpenExternalLinks(True)
+
+            self.form.updateAvailable.show()
 
 
 class NewWorkspaceDialog(QtGui.QDialog):
