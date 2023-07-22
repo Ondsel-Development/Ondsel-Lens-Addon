@@ -5,22 +5,17 @@ on:
     branches:
       - master
 
-jobs:
-  update_version:
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Check Out Code
-        uses: actions/checkout@v2
-
-      - name: Set Up Python
-        uses: actions/setup-python@v2
-        with:
-          python-version: 3.10
-
-      - name: Install Dependencies
-        run: |
-          pip install -r requirements.txt
-
-      - name: Run Versioning Script
-        run: python ../../version.py
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'  
+    - name: Install Dependencies
+      run: pip install -r requirements.txt
+      shell: bash
+    - name: Update the version
+      id: update-version
+      run: python ../../version.py
+      shell: bash
