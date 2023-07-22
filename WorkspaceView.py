@@ -47,8 +47,8 @@ cachePath = f"{modPath}/Cache/"
 # Test server
 #baseUrl = "http://ec2-54-234-132-150.compute-1.amazonaws.com"
 # Prod server
-baseUrl = "http://lens-api.ondsel.com/"
-lensUrl = "http://lens.ondsel.com/"
+baseUrl = "https://lens-api.ondsel.com/"
+lensUrl = "https://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
 
 # try:
