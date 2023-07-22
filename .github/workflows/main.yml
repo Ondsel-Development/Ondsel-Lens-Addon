@@ -16,11 +16,11 @@ jobs:
       - name: Set Up Python
         uses: actions/setup-python@v2
         with:
-          python-version: 3.12
+          python-version: 3.10
 
       - name: Install Dependencies
         run: |
-          pip install -r requirements.txt  # If your versioning script requires any dependencies, add them to a requirements.txt file
+          pip install -r requirements.txt
 
       - name: Run Versioning Script
         run: python ../../version.py
