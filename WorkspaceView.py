@@ -46,11 +46,16 @@ iconsPath = f"{modPath}/Resources/icons/"
 cachePath = f"{modPath}/Cache/"
 
 # Test server
-#baseUrl = "http://ec2-54-234-132-150.compute-1.amazonaws.com"
+#baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
 # Prod server
-baseUrl = "http://lens-api.ondsel.com/"
-lensUrl = "http://lens.ondsel.com/"
+baseUrl = "https://lens-api.ondsel.com/"
+lensUrl = "https://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
+
+remote_changelog_url = "https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/changeLog.md"
+
+remote_package_url = "https://raw.githubusercontent.com/Ondsel-Development/Ondsel-Lens/master/package.xml"
+local_package_path = f"{modPath}/package.xml"
 
 # try:
 #     import config
@@ -947,16 +952,14 @@ class WorkspaceView(QtGui.QDockWidget):
             )
 
     def get_server_package_file(self):
-        remote_version_url = "https://raw.githubusercontent.com/Ondsel-Development/Ondsel-Lens/master/package.xml"
-        response = requests.get(remote_version_url)
+        response = requests.get(remote_package_url)
         if response.status_code == 200:
             return response.text
         return None
 
     def get_local_package_file(self):
-        local_version_url = f"{modPath}/package.xml"
         try:
-            with open(local_version_url, "r") as file_:
+            with open(local_package_path, "r") as file_:
                 return file_.read()
         except FileNotFoundError:
             pass
@@ -977,7 +980,7 @@ class WorkspaceView(QtGui.QDockWidget):
         remote_version = self.get_version_from_package_file(self.get_server_package_file())
 
         if local_version and remote_version and local_version != remote_version:
-            self.form.updateAvailable.setText(f"<a href=\"https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/changeLog.md">Ondsel Lens v{remote_version} available!</a>")
+            self.form.updateAvailable.setText(f"<a href=\'{remote_changelog_url}'>Ondsel Lens v{remote_version} available!</a>")
             self.form.updateAvailable.setTextFormat(QtCore.Qt.RichText)
             self.form.updateAvailable.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
             self.form.updateAvailable.setOpenExternalLinks(True)
