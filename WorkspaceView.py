@@ -980,10 +980,9 @@ class WorkspaceView(QtGui.QDockWidget):
         remote_version = self.get_version_from_package_file(self.get_server_package_file())
 
         if local_version and remote_version and local_version != remote_version:
-            self.form.updateAvailable.setText(f"<a href=\'{remote_changelog_url}'>Ondsel Lens v{remote_version} available!</a>")
-            self.form.updateAvailable.setTextFormat(QtCore.Qt.RichText)
-            self.form.updateAvailable.setTextInteractionFlags(QtCore.Qt.TextBrowserInteraction)
-            self.form.updateAvailable.setOpenExternalLinks(True)
+            self.form.updateAvailable.setUrl(remote_changelog_url)
+            self.form.updateAvailable.setText(f"Ondsel Lens v{remote_version} available!")
+            self.form.updateAvailable.setToolTip(f"Click to see the change-log of Ondsel Lens v{remote_version} in your browser.</a>")
 
             self.form.updateAvailable.show()
 
