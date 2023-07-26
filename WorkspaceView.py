@@ -45,9 +45,9 @@ iconsPath = f"{modPath}/Resources/icons/"
 cachePath = f"{modPath}/Cache/"
 
 # Test server
-#baseUrl = "http://ec2-54-234-132-150.compute-1.amazonaws.com"
+baseUrl = "http://ec2-54-234-132-150.compute-1.amazonaws.com"
 # Prod server
-baseUrl = "https://lens-api.ondsel.com/"
+#baseUrl = "https://lens-api.ondsel.com/"
 lensUrl = "https://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
 
@@ -583,13 +583,13 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def fileListClicked(self, index):
 
-        self.currentFileName, isFolder = self.currentWorkspaceModel.data(
-            index, WorkSpaceModel.NameAndIsFolderRole
-        )
-
-        self.currentFileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
+        file_item = self.currentWorkspaceModel.data(index)
+        self.currentModelId = None
+        if file_item.serverModelDict is not None:
+            self.currentModelId = file_item.serverModelDict["_id"]
+        self.currentFileName = file_item.name
         
-        if isFolder:
+        if file_item.is_folder:
             self.form.thumbnail_label.hide()
         else:
             self.form.thumbnail_label.show()
@@ -597,7 +597,7 @@ class WorkspaceView(QtGui.QDockWidget):
             pixmap = Utils.extract_thumbnail(f"{path}/{self.currentFileName}")
             if pixmap == None:
                 if self.currentWorkspace["type"] == "Ondsel":
-                    pixmap = self.getServerThumbnail(self.currentFileName, path, self.currentFileId)
+                    pixmap = self.getServerThumbnail(self.currentFileName, path, self.currentModelId)
 
                 if pixmap == None:
                     pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
@@ -611,7 +611,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.viewOnlineBtn.setVisible(False)
         self.form.linkDetails.setVisible(False)
 
-        if isFolder:
+        if file_item.is_folder:
             pass
 
         elif self.currentWorkspace["type"] == "Local":
@@ -622,15 +622,12 @@ class WorkspaceView(QtGui.QDockWidget):
 
         elif self.currentWorkspace["type"] == "Ondsel":
 
-            fileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
-            # print(f"fileId: {fileId}")
             self.form.fileDetails.setVisible(True)
-
-            if fileId is not None:
-                self.links_model = ShareLinkModel(fileId, self.apiClient)
+            if self.currentModelId is not None:
+                self.links_model = ShareLinkModel(self.currentModelId, self.apiClient)
                 self.form.viewOnlineBtn.setVisible(True)
                 self.form.linkDetails.setVisible(True)
-                version_model = OndselVersionModel(fileId, self.apiClient)
+                version_model = OndselVersionModel(self.currentModelId, self.apiClient)
 
         else:
             self.form.fileDetails.setVisible(False)
@@ -692,8 +689,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
-        self.currentFileId = self.currentWorkspaceModel.data(index, WorkSpaceModel.IdRole)
-        fileStatus = self.currentWorkspaceModel.data(index, WorkSpaceModel.StatusRole)
+        file_item = self.currentWorkspaceModel.data(index)
 
         menu = QtGui.QMenu()
         if self.currentWorkspace["type"] == "Ondsel":
@@ -701,12 +697,14 @@ class WorkspaceView(QtGui.QDockWidget):
             uploadAction = menu.addAction("Upload to Lens")
             downloadAction = menu.addAction("Download from Lens")
             menu.addSeparator()
-        deleteAction = menu.addAction("Delete File")
+            if file_item.status == "Server only":
+                uploadAction.setEnabled(False)
+            if file_item.status == "Untracked":
+                downloadAction.setEnabled(False)
+            if file_item.ext not in [".fcstd", ".obj"]:
+                openOnlineAction.setEnabled(False)
 
-        if fileStatus == "Server only":
-            uploadAction.setEnabled(False)
-        if fileStatus == "Untracked":
-            downloadAction.setEnabled(False)
+        deleteAction = menu.addAction("Delete File")
 
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
 
@@ -798,8 +796,8 @@ class WorkspaceView(QtGui.QDockWidget):
     def openModelOnline(self):
         url = ondselUrl
 
-        if self.currentWorkspace["type"] == "Ondsel" and self.currentFileId is not None:
-            url = f"{lensUrl}model/{self.currentFileId}"
+        if self.currentWorkspace["type"] == "Ondsel" and self.currentModelId is not None:
+            url = f"{lensUrl}model/{self.currentModelId}"
 
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
         

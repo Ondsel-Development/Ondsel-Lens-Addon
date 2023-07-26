@@ -81,6 +81,7 @@ class WorkSpaceModel(QAbstractListModel):
             if os.path.isdir(Utils.joinPath(self.getFullPath(), basename)) and not basename.startswith('.'):
                 file_item = FileItem(
                     basename,
+                    "",
                     self.getFullPath(),
                     True,
                     [],
@@ -92,14 +93,16 @@ class WorkSpaceModel(QAbstractListModel):
                 local_files.append(file_item)
 
         for basename in files:
-            # Then we add the files that are supported
-            if Utils.isOpenableByFreeCAD(basename):
-                # Retrieve file creation and modification dates
-                file_path = Utils.joinPath(self.getFullPath(), basename)
+            # Then we add the files
+            file_path = Utils.joinPath(self.getFullPath(), basename)
+            if not os.path.isdir(file_path):
                 created_time = Utils.getFileCreateddAt(file_path)
                 modified_time = Utils.getFileUpdatedAt(file_path)
+                base, extension = os.path.splitext(basename)
+
                 file_item = FileItem(
                     basename,
+                    extension.lower(),
                     file_path,
                     False,
                     [basename],
@@ -214,7 +217,8 @@ class LocalWorkspaceModel(WorkSpaceModel):
             self.refreshModel()
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
-            FreeCAD.loadFile(file_path)
+            if Utils.isOpenableByFreeCAD(file_path):
+                FreeCAD.loadFile(file_path)
 
 
 class ServerWorkspaceModel(WorkSpaceModel):
@@ -238,14 +242,14 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
         files = self.getLocalFiles()
 
-        remoteFilesToAdd = []
-        models = self.API_Client.getModels()
-        for model in models:
+        serverFilesToAdd = []
+        serverFiles = self.API_Client.getFiles()
+        for serverFileDict in serverFiles:
             foundLocal = False
             for i, localFile in enumerate(files):
-                if model["custFileName"] == localFile.name:
-                    localFile.model = model
-                    serverDate = model["file"]["currentVersion"]["additionalData"]["fileUpdatedAt"]
+                if serverFileDict["custFileName"] == localFile.name:
+                    localFile.serverFileDict = serverFileDict
+                    serverDate = serverFileDict["currentVersion"]["additionalData"]["fileUpdatedAt"]
                     localDate = localFile.updatedAt
                     # print(f"update date are : {serverDate} - {localDate}")
                     if serverDate < localDate:
@@ -257,22 +261,33 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     else:
                         localFile.status = "Synced"
 
+                    if "modelId" in serverFileDict:
+                        print(serverFileDict["modelId"])
+                        localFile.serverModelDict = self.API_Client.getModel(serverFileDict["modelId"])
+
                     foundLocal = True
                     break
             if not foundLocal:  # local doesnt have this file
+                serverModelDict = None
+                if "modelId" in serverFileDict:
+                    serverModelDict = self.API_Client.getModel(serverFileDict["modelId"])
+                
+                base, extension = os.path.splitext(serverFileDict["custFileName"])
                 file_item = FileItem(
-                    model["custFileName"],
+                    serverFileDict["custFileName"],
+                    extension.lower(),
                     self.getFullPath(),
                     False,
-                    [model["custFileName"]],
-                    model["custFileName"],
-                    model["createdAt"],
-                    model["updatedAt"],
+                    [serverFileDict["custFileName"]],
+                    serverFileDict["custFileName"],
+                    serverFileDict["createdAt"],
+                    serverFileDict["currentVersion"]["additionalData"]["fileUpdatedAt"],
                     "Server only",
-                    model,
+                    serverFileDict,
+                    serverModelDict,
                 )
-                remoteFilesToAdd.append(file_item)
-        files += remoteFilesToAdd
+                serverFilesToAdd.append(file_item)
+        files += serverFilesToAdd
 
         self.beginResetModel()
         self.files = files
@@ -294,8 +309,8 @@ class ServerWorkspaceModel(WorkSpaceModel):
         elif role == self.NameAndIsFolderRole:
             return file_item.name, False
         elif role == self.IdRole:
-            if file_item.model is not None:
-                return file_item.model["_id"]
+            if file_item.serverModelDict is not None:
+                return file_item.serverModelDict["_Id"]
         elif role == self.StatusRole:
             return file_item.status
         elif role == self.NameStatusAndIsFolderRole:
@@ -305,8 +320,8 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
     def getServerThumbnail(self, fileId):
         for file_item in self.files:
-            if file_item.model is not None and file_item.model["_id"] == fileId:
-                thumbnailUrl = file_item.model["thumbnailUrl"]
+            if file_item.serverModelDict is not None and file_item.serverModelDict["_id"] == fileId:
+                thumbnailUrl = file_item.serverModelDict["thumbnailUrl"]
                 try:
                     response = requests.get(thumbnailUrl)
                     image_data = response.content
@@ -337,16 +352,18 @@ class ServerWorkspaceModel(WorkSpaceModel):
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
             if not os.path.isfile(file_path):
                 # download the file
+                # Note: serverModelDict["uniqueFileName"] = asserverFileDict["currentVersion"]["uniqueFileName"]
                 self.API_Client.downloadFileFromServer(
-                    file_item.model["uniqueFileName"], file_path
+                    file_item.serverModelDict["uniqueFileName"], file_path
                 )
 
-            FreeCAD.loadFile(file_path)
+            if Utils.isOpenableByFreeCAD(file_path):
+                FreeCAD.loadFile(file_path)
 
     def deleteFile(self, index):
-        fileId = self.data(index, WorkSpaceModel.IdRole)
-        if fileId is not None:
-            self.API_Client.deleteModel(fileId)
+        modelId = self.data(index, WorkSpaceModel.IdRole)
+        if modelId is not None:
+            self.API_Client.deleteModel(modelId)
 
         super().deleteFile(index)
 
@@ -359,7 +376,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
             self.API_Client.downloadFileFromServer(
-                file_item.model["uniqueFileName"], file_path
+                file_item.serverModelDict["uniqueFileName"], file_path
             )
         self.refreshModel()
 
@@ -385,18 +402,10 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 if msg_box.exec_() == QMessageBox.No:
                     return
 
-            # unique file name is always generated even if file is already on the server under another uniqueFileName.
-            uniqueName = f"{str(uuid.uuid4())}.fcstd"
-
-            file_path = Utils.joinPath(self.getFullPath(), file_item.name)
-            self.API_Client.uploadFileToServer(uniqueName, file_path)
-            
-            fileUpdateDate = Utils.getFileUpdatedAt(file_path)
-            if file_item.model is None:
-                # First time the file is uploaded.
-                self.API_Client.createModel(file_item.name, fileUpdateDate, uniqueName)
+            if file_item.serverModelDict is None:
+                self.upload(file_item.name, True)
             else:
-                self.API_Client.regenerateModelObj(file_item.model["_id"], fileUpdateDate, uniqueName)
+                self.upload(file_item.name, False, file_item.serverModelDict["_id"])
 
         self.refreshModel()
 
@@ -408,20 +417,40 @@ class ServerWorkspaceModel(WorkSpaceModel):
         refreshRequired = False
         for file_item in self.files:
             if file_item.status == "Untracked":
-                uniqueName = f"{str(uuid.uuid4())}.fcstd"
-                file_path = Utils.joinPath(self.getFullPath(), file_item.name)
-                fileUpdateDate = Utils.getFileUpdatedAt(file_path)
-                self.API_Client.uploadFileToServer(uniqueName, file_path)
-                self.API_Client.createModel(file_item.name, fileUpdateDate, uniqueName)
+                self.upload(file_item.name, True)
                 refreshRequired = True
 
         if refreshRequired:
             self.refreshModel(False)
 
+    def upload(self, fileName, create, id_ = 0):
+        # unique file name is always generated even if file is already on the server under another uniqueFileName.
+        base, extension = os.path.splitext(fileName)
+        uniqueName = f"{str(uuid.uuid4())}.fcstd" #TODO replace .fcstd by {extension}
+
+        file_path = Utils.joinPath(self.getFullPath(), fileName)
+        fileUpdateDate = Utils.getFileUpdatedAt(file_path)
+
+        self.API_Client.uploadFileToServer(uniqueName, file_path)
+
+        if create:
+            # First time the file is uploaded.
+            if extension.lower() in [".fcstd", ".obj"] :
+                self.API_Client.createModel(fileName, fileUpdateDate, uniqueName)
+            else:
+                self.API_Client.createFile(fileName, fileUpdateDate, uniqueName)
+        else:
+            if extension.lower() in [".fcstd", ".obj"] :
+                self.API_Client.regenerateModelObj(id_, fileUpdateDate, uniqueName)
+            else:
+                self.API_Client.updateFileObj(id_, fileUpdateDate, uniqueName)
+
+
 class FileItem:
     def __init__(
         self,
         name,
+        ext,
         path,
         is_folder,
         versions,
@@ -429,9 +458,11 @@ class FileItem:
         createdAt,
         updatedAt,
         status="Untracked",
-        model=None,
+        serverFileDict=None,
+        serverModelDict=None,
     ):
         self.name = name
+        self.ext = ext
         self.path = path
         self.is_folder = is_folder
         self.versions = versions
@@ -439,4 +470,5 @@ class FileItem:
         self.createdAt = createdAt
         self.updatedAt = updatedAt
         self.status = status
-        self.model = model
+        self.serverFileDict = serverFileDict
+        self.serverModelDict = serverModelDict
