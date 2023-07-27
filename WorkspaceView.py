@@ -299,12 +299,16 @@ class WorkspaceView(QtGui.QDockWidget):
             self.access_token = loginData["accessToken"]
             # self.access_token = self.generate_expired_token()
 
-            if self.tokenExpired(self.access_token):
+            if self.isTokenExpired(self.access_token):
                 user = None
                 self.logout()
             else:
                 user = loginData["user"]
                 self.setUIForLogin(True, user)
+
+                # Set a timer to logout when token expires.
+                self.setTokenExpirationTimer(self.access_token)
+
         else:
             user = None
             self.setUIForLogin(False)
@@ -377,7 +381,35 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.guestMenu.addAction(self.newWorkspaceAction)
 
-    def tokenExpired(self, token):
+    def isTokenExpired(self, token):
+        expiration_time = self.getTokenExpirationTime(token)
+        current_time = datetime.now()
+        return current_time > expiration_time
+
+    def setTokenExpirationTimer(self, token):
+        expiration_time = self.getTokenExpirationTime(token)
+        current_time = datetime.now()
+
+        time_difference = expiration_time - current_time
+        interval_milliseconds = max(0, time_difference.total_seconds() * 1000)
+
+        # Create a QTimer that triggers only once when the token is expired
+        self.token_timer = QtCore.QTimer()
+        self.token_timer.setSingleShot(True)
+        self.token_timer.timeout.connect(self.token_expired_handler)
+        self.token_timer.start(interval_milliseconds)
+
+    def token_expired_handler(self):
+        QMessageBox.information(
+            None,
+            "Token Expired",
+            "Your authentication token has expired, you have been logged out."
+        )
+
+        user = None
+        self.logout()
+
+    def getTokenExpirationTime(self, token):
         try:
             decoded_token = jwt.decode(
                 token,
@@ -393,9 +425,8 @@ class WorkspaceView(QtGui.QDockWidget):
         except Exception as e:
             print(e)
             raise e
-        expiration_time = datetime.fromtimestamp(decoded_token["exp"])
-        current_time = datetime.now()
-        return current_time > expiration_time
+
+        return datetime.fromtimestamp(decoded_token["exp"])
 
     def setUIForLogin(self, state, user=None):
         """Toggle the visibility of UI elements based on if user is logged in"""
@@ -854,6 +885,10 @@ class WorkspaceView(QtGui.QDockWidget):
                         "Ondsel",
                         cachePath + "ondsel",
                     )
+
+                    # Set a timer to logout when token expires.
+                    self.setTokenExpirationTimer(self.access_token)
+
                 else:
                     print("Authentication failed")
 
