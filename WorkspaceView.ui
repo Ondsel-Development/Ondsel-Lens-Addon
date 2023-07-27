@@ -256,8 +256,25 @@
      </layout>
     </widget>
    </item>
+   <item>
+    <widget class="Gui::UrlLabel" name="updateAvailable">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+     <property name="text">
+      <string> </string>
+     </property>
+    </widget>
+   </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>Gui::UrlLabel</class>
+   <extends>QLabel</extends>
+   <header>Gui/Widgets.h</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

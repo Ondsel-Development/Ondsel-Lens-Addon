@@ -13,6 +13,7 @@ import json
 import shutil
 import tempfile
 import re
+import requests
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError
@@ -45,11 +46,16 @@ iconsPath = f"{modPath}/Resources/icons/"
 cachePath = f"{modPath}/Cache/"
 
 # Test server
-#baseUrl = "http://ec2-54-234-132-150.compute-1.amazonaws.com"
+#baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
 # Prod server
 baseUrl = "https://lens-api.ondsel.com/"
 lensUrl = "https://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
+
+remote_changelog_url = "https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/changeLog.md"
+
+remote_package_url = "https://raw.githubusercontent.com/Ondsel-Development/Ondsel-Lens/master/package.xml"
+local_package_path = f"{modPath}/package.xml"
 
 # try:
 #     import config
@@ -310,6 +316,9 @@ class WorkspaceView(QtGui.QDockWidget):
         self.timer.timeout.connect(self.timerTick)
         self.timer.setInterval(60000)
         self.timer.start()
+
+        self.check_for_update()
+
 
         # linksView.setModel(self.linksModel)
 
@@ -941,6 +950,41 @@ class WorkspaceView(QtGui.QDockWidget):
             self.workspacesModel.addWorkspace(
                 workspaceName, workspaceDesc, workspaceType, workspaceUrl
             )
+
+    def get_server_package_file(self):
+        response = requests.get(remote_package_url)
+        if response.status_code == 200:
+            return response.text
+        return None
+
+    def get_local_package_file(self):
+        try:
+            with open(local_package_path, "r") as file_:
+                return file_.read()
+        except FileNotFoundError:
+            pass
+        return None
+
+    def get_version_from_package_file(self, packageFileStr):
+        if packageFileStr is None:
+            return None
+
+        lines = packageFileStr.split('\n')
+        for line in lines:
+            if "<version>" in line:
+                version = line.strip().lstrip("<version>").rstrip("</version>")
+                return version
+
+    def check_for_update(self):
+        local_version = self.get_version_from_package_file(self.get_local_package_file())
+        remote_version = self.get_version_from_package_file(self.get_server_package_file())
+
+        if local_version and remote_version and local_version != remote_version:
+            self.form.updateAvailable.setUrl(remote_changelog_url)
+            self.form.updateAvailable.setText(f"Ondsel Lens v{remote_version} available!")
+            self.form.updateAvailable.setToolTip(f"Click to see the change-log of Ondsel Lens v{remote_version} in your browser.</a>")
+
+            self.form.updateAvailable.show()
 
 
 class NewWorkspaceDialog(QtGui.QDialog):
