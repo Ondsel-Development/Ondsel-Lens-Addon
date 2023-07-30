@@ -359,6 +359,12 @@ class APIClient:
 
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))
 
+    @authRequired
+    def deleteFile(self, _id):
+        endpoint = f"/file/{_id}"
+
+        result = self._delete(endpoint)
+        return result
 
     #  Upload Functions
 

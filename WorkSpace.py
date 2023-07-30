@@ -99,19 +99,19 @@ class WorkSpaceModel(QAbstractListModel):
                 created_time = Utils.getFileCreateddAt(file_path)
                 modified_time = Utils.getFileUpdatedAt(file_path)
                 base, extension = os.path.splitext(basename)
-
-                file_item = FileItem(
-                    basename,
-                    extension.lower(),
-                    file_path,
-                    False,
-                    [basename],
-                    basename,
-                    created_time,
-                    modified_time,
-                    "Untracked",
-                )
-                local_files.append(file_item)
+                if(extension.lower() != ".fcbak"):
+                    file_item = FileItem(
+                        basename,
+                        extension.lower(),
+                        file_path,
+                        False,
+                        [basename],
+                        basename,
+                        created_time,
+                        modified_time,
+                        "Untracked",
+                    )
+                    local_files.append(file_item)
 
         return local_files
 
@@ -262,7 +262,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
                         localFile.status = "Synced"
 
                     if "modelId" in serverFileDict:
-                        print(serverFileDict["modelId"])
                         localFile.serverModelDict = self.API_Client.getModel(serverFileDict["modelId"])
 
                     foundLocal = True
@@ -310,7 +309,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
             return file_item.name, False
         elif role == self.IdRole:
             if file_item.serverModelDict is not None:
-                return file_item.serverModelDict["_Id"]
+                return file_item.serverModelDict["_id"]
         elif role == self.StatusRole:
             return file_item.status
         elif role == self.NameStatusAndIsFolderRole:
@@ -361,9 +360,12 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 FreeCAD.loadFile(file_path)
 
     def deleteFile(self, index):
-        modelId = self.data(index, WorkSpaceModel.IdRole)
-        if modelId is not None:
-            self.API_Client.deleteModel(modelId)
+        file_item = self.files[index.row()]
+
+        if file_item.serverModelDict is not None:
+            self.API_Client.deleteModel(file_item.serverModelDict["_id"])
+        else:
+            self.API_Client.deleteFile(file_item.serverFileDict["_id"])
 
         super().deleteFile(index)
 
