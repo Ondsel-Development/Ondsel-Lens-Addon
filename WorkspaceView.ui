@@ -248,6 +248,13 @@
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="toolTip">
+            <string>Those are share links, using the buttons you can :
+
+- Copy the url
+- Edit the link parameters.
+- Delete the link</string>
+           </property>
           </widget>
          </item>
         </layout>
