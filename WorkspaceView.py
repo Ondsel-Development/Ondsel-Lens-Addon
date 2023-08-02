@@ -15,8 +15,9 @@ import tempfile
 import re
 import requests
 
-import jwt
-from jwt.exceptions import ExpiredSignatureError
+from libs import jwt
+from libs.jwt.exceptions import ExpiredSignatureError
+
 import FreeCAD
 import FreeCADGui as Gui
 
