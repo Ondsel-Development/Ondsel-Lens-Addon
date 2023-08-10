@@ -46,13 +46,15 @@ iconsPath = f"{modPath}/Resources/icons/"
 cachePath = f"{modPath}/Cache/"
 
 # Test server
-#baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
+# baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
 # Prod server
 baseUrl = "https://lens-api.ondsel.com/"
 lensUrl = "https://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
 
-remote_changelog_url = "https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/changeLog.md"
+remote_changelog_url = (
+    "https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/changeLog.md"
+)
 
 remote_package_url = "https://raw.githubusercontent.com/Ondsel-Development/Ondsel-Lens/master/package.xml"
 local_package_path = f"{modPath}/package.xml"
@@ -99,6 +101,7 @@ class FileListDelegate(QStyledItemDelegate):
             textToDisplay += " (" + status + ")"
         painter.drawText(text_rect, QtCore.Qt.AlignLeft, textToDisplay)
 
+
 class LinkListDelegate(QStyledItemDelegate):
     iconCopyClicked = QtCore.Signal(QtCore.QModelIndex)
     iconEditClicked = QtCore.Signal(QtCore.QModelIndex)
@@ -113,9 +116,15 @@ class LinkListDelegate(QStyledItemDelegate):
         if option.state & QStyle.State_Selected:
             painter.fillRect(option.rect, option.palette.highlight())
 
-        icon_copy_rect = QtCore.QRect(option.rect.right() - 60, option.rect.top(), 16, 16)
-        icon_edit_rect = QtCore.QRect(option.rect.right() - 40, option.rect.top(), 16, 16)
-        icon_delete_rect = QtCore.QRect(option.rect.right() - 20, option.rect.top(), 16, 16)
+        icon_copy_rect = QtCore.QRect(
+            option.rect.right() - 60, option.rect.top(), 16, 16
+        )
+        icon_edit_rect = QtCore.QRect(
+            option.rect.right() - 40, option.rect.top(), 16, 16
+        )
+        icon_delete_rect = QtCore.QRect(
+            option.rect.right() - 20, option.rect.top(), 16, 16
+        )
         text_rect = QtCore.QRect(
             option.rect.left() + 4,
             option.rect.top(),
@@ -124,8 +133,12 @@ class LinkListDelegate(QStyledItemDelegate):
         )
 
         icon_copy = QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/edit-copy.svg"))
-        icon_edit = QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/Std_DlgParameter.svg"))
-        icon_delete = QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/edit_Cancel.svg"))
+        icon_edit = QtGui.QIcon.fromTheme(
+            "back", QtGui.QIcon(":/icons/Std_DlgParameter.svg")
+        )
+        icon_delete = QtGui.QIcon.fromTheme(
+            "back", QtGui.QIcon(":/icons/edit_Cancel.svg")
+        )
 
         icon_copy.paint(painter, icon_copy_rect)
         icon_edit.paint(painter, icon_edit_rect)
@@ -136,10 +149,19 @@ class LinkListDelegate(QStyledItemDelegate):
         if not index.isValid():
             return False
 
-        if event.type() == QtCore.QEvent.MouseButtonPress and event.button() == QtCore.Qt.LeftButton:
-            icon_copy_rect = QtCore.QRect(option.rect.right() - 60, option.rect.top(), 16, 16)
-            icon_edit_rect = QtCore.QRect(option.rect.right() - 40, option.rect.top(), 16, 16)
-            icon_delete_rect = QtCore.QRect(option.rect.right() - 20, option.rect.top(), 16, 16)
+        if (
+            event.type() == QtCore.QEvent.MouseButtonPress
+            and event.button() == QtCore.Qt.LeftButton
+        ):
+            icon_copy_rect = QtCore.QRect(
+                option.rect.right() - 60, option.rect.top(), 16, 16
+            )
+            icon_edit_rect = QtCore.QRect(
+                option.rect.right() - 40, option.rect.top(), 16, 16
+            )
+            icon_delete_rect = QtCore.QRect(
+                option.rect.right() - 20, option.rect.top(), 16, 16
+            )
 
             if icon_copy_rect.contains(event.pos()):
                 self.iconCopyClicked.emit(index)
@@ -241,8 +263,8 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.ondselIcon = QIcon(iconsPath + "OndselWorkbench.svg")
         self.ondselIconOff = QIcon(iconsPath + "OndselWorkbench-off.svg")
-        self.form.userBtn.setIconSize(QtCore.QSize(32, 32));
-        self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon);
+        self.form.userBtn.setIconSize(QtCore.QSize(32, 32))
+        self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.form.userBtn.clicked.connect(self.form.userBtn.showMenu)
 
         self.form.buttonBack.clicked.connect(self.backClicked)
@@ -265,7 +287,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.fileList.clicked.connect(self.fileListClicked)
 
         self.form.versionsComboBox.activated.connect(self.versionClicked)
-        
+
         self.linksDelegate = LinkListDelegate(self)
         self.linksDelegate.iconCopyClicked.connect(self.copyShareLinkClicked)
         self.linksDelegate.iconEditClicked.connect(self.editShareLinkClicked)
@@ -287,7 +309,7 @@ class WorkspaceView(QtGui.QDockWidget):
         addFileAction2.triggered.connect(self.addFileBtnClicked)
         addFileMenu.addAction(addFileAction2)
         self.form.addFileBtn.setMenu(addFileMenu)
-        
+
         self.form.viewOnlineBtn.clicked.connect(self.openModelOnline)
 
         self.form.fileDetails.setVisible(False)
@@ -314,7 +336,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.setUIForLogin(False)
 
         self.switchView()
-        
+
         # Set a timer to check regularly the server
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.timerTick)
@@ -322,7 +344,6 @@ class WorkspaceView(QtGui.QDockWidget):
         self.timer.start()
 
         self.check_for_update()
-
 
         # linksView.setModel(self.linksModel)
 
@@ -403,7 +424,7 @@ class WorkspaceView(QtGui.QDockWidget):
         QMessageBox.information(
             None,
             "Token Expired",
-            "Your authentication token has expired, you have been logged out."
+            "Your authentication token has expired, you have been logged out.",
         )
 
         user = None
@@ -516,7 +537,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.workspaceNameLabel.setText(
             self.currentWorkspaceModel.getWorkspacePath()
         )
-    
+
     def linksListDoubleClicked(self, index):
         # print("linksListDoubleClicked")
         model = self.form.linksView.model()
@@ -556,7 +577,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
             # Process the user's choice
             if choice == QMessageBox.Save:
-
                 # make sure the document is open and get a reference
                 doc = FreeCAD.open(fullFileName)
 
@@ -582,7 +602,6 @@ class WorkspaceView(QtGui.QDockWidget):
                 doc = FreeCAD.open(fullFileName)
 
             elif choice == QMessageBox.Discard:
-
                 try:
                     shutil.move(backupfilename, fullFileName)
                 except OSError as e:
@@ -590,7 +609,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
                 doc = FreeCAD.open(fullFileName)
                 doc.restore()
-
 
         elif self.currentWorkspace["type"] == "Ondsel":
             versionUniqueFileName = model.data(index, role=QtCore.Qt.UserRole)
@@ -622,13 +640,12 @@ class WorkspaceView(QtGui.QDockWidget):
             model.refreshModel()
 
     def fileListClicked(self, index):
-
         file_item = self.currentWorkspaceModel.data(index)
         self.currentModelId = None
         if file_item.serverModelDict is not None:
             self.currentModelId = file_item.serverModelDict["_id"]
         self.currentFileName = file_item.name
-        
+
         if file_item.is_folder:
             self.form.thumbnail_label.hide()
         else:
@@ -637,7 +654,9 @@ class WorkspaceView(QtGui.QDockWidget):
             pixmap = Utils.extract_thumbnail(f"{path}/{self.currentFileName}")
             if pixmap == None:
                 if self.currentWorkspace["type"] == "Ondsel":
-                    pixmap = self.getServerThumbnail(self.currentFileName, path, self.currentModelId)
+                    pixmap = self.getServerThumbnail(
+                        self.currentFileName, path, self.currentModelId
+                    )
 
                 if pixmap == None:
                     pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
@@ -655,13 +674,14 @@ class WorkspaceView(QtGui.QDockWidget):
             pass
 
         elif self.currentWorkspace["type"] == "Local":
-            fullFileName = f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}"
+            fullFileName = (
+                f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}"
+            )
             self.form.fileDetails.setVisible(True)
 
             version_model = LocalVersionModel(fullFileName)
 
         elif self.currentWorkspace["type"] == "Ondsel":
-
             self.form.fileDetails.setVisible(True)
             if self.currentModelId is not None:
                 self.links_model = ShareLinkModel(self.currentModelId, self.apiClient)
@@ -674,7 +694,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.linksView.setModel(self.links_model)
         self.setVersionListModel(version_model)
-    
+
     def getServerThumbnail(self, fileName, path, fileId):
         # check if we have stored the thumbnail locally already.
         if not os.path.exists(f"{path}/.thumbnails"):
@@ -699,7 +719,7 @@ class WorkspaceView(QtGui.QDockWidget):
         else:
             self.form.versionsComboBox.setModel(model)
             self.form.versionsComboBox.setVisible(True)
-            
+
     def showWorkspaceContextMenu(self, pos):
         index = self.form.workspaceListView.indexAt(pos)
 
@@ -794,7 +814,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
             if action == addLinkAction:
                 self.addShareLink()
-    
+
     def copyShareLinkClicked(self, index):
         model = self.form.linksView.model()
         linkId = model.data(index, ShareLinkModel.UrlRole)
@@ -836,11 +856,14 @@ class WorkspaceView(QtGui.QDockWidget):
     def openModelOnline(self):
         url = ondselUrl
 
-        if self.currentWorkspace["type"] == "Ondsel" and self.currentModelId is not None:
+        if (
+            self.currentWorkspace["type"] == "Ondsel"
+            and self.currentModelId is not None
+        ):
             url = f"{lensUrl}model/{self.currentModelId}"
 
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
-        
+
     def openPreferences(self):
         print("Preferences clicked")
 
@@ -912,7 +935,11 @@ class WorkspaceView(QtGui.QDockWidget):
         doc = FreeCAD.ActiveDocument
 
         if doc is None:
-            QMessageBox.information(self, "No FreeCAD File Opened", "You don't have any FreeCAD file opened now.")
+            QMessageBox.information(
+                self,
+                "No FreeCAD File Opened",
+                "You don't have any FreeCAD file opened now.",
+            )
             return
 
         # Get the default name of the file from the document
@@ -1002,20 +1029,28 @@ class WorkspaceView(QtGui.QDockWidget):
         if packageFileStr is None:
             return None
 
-        lines = packageFileStr.split('\n')
+        lines = packageFileStr.split("\n")
         for line in lines:
             if "<version>" in line:
                 version = line.strip().lstrip("<version>").rstrip("</version>")
                 return version
 
     def check_for_update(self):
-        local_version = self.get_version_from_package_file(self.get_local_package_file())
-        remote_version = self.get_version_from_package_file(self.get_server_package_file())
+        local_version = self.get_version_from_package_file(
+            self.get_local_package_file()
+        )
+        remote_version = self.get_version_from_package_file(
+            self.get_server_package_file()
+        )
 
         if local_version and remote_version and local_version != remote_version:
             self.form.updateAvailable.setUrl(remote_changelog_url)
-            self.form.updateAvailable.setText(f"Ondsel Lens v{remote_version} available!")
-            self.form.updateAvailable.setToolTip(f"Click to see the change-log of Ondsel Lens v{remote_version} in your browser.</a>")
+            self.form.updateAvailable.setText(
+                f"Ondsel Lens v{remote_version} available!"
+            )
+            self.form.updateAvailable.setToolTip(
+                f"Click to see the change-log of Ondsel Lens v{remote_version} in your browser.</a>"
+            )
 
             self.form.updateAvailable.show()
 
@@ -1136,7 +1171,7 @@ class NewWorkspaceDialog(QtGui.QDialog):
                     QtGui.QMessageBox.Ok,
                 )
 
-      
+
 class SharingLinkEditDialog(QtGui.QDialog):
     def __init__(self, linkProperties=None, parent=None):
         super(SharingLinkEditDialog, self).__init__(parent)
@@ -1152,7 +1187,6 @@ class SharingLinkEditDialog(QtGui.QDialog):
         self.dialog.cancelBtn.clicked.connect(self.reject)
 
         if linkProperties is None:
-
             self.linkProperties = {
                 "description": "",
                 "canViewModelAttributes": True,
@@ -1189,7 +1223,6 @@ class SharingLinkEditDialog(QtGui.QDialog):
         self.dialog.canExportOBJCheckBox.setChecked(self.linkProperties["canExportOBJ"])
 
     def getLinkProperties(self):
-
         self.linkProperties["description"] = self.dialog.linkName.text()
         self.linkProperties[
             "canViewModelAttributes"

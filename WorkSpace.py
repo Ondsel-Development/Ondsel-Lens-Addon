@@ -78,7 +78,9 @@ class WorkSpaceModel(QAbstractListModel):
 
         for basename in files:
             # First we add the folders, such that they appear first in the list.
-            if os.path.isdir(Utils.joinPath(self.getFullPath(), basename)) and not basename.startswith('.'):
+            if os.path.isdir(
+                Utils.joinPath(self.getFullPath(), basename)
+            ) and not basename.startswith("."):
                 file_item = FileItem(
                     basename,
                     "",
@@ -99,7 +101,7 @@ class WorkSpaceModel(QAbstractListModel):
                 created_time = Utils.getFileCreateddAt(file_path)
                 modified_time = Utils.getFileUpdatedAt(file_path)
                 base, extension = os.path.splitext(basename)
-                if(extension.lower() != ".fcbak"):
+                if extension.lower() != ".fcbak":
                     file_item = FileItem(
                         basename,
                         extension.lower(),
@@ -149,7 +151,6 @@ class WorkSpaceModel(QAbstractListModel):
         }
 
     def deleteFile(self, index):
-
         fileName = self.data(index, WorkSpaceModel.NameRole)
 
         fileName = Utils.joinPath(self.getFullPath(), fileName)
@@ -249,7 +250,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
             for i, localFile in enumerate(files):
                 if serverFileDict["custFileName"] == localFile.name:
                     localFile.serverFileDict = serverFileDict
-                    serverDate = serverFileDict["currentVersion"]["additionalData"]["fileUpdatedAt"]
+                    serverDate = serverFileDict["currentVersion"]["additionalData"][
+                        "fileUpdatedAt"
+                    ]
                     localDate = localFile.updatedAt
                     # print(f"update date are : {serverDate} - {localDate}")
                     if serverDate < localDate:
@@ -262,15 +265,19 @@ class ServerWorkspaceModel(WorkSpaceModel):
                         localFile.status = "Synced"
 
                     if "modelId" in serverFileDict:
-                        localFile.serverModelDict = self.API_Client.getModel(serverFileDict["modelId"])
+                        localFile.serverModelDict = self.API_Client.getModel(
+                            serverFileDict["modelId"]
+                        )
 
                     foundLocal = True
                     break
             if not foundLocal:  # local doesnt have this file
                 serverModelDict = None
                 if "modelId" in serverFileDict:
-                    serverModelDict = self.API_Client.getModel(serverFileDict["modelId"])
-                
+                    serverModelDict = self.API_Client.getModel(
+                        serverFileDict["modelId"]
+                    )
+
                 base, extension = os.path.splitext(serverFileDict["custFileName"])
                 file_item = FileItem(
                     serverFileDict["custFileName"],
@@ -319,7 +326,10 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
     def getServerThumbnail(self, fileId):
         for file_item in self.files:
-            if file_item.serverModelDict is not None and file_item.serverModelDict["_id"] == fileId:
+            if (
+                file_item.serverModelDict is not None
+                and file_item.serverModelDict["_id"] == fileId
+            ):
                 thumbnailUrl = file_item.serverModelDict["thumbnailUrl"]
                 try:
                     response = requests.get(thumbnailUrl)
@@ -338,7 +348,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     pixmap = pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio)
                     return pixmap
                 except requests.exceptions.RequestException as e:
-                    pass # no thumbnail online.
+                    pass  # no thumbnail online.
 
         return None
 
@@ -396,7 +406,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
             if file_item.status == "Local copy outdated":
                 msg_box = QMessageBox()
                 msg_box.setWindowTitle("Confirmation")
-                msg_box.setText("The server version is newer than your local copy. Uploading will override the server version.\nAre you sure you want to proceed?")
+                msg_box.setText(
+                    "The server version is newer than your local copy. Uploading will override the server version.\nAre you sure you want to proceed?"
+                )
                 msg_box.setIcon(QMessageBox.Warning)
                 msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
                 msg_box.setDefaultButton(QMessageBox.No)
@@ -425,10 +437,10 @@ class ServerWorkspaceModel(WorkSpaceModel):
         if refreshRequired:
             self.refreshModel(False)
 
-    def upload(self, fileName, create, id_ = 0):
+    def upload(self, fileName, create, id_=0):
         # unique file name is always generated even if file is already on the server under another uniqueFileName.
         base, extension = os.path.splitext(fileName)
-        uniqueName = f"{str(uuid.uuid4())}.fcstd" #TODO replace .fcstd by {extension}
+        uniqueName = f"{str(uuid.uuid4())}.fcstd"  # TODO replace .fcstd by {extension}
 
         file_path = Utils.joinPath(self.getFullPath(), fileName)
         fileUpdateDate = Utils.getFileUpdatedAt(file_path)
@@ -437,12 +449,12 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
         if create:
             # First time the file is uploaded.
-            if extension.lower() in [".fcstd", ".obj"] :
+            if extension.lower() in [".fcstd", ".obj"]:
                 self.API_Client.createModel(fileName, fileUpdateDate, uniqueName)
             else:
                 self.API_Client.createFile(fileName, fileUpdateDate, uniqueName)
         else:
-            if extension.lower() in [".fcstd", ".obj"] :
+            if extension.lower() in [".fcstd", ".obj"]:
                 self.API_Client.regenerateModelObj(id_, fileUpdateDate, uniqueName)
             else:
                 self.API_Client.updateFileObj(id_, fileUpdateDate, uniqueName)

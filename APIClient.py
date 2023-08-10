@@ -3,14 +3,19 @@ import json
 import uuid
 import os
 
+
 class CustomAuthenticationError(Exception):
     pass
+
 
 class CustomConnectionError(Exception):
     pass
 
+
 class APIClient:
-    def __init__(self, email, password, api_url, lens_url, access_token=None, user=None):
+    def __init__(
+        self, email, password, api_url, lens_url, access_token=None, user=None
+    ):
         self.base_url = api_url
         self.lens_url = lens_url
 
@@ -59,9 +64,7 @@ class APIClient:
         except Exception as e:
             raise e
 
-
     def _delete(self, endpoint, headers={}, params=None):
-
         headers["Authorization"] = f"Bearer {self.access_token}"
         headers["Accept"] = "application/json"
 
@@ -88,12 +91,12 @@ class APIClient:
             )
 
     def _request(self, endpoint, headers={}, params=None):
-
         headers["Authorization"] = f"Bearer {self.access_token}"
         headers["Accept"] = "application/json"
         try:
             response = requests.get(
-                f"{self.base_url}/{endpoint}", headers=headers, params=params)
+                f"{self.base_url}/{endpoint}", headers=headers, params=params
+            )
         except requests.exceptions.RequestException as e:
             # Handle connection error
             print(f"Connection Error: {e}")
@@ -112,7 +115,6 @@ class APIClient:
             )
 
     def _post(self, endpoint, headers={}, params=None, data=None, files=None):
-
         if endpoint != "authentication":
             headers["Authorization"] = f"Bearer {self.access_token}"
         headers["Accept"] = "application/json"
@@ -142,7 +144,6 @@ class APIClient:
             )
 
     def _update(self, endpoint, headers={}, data=None, files=None):
-
         headers["Authorization"] = f"Bearer {self.access_token}"
         headers["Accept"] = "application/json"
 
@@ -222,7 +223,6 @@ class APIClient:
 
     @authRequired
     def logout(self):
-
         endpoint = "authentication"
         result = self._delete(endpoint)
         return result
@@ -231,7 +231,6 @@ class APIClient:
 
     @authRequired
     def getModels(self, params=None):
-
         paginationparams = {"$limit": 50, "$skip": 0, "isSharedModel": "false"}
 
         endpoint = "models"
@@ -266,7 +265,7 @@ class APIClient:
             "uniqueFileName": uniqueName,
             "shouldStartObjGeneration": True,
             "errorMsg": "",
-            "fileUpdatedAt" : fileUpdatedAt
+            "fileUpdatedAt": fileUpdatedAt,
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
@@ -283,12 +282,12 @@ class APIClient:
         }
         payload = {
             "shouldCommitNewVersion": True,
-            "version" : {
+            "version": {
                 "uniqueFileName": uniqueFileName,
-                "fileUpdatedAt" : fileUpdatedAt,
-                "message" : "Commit message"
+                "fileUpdatedAt": fileUpdatedAt,
+                "message": "Commit message",
             },
-            "shouldStartObjGeneration": True
+            "shouldStartObjGeneration": True,
         }
 
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))
@@ -304,7 +303,6 @@ class APIClient:
 
     @authRequired
     def getFiles(self, params=None):
-
         paginationparams = {"$limit": 50, "$skip": 0, "isSystemGenerated": "false"}
         endpoint = "file"
         if params is None:
@@ -332,8 +330,8 @@ class APIClient:
             "version": {
                 "uniqueFileName": uniqueName,
                 "message": "",
-                "fileUpdatedAt": fileUpdatedAt
-            }
+                "fileUpdatedAt": fileUpdatedAt,
+            },
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
@@ -350,10 +348,10 @@ class APIClient:
         }
         payload = {
             "shouldCommitNewVersion": True,
-            "version" : {
+            "version": {
                 "uniqueFileName": uniqueFileName,
-                "fileUpdatedAt" : fileUpdatedAt,
-                "message" : ""
+                "fileUpdatedAt": fileUpdatedAt,
+                "message": "",
             },
         }
 
@@ -387,7 +385,6 @@ class APIClient:
             files = {"file": fileWithUniqueName}
             result = self._post(endpoint, files=files)
             return result
-
 
     @authRequired
     def downloadFileFromServer(self, uniqueName, filename):
@@ -464,7 +461,6 @@ class APIHelper:
 
     @staticmethod
     def getFilter(objName):
-
         if objName == "models":
             return {
                 "$limit": None,
@@ -492,7 +488,6 @@ class APIHelper:
 
     @staticmethod
     def filterFilter(data):
-
         if isinstance(data, dict):
             return {
                 key: APIHelper.filterFilter(value)

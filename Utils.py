@@ -9,14 +9,16 @@ import FreeCAD
 import zipfile
 import math
 from PySide2.QtGui import QPixmap
+
 modPath = os.path.dirname(__file__).replace("\\", "/")
+
 
 def joinPath(first, second):
     return os.path.join(first, second).replace("\\", "/")
-    #return os.path.normpath(os.path.join(first, second))
+    # return os.path.normpath(os.path.join(first, second))
+
 
 def isOpenableByFreeCAD(filename):
-
     "check if FreeCAD can handle this file type"
 
     if os.path.isdir(filename):
@@ -30,13 +32,14 @@ def isOpenableByFreeCAD(filename):
             ext = ext[1:]
     return ext in extensions
 
+
 def extract_thumbnail(file_path):
     if os.path.exists(file_path):
         try:
             # Open the FCStd file as a zip archive
-            with zipfile.ZipFile(file_path, 'r') as zip_ref:
+            with zipfile.ZipFile(file_path, "r") as zip_ref:
                 # Read the contents of the thumbnail image file
-                thumbnail_data = zip_ref.read('thumbnails/Thumbnail.png')
+                thumbnail_data = zip_ref.read("thumbnails/Thumbnail.png")
 
                 # Create a QPixmap from the thumbnail data
                 pixmap = QPixmap()
@@ -51,8 +54,10 @@ def extract_thumbnail(file_path):
         # If file doesn't exist then the file is on the server only. We could fetch the server thumbnail.
         return None
 
+
 def getFileUpdatedAt(file_path):
     return math.floor(os.path.getmtime(file_path) * 1000)
+
 
 def getFileCreateddAt(file_path):
     return math.floor(os.path.getctime(file_path) * 1000)

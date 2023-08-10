@@ -56,6 +56,7 @@ class TestLocalVersionModel(unittest.TestCase):
         time.sleep(1)
         self.assertEqual(self.model.rowCount(), 3)
 
+
 class TestOndselVersionModel(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
