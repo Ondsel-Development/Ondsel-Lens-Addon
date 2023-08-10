@@ -241,9 +241,9 @@ class APIClient:
             params = {**params, **paginationparams}
 
         result = self._request(endpoint, params=params)
-        files = result["data"]
+        models = result["data"]
 
-        return files
+        return models
 
     @authRequired
     def getModel(self, modelId):
@@ -296,6 +296,72 @@ class APIClient:
     @authRequired
     def deleteModel(self, _id):
         endpoint = f"/models/{_id}"
+
+        result = self._delete(endpoint)
+        return result
+
+    # File Objects functions
+
+    @authRequired
+    def getFiles(self, params=None):
+
+        paginationparams = {"$limit": 50, "$skip": 0, "isSystemGenerated": "false"}
+        endpoint = "file"
+        if params is None:
+            params = paginationparams
+        else:
+            params = {**params, **paginationparams}
+
+        result = self._request(endpoint, params=params)
+        files = result["data"]
+
+        return files
+
+    @authRequired
+    def createFile(self, fileName, fileUpdatedAt, uniqueName):
+        print("Creating the file object...")
+        endpoint = "file"
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "custFileName": fileName,
+            "shouldCommitNewVersion": True,
+            "version": {
+                "uniqueFileName": uniqueName,
+                "message": "",
+                "fileUpdatedAt": fileUpdatedAt
+            }
+        }
+
+        result = self._post(endpoint, headers=headers, data=json.dumps(payload))
+
+        return result
+
+    @authRequired
+    def updateFileObj(self, fileId, fileUpdatedAt, uniqueFileName):
+        print(f"Posting new version of file...")
+        endpoint = f"file/{fileId}"
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "shouldCommitNewVersion": True,
+            "version" : {
+                "uniqueFileName": uniqueFileName,
+                "fileUpdatedAt" : fileUpdatedAt,
+                "message" : ""
+            },
+        }
+
+        result = self._update(endpoint, headers=headers, data=json.dumps(payload))
+
+    @authRequired
+    def deleteFile(self, _id):
+        endpoint = f"/file/{_id}"
 
         result = self._delete(endpoint)
         return result
