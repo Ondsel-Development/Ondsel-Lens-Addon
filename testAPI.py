@@ -15,13 +15,14 @@ import uuid
 
 class APIClientTest(unittest.TestCase):
     def setUp(self):
-
         self.base_url = config.base_url
         self.username = config.username
         self.password = config.password
         self.lens_url = config.lens_url
         self.access_token = None
-        self.api_client = APIClient(self.username, self.password, self.base_url, self.lens_url)
+        self.api_client = APIClient(
+            self.username, self.password, self.base_url, self.lens_url
+        )
 
     def test_10(self):
         user = self.api_client.get_user()
@@ -36,7 +37,6 @@ class APIClientTest(unittest.TestCase):
         # Need to figure out what we can assert about being logged out
 
     def test_20(self):
-
         remoteFiles = self.api_client.getModels()
         model = remoteFiles[0]
 
@@ -61,13 +61,12 @@ class APIClientTest(unittest.TestCase):
             self.assertIn(key, model.keys())
 
     def test_40(self):
-
         # ModelFunctions
 
         testfile = "testshape.FCStd"
 
         url, basename = os.path.split(testfile)
-        modpath = os.path.abspath(sys.modules['__main__'].__file__)
+        modpath = os.path.abspath(sys.modules["__main__"].__file__)
         path, _ = os.path.split(modpath)
         basename = os.path.join(path, basename)
         print(basename)
@@ -91,7 +90,7 @@ class APIClientTest(unittest.TestCase):
         result = self.api_client.uploadFileToServer(uniqueName, basename)
         print(result)
 
-        fileData["uniqueFileName"] =  uniqueName
+        fileData["uniqueFileName"] = uniqueName
 
         # Test creating a model on the server
         model = self.api_client.createModel(fileData)
@@ -133,7 +132,7 @@ class APIClientTest(unittest.TestCase):
         self.assertTrue(os.path.isfile(fname))
 
         # Test Deleting the model
-        #result = self.api_client.deleteModel(model["_id"])
+        # result = self.api_client.deleteModel(model["_id"])
 
     def test_50(self):
         # Share Functions
@@ -167,7 +166,7 @@ class APIClientTest(unittest.TestCase):
         for key in keys:
             self.assertIn(key, result.keys())
 
-    # test creating a share
+        # test creating a share
 
         result = self.api_client.getModels()
         model = result[0]
@@ -194,14 +193,13 @@ class APIClientTest(unittest.TestCase):
 
         shareID = result["_id"]
 
-    # result = self.api_client.getSharedModels()
-    # self.assertIsInstance(len(result), int)
+        # result = self.api_client.getSharedModels()
+        # self.assertIsInstance(len(result), int)
 
-         # test deleting a share
+        # test deleting a share
         result = self.api_client.deleteSharedModel(shareID)
 
     def test_100(self):
-
         user = self.api_client.get_user()
         props = {"userId": user["_id"]}
 

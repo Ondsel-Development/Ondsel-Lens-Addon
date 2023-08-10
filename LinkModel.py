@@ -57,7 +57,6 @@ class ShareLinkModel(QAbstractListModel):
 
         return None
 
-
     def update_link(self, index, linkData):
         if not index.isValid():
             return False
@@ -71,8 +70,7 @@ class ShareLinkModel(QAbstractListModel):
         self.api_client.updateSharedModel(linkData)
         self.refresh_model()
 
-
-        #self.dataChanged.emit(index, index, [Qt.EditRole])
+        # self.dataChanged.emit(index, index, [Qt.EditRole])
         return True
 
     def rowCount(self, index=QModelIndex()):
@@ -88,7 +86,6 @@ class ShareLinkModel(QAbstractListModel):
         for model in shared_models:
             canExport = model.get("canExportModel", True)
             link = {
-
                 "_id": model["_id"],
                 "description": model.get("description", ""),
                 "canViewModel": model["canViewModel"],
@@ -100,7 +97,9 @@ class ShareLinkModel(QAbstractListModel):
                 "canExportOBJ": model.get("canExportOBJ", canExport),
                 "isActive": model.get("isActive", True),
                 "dummyModelId": model.get("dummyModelId", None),
-                "canDownloadDefaultModel":  model.get("canDownloadDefaultModel", canExport),
+                "canDownloadDefaultModel": model.get(
+                    "canDownloadDefaultModel", canExport
+                ),
                 "cloneModelId": model.get("cloneModelId"),
             }
 
@@ -124,9 +123,9 @@ class ShareLinkModel(QAbstractListModel):
             raise e
 
     def add_new_link(self, link):
-        """ public method to add link to the model on server """
+        """public method to add link to the model on server"""
 
-        link['cloneModelId'] = self.model_id
+        link["cloneModelId"] = self.model_id
 
         if link.get("isActive", None) is not None:
             link.pop("isActive")
@@ -135,12 +134,10 @@ class ShareLinkModel(QAbstractListModel):
             result = self.api_client.createSharedModel(link)
             self.refresh_model()
         except Exception as e:
-            raise e  # need to handle connection problem at least 
-
+            raise e  # need to handle connection problem at least
 
     def _add_link(self, link):
-        """ private method to add to the qabstractTableModel"""
-
+        """private method to add to the qabstractTableModel"""
 
         row = len(self.links)
         # Add the new item to the links list
@@ -149,4 +146,3 @@ class ShareLinkModel(QAbstractListModel):
         self.endInsertRows()
 
         return True
-

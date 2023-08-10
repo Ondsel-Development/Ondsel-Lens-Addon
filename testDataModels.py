@@ -9,7 +9,6 @@ from DataModels import ShareLinkModel, VersionModel
 from PySide.QtCore import Qt
 
 if __name__ == "__main__":
-
     # Test the ShareLinkModel
     # Create a test dataset
     data = [

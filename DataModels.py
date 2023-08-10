@@ -14,6 +14,7 @@ import FreeCAD
 modPath = os.path.dirname(__file__).replace("\\", "/")
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 
+
 class WorkspaceListModel(QAbstractListModel):
     """Workspaces is a list of dicts
 

@@ -37,7 +37,6 @@ class VersionModel(QAbstractListModel):
         # Get the user's local timezone
         user_timezone = get_localzone()
 
-
         try:
             # Convert the time string to a datetime object
             if isinstance(time, int):
@@ -65,7 +64,6 @@ class VersionModel(QAbstractListModel):
         data = []
 
         for row in range(self.rowCount()):
-
             index = self.index(row, QModelIndex())
             value = self.data(index, Qt.DisplayRole)
 
@@ -162,7 +160,9 @@ class LocalVersionModel(VersionModel):
         document file
         """
 
-        if not self._isBackupFile(filename) and filename != os.path.basename(self.filename):
+        if not self._isBackupFile(filename) and filename != os.path.basename(
+            self.filename
+        ):
             return
 
         resource = f"{self.path}/{filename}"
@@ -194,8 +194,8 @@ class LocalVersionModel(VersionModel):
 
         return None
 
-class OndselVersionModel(VersionModel):
 
+class OndselVersionModel(VersionModel):
     def __init__(self, model_id, API_Client, parent=None):
         super().__init__(parent)
         self.model_id = model_id
@@ -210,7 +210,6 @@ class OndselVersionModel(VersionModel):
         self.beginResetModel()
         self.versions = model["file"]["versions"][::-1]
         self.endResetModel()
-
 
     def data(self, index, role):
         row = index.row()

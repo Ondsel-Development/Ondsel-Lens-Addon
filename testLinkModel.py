@@ -21,6 +21,7 @@ and only test the data model.
 Also, an assert here and there wouldn't hurt.
 """
 
+
 class TestLinkModel(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -29,7 +30,9 @@ class TestLinkModel(unittest.TestCase):
         cls.username = config.username
         cls.password = config.password
         cls.access_token = None
-        cls.api_client = APIClient(cls.username, cls.password, cls.base_url, cls.lens_url)
+        cls.api_client = APIClient(
+            cls.username, cls.password, cls.base_url, cls.lens_url
+        )
 
         testfile = "testshape.FCStd"
 
@@ -59,7 +62,7 @@ class TestLinkModel(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         pass
-        #result = cls.api_client.deleteModel(cls.modelID)
+        # result = cls.api_client.deleteModel(cls.modelID)
 
     def setUp(self):
         self.base_url = config.base_url
@@ -78,7 +81,6 @@ class TestLinkModel(unittest.TestCase):
         self.assertTrue(sharemodel.rowCount() == 0)
         sharemodel.dump()
 
-
     def test_10(self):
         # create a share link data model.
         sharemodel = ShareLinkModel(self.modelID, self.api_client)
@@ -93,9 +95,9 @@ class TestLinkModel(unittest.TestCase):
             "canExportSTEP": False,
             "canExportSTL": False,
             "canExportOBJ": False,
-            "dummyModelId": "", #self.modelID,
-            "canDownloadDefaultModel": True
-            }
+            "dummyModelId": "",  # self.modelID,
+            "canDownloadDefaultModel": True,
+        }
 
         # create a share link
         result = sharemodel.add_new_link(link)
@@ -103,13 +105,12 @@ class TestLinkModel(unittest.TestCase):
         self.assertTrue(sharemodel.rowCount() == 1)
 
         # delete the link
-        result = sharemodel.delete_link(result['_id'])
+        result = sharemodel.delete_link(result["_id"])
         self.assertTrue(sharemodel.rowCount() == 0)
 
     def test_20(self):
         # test update.
         pass
-
 
 
 if __name__ == "__main__":
