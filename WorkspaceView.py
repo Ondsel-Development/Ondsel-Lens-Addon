@@ -103,7 +103,7 @@ class FileListDelegate(QStyledItemDelegate):
 
 
 class LinkListDelegate(QStyledItemDelegate):
-    iconCopyClicked = QtCore.Signal(QtCore.QModelIndex)
+    iconShareClicked = QtCore.Signal(QtCore.QModelIndex)
     iconEditClicked = QtCore.Signal(QtCore.QModelIndex)
     iconDeleteClicked = QtCore.Signal(QtCore.QModelIndex)
 
@@ -153,7 +153,7 @@ class LinkListDelegate(QStyledItemDelegate):
             event.type() == QtCore.QEvent.MouseButtonPress
             and event.button() == QtCore.Qt.LeftButton
         ):
-            icon_copy_rect = QtCore.QRect(
+            icon_share_rect = QtCore.QRect(
                 option.rect.right() - 60, option.rect.top(), 16, 16
             )
             icon_edit_rect = QtCore.QRect(
@@ -163,8 +163,8 @@ class LinkListDelegate(QStyledItemDelegate):
                 option.rect.right() - 20, option.rect.top(), 16, 16
             )
 
-            if icon_copy_rect.contains(event.pos()):
-                self.iconCopyClicked.emit(index)
+            if icon_share_rect.contains(event.pos()):
+                self.iconShareClicked.emit(index)
                 return True
             elif icon_edit_rect.contains(event.pos()):
                 self.iconEditClicked.emit(index)
@@ -289,7 +289,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.versionsComboBox.activated.connect(self.versionClicked)
 
         self.linksDelegate = LinkListDelegate(self)
-        self.linksDelegate.iconCopyClicked.connect(self.copyShareLinkClicked)
+        self.linksDelegate.iconShareClicked.connect(self.shareShareLinkClicked)
         self.linksDelegate.iconEditClicked.connect(self.editShareLinkClicked)
         self.linksDelegate.iconDeleteClicked.connect(self.deleteShareLinkClicked)
         self.form.linksView.setItemDelegate(self.linksDelegate)
@@ -791,14 +791,14 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if index.isValid():
             menu = QtGui.QMenu()
-            copyLinkAction = menu.addAction("copy link")
-            editLinkAction = menu.addAction("edit")
+            shareLinkAction = menu.addAction("Share link")
+            editLinkAction = menu.addAction("Edit")
             deleteAction = menu.addAction("Delete")
 
             action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
 
-            if action == copyLinkAction:
-                self.copyShareLinkClicked(index)
+            if action == shareLinkAction:
+                self.shareShareLinkClicked(index)
 
             elif action == editLinkAction:
                 self.editShareLinkClicked(index)
@@ -815,12 +815,64 @@ class WorkspaceView(QtGui.QDockWidget):
             if action == addLinkAction:
                 self.addShareLink()
 
-    def copyShareLinkClicked(self, index):
+                from PyQt5.QtWidgets import QApplication, QMessageBox
+
+    def shareShareLinkClicked(self, index):
         model = self.form.linksView.model()
         linkId = model.data(index, ShareLinkModel.UrlRole)
         url = model.compute_url(linkId)
+        forum_iframe = model.compute_forum_iframe(linkId)
+
+        # Create a custom dialog
+        dialog = QtGui.QDialog(self.form, QtCore.Qt.Popup | QtCore.Qt.FramelessWindowHint)  # Set dialog as a popup without title bar
+        dialog.setWindowTitle("Share Options")
+        dialog.setWindowModality(QtCore.Qt.NonModal)  # Set dialog to non-modal
+
+        layout = QtGui.QVBoxLayout()
+
+        label = QtGui.QLabel("Choose an option for sharing:")
+        layout.addWidget(label)
+
+        # Add custom buttons with desired tooltips
+        model_url_button = QtGui.QPushButton("Model URL")
+        model_url_button.setToolTip("This is the URL where anyone with the link can view your model through Ondsel Lens.")
+
+        forum_iframe_button = QtGui.QPushButton("FreeCAD forum")
+        forum_iframe_button.setToolTip("This is a shortcode that you can paste in FreeCAD forum posts to embed a view of your model in your post.")
+
+        # Add buttons to the layout
+        layout.addWidget(model_url_button)
+        layout.addWidget(forum_iframe_button)
+
+        # Connect button actions
+        model_url_button.clicked.connect(lambda: self.copyToClipboard(url))
+        forum_iframe_button.clicked.connect(lambda: self.copyToClipboard(forum_iframe))
+
+        # Set the layout for the dialog
+        dialog.setLayout(layout)
+
+        # Calculate the position near the mouse cursor
+        dialog.show() #Need to show the dialog so geometry is computed
+        cursor_pos = QtGui.QCursor.pos()
+        screen_geometry = QApplication.desktop().availableGeometry(dialog)
+        dialog_geometry = dialog.geometry()
+        x_min = screen_geometry.x() + 10
+        y_min = screen_geometry.y() + 10
+        x_max = screen_geometry.x() + screen_geometry.width() - dialog_geometry.width() - 10
+        y_max = screen_geometry.y() + screen_geometry.height() - dialog_geometry.height() - 10
+
+        x = max(min(cursor_pos.x(), x_max), x_min)
+        y = max(min(cursor_pos.y(), y_max), y_min)
+
+        # Set the adjusted position
+        dialog.move(x, y)
+
+        # Show the dialog
+        dialog.exec_()
+
+    def copyToClipboard(self, text):
         clipboard = QApplication.clipboard()
-        clipboard.setText(url)
+        clipboard.setText(text)
         print("Link copied!")
 
     def editShareLinkClicked(self, index):
