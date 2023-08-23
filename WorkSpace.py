@@ -246,13 +246,14 @@ class ServerWorkspaceModel(WorkSpaceModel):
         serverFilesToAdd = []
         serverFiles = self.API_Client.getFiles()
         for serverFileDict in serverFiles:
+            serverDate = serverFileDict["currentVersion"]["additionalData"].get(
+                "fileUpdatedAt", serverFileDict["currentVersion"]["createdAt"]
+            )
+
             foundLocal = False
             for i, localFile in enumerate(files):
                 if serverFileDict["custFileName"] == localFile.name:
                     localFile.serverFileDict = serverFileDict
-                    serverDate = serverFileDict["currentVersion"]["additionalData"][
-                        "fileUpdatedAt"
-                    ]
                     localDate = localFile.updatedAt
                     # print(f"update date are : {serverDate} - {localDate}")
                     if serverDate < localDate:
@@ -287,7 +288,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     [serverFileDict["custFileName"]],
                     serverFileDict["custFileName"],
                     serverFileDict["createdAt"],
-                    serverFileDict["currentVersion"]["additionalData"]["fileUpdatedAt"],
+                    serverDate,
                     "Server only",
                     serverFileDict,
                     serverModelDict,
