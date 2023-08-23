@@ -109,6 +109,9 @@ class ShareLinkModel(QAbstractListModel):
     def compute_url(self, model_id):
         return f"{self.api_client.get_base_url()}share/{model_id}"
 
+    def compute_forum_iframe(self, model_id):
+        return f"[ondsel]{model_id}[/ondsel]"
+
     def dump(self):
         print("dumping model")
         for link in self.links:

@@ -73,14 +73,12 @@ class FileListDelegate(QStyledItemDelegate):
         # Get the data for the current index
         if not index.isValid():
             return
-
         fileName, status, isFolder = index.data(
             WorkSpaceModel.NameStatusAndIsFolderRole
         )
 
         if option.state & QStyle.State_Selected:
             painter.fillRect(option.rect, option.palette.highlight())
-
         icon_rect = QtCore.QRect(option.rect.left(), option.rect.top(), 16, 16)
         text_rect = QtCore.QRect(
             option.rect.left() + 20,
@@ -94,7 +92,6 @@ class FileListDelegate(QStyledItemDelegate):
             icon = QtGui.QIcon.fromTheme(
                 "back", QtGui.QIcon(":/icons/document-new.svg")
             )
-
         icon.paint(painter, icon_rect)
         textToDisplay = fileName
         if status != "":
@@ -103,19 +100,17 @@ class FileListDelegate(QStyledItemDelegate):
 
 
 class LinkListDelegate(QStyledItemDelegate):
-    iconCopyClicked = QtCore.Signal(QtCore.QModelIndex)
+    iconShareClicked = QtCore.Signal(QtCore.QModelIndex)
     iconEditClicked = QtCore.Signal(QtCore.QModelIndex)
     iconDeleteClicked = QtCore.Signal(QtCore.QModelIndex)
 
     def paint(self, painter, option, index):
         if not index.isValid():
             return
-
         name = index.data(QtCore.Qt.DisplayRole)
 
         if option.state & QStyle.State_Selected:
             painter.fillRect(option.rect, option.palette.highlight())
-
         icon_copy_rect = QtCore.QRect(
             option.rect.right() - 60, option.rect.top(), 16, 16
         )
@@ -148,12 +143,11 @@ class LinkListDelegate(QStyledItemDelegate):
     def editorEvent(self, event, model, option, index):
         if not index.isValid():
             return False
-
         if (
             event.type() == QtCore.QEvent.MouseButtonPress
             and event.button() == QtCore.Qt.LeftButton
         ):
-            icon_copy_rect = QtCore.QRect(
+            icon_share_rect = QtCore.QRect(
                 option.rect.right() - 60, option.rect.top(), 16, 16
             )
             icon_edit_rect = QtCore.QRect(
@@ -163,8 +157,8 @@ class LinkListDelegate(QStyledItemDelegate):
                 option.rect.right() - 20, option.rect.top(), 16, 16
             )
 
-            if icon_copy_rect.contains(event.pos()):
-                self.iconCopyClicked.emit(index)
+            if icon_share_rect.contains(event.pos()):
+                self.iconShareClicked.emit(index)
                 return True
             elif icon_edit_rect.contains(event.pos()):
                 self.iconEditClicked.emit(index)
@@ -172,7 +166,6 @@ class LinkListDelegate(QStyledItemDelegate):
             elif icon_delete_rect.contains(event.pos()):
                 self.iconDeleteClicked.emit(index)
                 return True
-
         # If the click wasn't on any icon, select the item as normal
         return super().editorEvent(event, model, option, index)
 
@@ -184,7 +177,6 @@ class WorkspaceListDelegate(QStyledItemDelegate):
 
         if option.state & QStyle.State_Selected:
             painter.fillRect(option.rect, option.palette.highlight())
-
         # Set up font for the name (bold)
         name_font = painter.font()
         name_font.setBold(True)
@@ -289,7 +281,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.versionsComboBox.activated.connect(self.versionClicked)
 
         self.linksDelegate = LinkListDelegate(self)
-        self.linksDelegate.iconCopyClicked.connect(self.copyShareLinkClicked)
+        self.linksDelegate.iconShareClicked.connect(self.shareShareLinkClicked)
         self.linksDelegate.iconEditClicked.connect(self.editShareLinkClicked)
         self.linksDelegate.iconDeleteClicked.connect(self.deleteShareLinkClicked)
         self.form.linksView.setItemDelegate(self.linksDelegate)
@@ -330,11 +322,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
                 # Set a timer to logout when token expires.
                 self.setTokenExpirationTimer(self.access_token)
-
         else:
             user = None
             self.setUIForLogin(False)
-
         self.switchView()
 
         # Set a timer to check regularly the server
@@ -442,11 +432,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
             self.setUIForLogin(False)
             return False
-
         except Exception as e:
             print(e)
             raise e
-
         return datetime.fromtimestamp(decoded_token["exp"])
 
     def setUIForLogin(self, state, user=None):
@@ -473,12 +461,10 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.loginBtnClicked()
                 self.enterWorkspace(index)
                 return
-
             if self.apiClient is None and self.access_token is not None:
                 self.apiClient = APIClient(
                     "", "", baseUrl, lensUrl, self.access_token, self.user
                 )
-
         self.currentWorkspaceModel = WorkSpaceModelFactory.createWorkspace(
             self.currentWorkspace, API_Client=self.apiClient
         )
@@ -518,7 +504,6 @@ class WorkspaceView(QtGui.QDockWidget):
     def backClicked(self):
         if self.currentWorkspace is None:
             return
-
         subPath = self.currentWorkspaceModel.subPath
 
         if subPath == "":
@@ -564,7 +549,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if choice == QMessageBox.Cancel:
             return
-
         model = self.form.versionsComboBox.model()
         index = model.index(row, 0)
 
@@ -597,19 +581,15 @@ class WorkspaceView(QtGui.QDockWidget):
                     shutil.move(temp_file_path, fullFileName)
                 except OSError as e:
                     print(f"Error renaming file: {e}")
-
                 # reopen the original
                 doc = FreeCAD.open(fullFileName)
-
             elif choice == QMessageBox.Discard:
                 try:
                     shutil.move(backupfilename, fullFileName)
                 except OSError as e:
                     print(f"Error renaming file: {e}")
-
                 doc = FreeCAD.open(fullFileName)
                 doc.restore()
-
         elif self.currentWorkspace["type"] == "Ondsel":
             versionUniqueFileName = model.data(index, role=QtCore.Qt.UserRole)
 
@@ -628,7 +608,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
                 # re-open the file
                 doc = FreeCAD.open(fullFileName)
-
             elif choice == QMessageBox.Discard:
                 # Download (and override) the required version from the server
                 model.API_Client.downloadFileFromServer(
@@ -657,12 +636,10 @@ class WorkspaceView(QtGui.QDockWidget):
                     pixmap = self.getServerThumbnail(
                         self.currentFileName, path, self.currentModelId
                     )
-
                 if pixmap == None:
                     pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
             self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
             self.form.thumbnail_label.setPixmap(pixmap)
-
         self.form.fileNameLabel.setText(self.currentFileName)
 
         version_model = None
@@ -672,7 +649,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if file_item.is_folder:
             pass
-
         elif self.currentWorkspace["type"] == "Local":
             fullFileName = (
                 f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}"
@@ -680,7 +656,6 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.fileDetails.setVisible(True)
 
             version_model = LocalVersionModel(fullFileName)
-
         elif self.currentWorkspace["type"] == "Ondsel":
             self.form.fileDetails.setVisible(True)
             if self.currentModelId is not None:
@@ -688,10 +663,8 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.form.viewOnlineBtn.setVisible(True)
                 self.form.linkDetails.setVisible(True)
                 version_model = OndselVersionModel(self.currentModelId, self.apiClient)
-
         else:
             self.form.fileDetails.setVisible(False)
-
         self.form.linksView.setModel(self.links_model)
         self.setVersionListModel(version_model)
 
@@ -699,7 +672,6 @@ class WorkspaceView(QtGui.QDockWidget):
         # check if we have stored the thumbnail locally already.
         if not os.path.exists(f"{path}/.thumbnails"):
             os.makedirs(f"{path}/.thumbnails")
-
         localThumbPath = f"{path}/.thumbnails/{fileName}.png"
         if os.path.exists(localThumbPath):
             pixmap = QPixmap(localThumbPath)
@@ -707,7 +679,6 @@ class WorkspaceView(QtGui.QDockWidget):
             pixmap = self.currentWorkspaceModel.getServerThumbnail(fileId)
             if pixmap != None:
                 pixmap.save(localThumbPath, "PNG")
-
         return pixmap
 
     def setVersionListModel(self, model):
@@ -763,7 +734,6 @@ class WorkspaceView(QtGui.QDockWidget):
                 downloadAction.setEnabled(False)
             if file_item.ext not in [".fcstd", ".obj"]:
                 openOnlineAction.setEnabled(False)
-
         deleteAction = menu.addAction("Delete File")
 
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
@@ -791,21 +761,18 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if index.isValid():
             menu = QtGui.QMenu()
-            copyLinkAction = menu.addAction("copy link")
-            editLinkAction = menu.addAction("edit")
+            shareLinkAction = menu.addAction("Share link")
+            editLinkAction = menu.addAction("Edit")
             deleteAction = menu.addAction("Delete")
 
             action = menu.exec_(self.form.linksView.viewport().mapToGlobal(pos))
 
-            if action == copyLinkAction:
-                self.copyShareLinkClicked(index)
-
+            if action == shareLinkAction:
+                self.shareShareLinkClicked(index)
             elif action == editLinkAction:
                 self.editShareLinkClicked(index)
-
             elif action == deleteAction:
                 self.deleteShareLinkClicked(index)
-
         else:
             menu = QtGui.QMenu()
             addLinkAction = menu.addAction("add link")
@@ -815,12 +782,77 @@ class WorkspaceView(QtGui.QDockWidget):
             if action == addLinkAction:
                 self.addShareLink()
 
-    def copyShareLinkClicked(self, index):
+                from PyQt5.QtWidgets import QApplication, QMessageBox
+
+    def shareShareLinkClicked(self, index):
         model = self.form.linksView.model()
         linkId = model.data(index, ShareLinkModel.UrlRole)
         url = model.compute_url(linkId)
+        forum_iframe = model.compute_forum_iframe(linkId)
+
+        # Create a custom dialog
+        dialog = QtGui.QDialog(
+            self.form, QtCore.Qt.Popup | QtCore.Qt.FramelessWindowHint
+        )  # Set dialog as a popup without title bar
+        dialog.setWindowTitle("Share Options")
+        dialog.setWindowModality(QtCore.Qt.NonModal)  # Set dialog to non-modal
+
+        layout = QtGui.QVBoxLayout()
+
+        label = QtGui.QLabel("Choose an option for sharing:")
+        layout.addWidget(label)
+
+        # Add custom buttons with desired tooltips
+        model_url_button = QtGui.QPushButton("Model URL")
+        model_url_button.setToolTip(
+            "This is the URL where anyone with the link can view your model through Ondsel Lens."
+        )
+
+        forum_iframe_button = QtGui.QPushButton("FreeCAD forum")
+        forum_iframe_button.setToolTip(
+            "This is a shortcode that you can paste in FreeCAD forum posts to embed a view of your model in your post."
+        )
+
+        # Add buttons to the layout
+        layout.addWidget(model_url_button)
+        layout.addWidget(forum_iframe_button)
+
+        # Connect button actions
+        model_url_button.clicked.connect(lambda: self.copyToClipboard(url))
+        forum_iframe_button.clicked.connect(lambda: self.copyToClipboard(forum_iframe))
+
+        # Set the layout for the dialog
+        dialog.setLayout(layout)
+
+        # Calculate the position near the mouse cursor
+        dialog.show()  # Need to show the dialog so geometry is computed
+        cursor_pos = QtGui.QCursor.pos()
+        screen_geometry = QApplication.desktop().availableGeometry(dialog)
+        dialog_geometry = dialog.geometry()
+        x_min = screen_geometry.x() + 10
+        y_min = screen_geometry.y() + 10
+        x_max = (
+            screen_geometry.x() + screen_geometry.width() - dialog_geometry.width() - 10
+        )
+        y_max = (
+            screen_geometry.y()
+            + screen_geometry.height()
+            - dialog_geometry.height()
+            - 10
+        )
+
+        x = max(min(cursor_pos.x(), x_max), x_min)
+        y = max(min(cursor_pos.y(), y_max), y_min)
+
+        # Set the adjusted position
+        dialog.move(x, y)
+
+        # Show the dialog
+        dialog.exec_()
+
+    def copyToClipboard(self, text):
         clipboard = QApplication.clipboard()
-        clipboard.setText(url)
+        clipboard.setText(text)
         print("Link copied!")
 
     def editShareLinkClicked(self, index):
@@ -861,7 +893,6 @@ class WorkspaceView(QtGui.QDockWidget):
             and self.currentModelId is not None
         ):
             url = f"{lensUrl}model/{self.currentModelId}"
-
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
     def openPreferences(self):
@@ -887,7 +918,6 @@ class WorkspaceView(QtGui.QDockWidget):
                 except CustomAuthenticationError as e:
                     print("Handling authentication error:", str(e))
                     continue  # Present the login dialog again if authentication fails
-
                 # Check if the request was successful (201 status code)
                 if self.apiClient.access_token is not None:
                     loginData = {
@@ -909,10 +939,8 @@ class WorkspaceView(QtGui.QDockWidget):
 
                     # Set a timer to logout when token expires.
                     self.setTokenExpirationTimer(self.access_token)
-
                 else:
                     print("Authentication failed")
-
                 break
             else:
                 break  # Exit the login loop if the dialog is canceled
@@ -941,7 +969,6 @@ class WorkspaceView(QtGui.QDockWidget):
                 "You don't have any FreeCAD file opened now.",
             )
             return
-
         # Get the default name of the file from the document
         default_name = doc.Label + ".FCStd"
         default_path = self.currentWorkspaceModel.getFullPath()
@@ -956,7 +983,6 @@ class WorkspaceView(QtGui.QDockWidget):
             # Make sure the file has the correct extension
             if not file_name.lower().endswith(".fcstd"):
                 file_name += ".FCStd"
-
             # Save the file
             FreeCAD.Console.PrintMessage(f"Saving document to file: {file_name}\n")
             doc.saveAs(file_name)
@@ -1005,7 +1031,6 @@ class WorkspaceView(QtGui.QDockWidget):
             else:
                 workspaceType = "External"
                 workspaceUrl = dialog.externalServerEdit.text()
-
             # Update workspaceListWidget with new workspace
             self.workspacesModel.addWorkspace(
                 workspaceName, workspaceDesc, workspaceType, workspaceUrl
@@ -1028,7 +1053,6 @@ class WorkspaceView(QtGui.QDockWidget):
     def get_version_from_package_file(self, packageFileStr):
         if packageFileStr is None:
             return None
-
         lines = packageFileStr.split("\n")
         for line in lines:
             if "<version>" in line:
@@ -1143,7 +1167,6 @@ class NewWorkspaceDialog(QtGui.QDialog):
             self.nameLabel.setText("ondsel.com/")
         else:
             self.nameLabel.setText("Name")
-
         self.localFolderLabel.setVisible(self.localRadio.isChecked())
         self.localFolderEdit.setVisible(self.localRadio.isChecked())
 
@@ -1201,7 +1224,6 @@ class SharingLinkEditDialog(QtGui.QDialog):
             }
         else:
             self.linkProperties = linkProperties
-
         self.setLinkProperties()
 
     def setLinkProperties(self):
@@ -1303,11 +1325,9 @@ class LoginDialog(QtGui.QDialog):
         # Check if email is a valid email address using a simple regular expression
         if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
             return False
-
         # Check if a password has been entered
         if not password:
             return False
-
         # Add additional validation logic here if needed
         # Example: Check against a user database or external authentication service
 
