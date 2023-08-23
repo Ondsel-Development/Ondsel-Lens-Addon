@@ -246,10 +246,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         serverFilesToAdd = []
         serverFiles = self.API_Client.getFiles()
         for serverFileDict in serverFiles:
-            try:
-                serverDate = serverFileDict["currentVersion"]["additionalData"]["fileUpdatedAt"]
-            except KeyError:
-                serverDate = serverFileDict["currentVersion"]["createdAt"]
+            serverDate = serverFileDict["currentVersion"]["additionalData"].get("fileUpdatedAt", serverFileDict["currentVersion"]["createdAt"])
 
             foundLocal = False
             for i, localFile in enumerate(files):
