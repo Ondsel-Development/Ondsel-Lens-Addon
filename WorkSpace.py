@@ -28,6 +28,8 @@ class WorkSpaceModelFactory:
             return LocalWorkspaceModel(workspaceDict, **kwargs)
         elif workspaceDict["type"] == "External":
             return None
+        elif workspaceDict["type"] == "Git":
+            return GitWorkspaceModel(workspaceDict, **kwargs)
 
 
 class TokenRefreshThread(QThread):
@@ -459,6 +461,62 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 self.API_Client.regenerateModelObj(id_, fileUpdateDate, uniqueName)
             else:
                 self.API_Client.updateFileObj(id_, fileUpdateDate, uniqueName)
+
+
+class GitWorkSpaceModel(WorkSpaceModel):
+
+    def __init__(self, path, parent=None):
+        super().__init__(workspaceDict, **kwargs)
+        self.refreshModel()
+
+    def refreshModel(self):
+        pass
+        # self.clearModel()
+        # if not os.path.isdir(self.path):
+        #     self.files = []
+        #     return
+
+        # self.beginResetModel()
+        # self.files = self.getLocalFiles()
+        # self.endResetModel()
+
+    def data(self, index, role=Qt.DisplayRole):
+        # if not index.isValid():
+        #     return None
+
+        # file_item = self.files[index.row()]
+
+        # if role == Qt.DisplayRole:
+        #     return file_item
+        # elif role == self.NameRole:
+        #     return file_item.name
+        # elif role == self.NameAndIsFolderRole:
+        #     return file_item.name, file_item.is_folder
+        # elif role == self.IdRole:
+        #     return 0
+        # elif role == self.StatusRole:
+        #     return ""
+        # elif role == self.NameStatusAndIsFolderRole:
+        #     return file_item.name, "", file_item.is_folder
+
+        return None
+
+    def openParentFolder(self):
+        pass
+        # self.subPath = os.path.dirname(self.subPath)
+        # self.refreshModel()
+
+    def openFile(self, index):
+        pass
+        # file_item = self.files[index.row()]
+        # if file_item.is_folder:
+        #     self.subPath = Utils.joinPath(self.subPath, file_item.name)
+        #     self.refreshModel()
+        # else:
+        #     file_path = Utils.joinPath(self.getFullPath(), file_item.name)
+        #     if Utils.isOpenableByFreeCAD(file_path):
+        #         FreeCAD.loadFile(file_path)
+
 
 
 class FileItem:
