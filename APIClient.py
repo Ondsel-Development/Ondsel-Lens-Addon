@@ -14,7 +14,13 @@ class CustomConnectionError(Exception):
 
 class APIClient:
     def __init__(
-        self, email, password, api_url, lens_url, access_token=None, user=None
+        self,
+        email: str | None,
+        password: str | None,
+        api_url: str,
+        lens_url: str,
+        access_token: str | None = None,
+        user: str | None = None,
     ):
         self.base_url = api_url
         self.lens_url = lens_url
