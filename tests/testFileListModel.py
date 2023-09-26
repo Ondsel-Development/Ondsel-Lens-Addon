@@ -6,7 +6,7 @@
 
 import unittest
 from PySide2.QtCore import Qt, QModelIndex
-from DataModels import FileListModel
+from WorkspaceModel import FileListModel
 
 
 class TestFileListModel(unittest.TestCase):

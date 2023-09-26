@@ -8,7 +8,7 @@ import Utils
 
 from PySide import QtCore, QtGui
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import shutil
 import tempfile
@@ -20,15 +20,14 @@ from jwt.exceptions import ExpiredSignatureError
 import FreeCAD
 import FreeCADGui as Gui
 
-from DataModels import WorkspaceListModel
-from VersionModel import LocalVersionModel, OndselVersionModel
-from LinkModel import ShareLinkModel
+from data_models.WorkspaceModel import WorkspaceListModel
+from data_models.VersionModel import LocalVersionModel, OndselVersionModel
+from data_models.LinkModel import ShareLinkModel
 from APIClient import APIClient, CustomAuthenticationError
 from WorkSpace import WorkSpaceModel, WorkSpaceModelFactory
 
 from PySide.QtGui import (
     QStyledItemDelegate,
-    QCheckBox,
     QStyle,
     QMessageBox,
     QApplication,
@@ -65,7 +64,6 @@ local_package_path = f"{modPath}/package.xml"
 #     lensUrl = config.lens_url
 # except ImportError:
 #     pass
-
 
 # Simple delegate drawing an icon and text
 class FileListDelegate(QStyledItemDelegate):
@@ -245,9 +243,10 @@ class WorkspaceView(QtGui.QDockWidget):
     user = None
 
     def __init__(self):
+        print("WorkspaceView init")
         super(WorkspaceView, self).__init__(mw)
         self.setObjectName("workspaceView")
-        self.form = Gui.PySideUic.loadUi(f"{modPath}/WorkspaceView.ui")
+        self.form = Gui.PySideUic.loadUi(f"{modPath}/gui/WorkspaceView.ui")
         self.setWidget(self.form)
         self.setWindowTitle("Workspace View")
 
@@ -314,16 +313,16 @@ class WorkspaceView(QtGui.QDockWidget):
             # self.access_token = self.generate_expired_token()
 
             if self.isTokenExpired(self.access_token):
-                user = None
+                self.user = None
                 self.logout()
             else:
-                user = loginData["user"]
-                self.setUIForLogin(True, user)
+                self.user = loginData["user"]
+                self.setUIForLogin(True, self.user)
 
                 # Set a timer to logout when token expires.
                 self.setTokenExpirationTimer(self.access_token)
         else:
-            user = None
+            self.user = None
             self.setUIForLogin(False)
         self.switchView()
 
@@ -332,6 +331,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.timer.timeout.connect(self.timerTick)
         self.timer.setInterval(60000)
         self.timer.start()
+        print("Timer started")
 
         self.check_for_update()
 
@@ -417,7 +417,7 @@ class WorkspaceView(QtGui.QDockWidget):
             "Your authentication token has expired, you have been logged out.",
         )
 
-        user = None
+        self.user = None
         self.logout()
 
     def getTokenExpirationTime(self, token):
@@ -505,7 +505,6 @@ class WorkspaceView(QtGui.QDockWidget):
         if self.currentWorkspace is None:
             return
         subPath = self.currentWorkspaceModel.subPath
-
         if subPath == "":
             self.leaveWorkspace()
         else:
@@ -1200,7 +1199,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
         super(SharingLinkEditDialog, self).__init__(parent)
 
         # Load the UI from the .ui file
-        self.dialog = Gui.PySideUic.loadUi(modPath + "/SharingLinkEditDialog.ui")
+        self.dialog = Gui.PySideUic.loadUi(f"{modPath}/gui/SharingLinkEditDialog.ui")
 
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.dialog)

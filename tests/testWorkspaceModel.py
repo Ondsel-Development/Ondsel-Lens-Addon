@@ -4,7 +4,8 @@
 # *                                                                     *
 # ***********************************************************************
 
-from DataModels import ShareLinkModel, VersionModel
+from LinkModel import ShareLinkModel
+from VersionModel import VersionModel
 
 from PySide.QtCore import Qt
 

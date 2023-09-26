@@ -2,7 +2,7 @@ import requests
 import json
 import uuid
 import os
-
+from typing import Optional
 
 class CustomAuthenticationError(Exception):
     pass
@@ -15,12 +15,12 @@ class CustomConnectionError(Exception):
 class APIClient:
     def __init__(
         self,
-        email: str | None,
-        password: str | None,
+        email: Optional[str],
+        password: Optional[str],
         api_url: str,
         lens_url: str,
-        access_token: str | None = None,
-        user: str | None = None,
+        access_token: Optional[str] = None,
+        user: Optional[str] = None,
     ):
         self.base_url = api_url
         self.lens_url = lens_url
@@ -61,10 +61,10 @@ class APIClient:
             data = self._post(endpoint, headers=headers, data=json.dumps(payload))
             self.access_token = data["accessToken"]
             self.user = data["user"]
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
             raise CustomConnectionError("Connection Error")
 
-        except CustomAuthenticationError as e:
+        except CustomAuthenticationError:
             raise CustomAuthenticationError("Authentication Error")
 
         except Exception as e:
@@ -297,6 +297,7 @@ class APIClient:
         }
 
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))
+        return result
 
     @authRequired
     def deleteModel(self, _id):

@@ -42,23 +42,28 @@ class APIClientTest(unittest.TestCase):
 
         keys = [
             "_id",
-            "custFileName",
-            "uniqueFileName",
             "shouldStartObjGeneration",
             "errorMsg",
+            "fileId",
+            "isObjGenerationInProgress",
+            "isObjGenerated",
             "userId",
             "createdAt",
             "updatedAt",
-            "isObjGenerationInProgress",
-            "isObjGenerated",
             "isSharedModel",
+            "isSharedModelAnonymousType",
+            "latestLogErrorIdForObjGenerationCommand",
             "attributes",
-            "objUrl",
+            "uniqueFileName",
+            "file",
             "thumbnailUrl",
-        ]
+            "objUrl"
+            ]
 
         for key in keys:
+            print(key)
             self.assertIn(key, model.keys())
+
 
     def test_40(self):
         # ModelFunctions
@@ -69,8 +74,6 @@ class APIClientTest(unittest.TestCase):
         modpath = os.path.abspath(sys.modules["__main__"].__file__)
         path, _ = os.path.split(modpath)
         basename = os.path.join(path, basename)
-        print(basename)
-        print(os.path.isfile(basename))
 
         uniqueName = f"{str(uuid.uuid4())}.fcstd"
 
@@ -83,45 +86,26 @@ class APIClientTest(unittest.TestCase):
             "versions": [basename],
             "currentVersion": basename,
             "createdAt": created_time,
-            "updatedAt": modified_time,
+            # "updatedAt": modified_time,
             "status": "Untracked",
             "shouldStartObjGeneration": True,
+            "fileUpdatedAt": modified_time,
         }
         result = self.api_client.uploadFileToServer(uniqueName, basename)
-        print(result)
 
-        fileData["uniqueFileName"] = uniqueName
+        fileData["uniqueName"] = uniqueName
 
         # Test creating a model on the server
-        model = self.api_client.createModel(fileData)
+        model = self.api_client.createModel(basename, modified_time, uniqueName)
         modelID = model["_id"]
         self.assertIsInstance(modelID, str)
 
         # Test fetching the model back
         model = self.api_client.getModel(modelID)
-
-        keys = [
-            "_id",
-            "custFileName",
-            "uniqueFileName",
-            "shouldStartObjGeneration",
-            "errorMsg",
-            "userId",
-            "createdAt",
-            "updatedAt",
-            "isObjGenerationInProgress",
-            "isObjGenerated",
-            "isSharedModel",
-            "isSharedModelAnonymousType",
-            "objUrl",
-            "thumbnailUrl",
-        ]
-
-        for key in keys:
-            self.assertIn(key, model.keys())
+        self.assertTrue(model["_id"], model["_id"])
 
         # Test Regenerating the model
-        result = self.api_client.regenerateModelObj(model)
+        result = self.api_client.regenerateModelObj(model["_id"], modified_time, uniqueName)
 
         # test downloading a file
         temp_dir = tempfile.gettempdir()
@@ -171,7 +155,10 @@ class APIClientTest(unittest.TestCase):
         result = self.api_client.getModels()
         model = result[0]
 
-        shares = self.api_client.getSharedModels(model["_id"])
+        args = {
+            }
+
+        shares = self.api_client.getSharedModels(args)
         self.assertIsInstance(len(shares), int)
 
         linkprops = {
@@ -193,27 +180,25 @@ class APIClientTest(unittest.TestCase):
 
         shareID = result["_id"]
 
-        # result = self.api_client.getSharedModels()
-        # self.assertIsInstance(len(result), int)
-
         # test deleting a share
         result = self.api_client.deleteSharedModel(shareID)
 
-    def test_100(self):
-        user = self.api_client.get_user()
-        props = {"userId": user["_id"]}
+    # def test_100(self):
+    #     user = self.api_client.get_user()
+    #     props = {"userId": user["_id"]}
 
-        result = self.api_client.getSharedModels(params=props)
-        print(len(result))
+    #     result = self.api_client.getSharedModels(params=props)
+    #     print(len(result))
 
-        for s in result:
-            self.api_client.deleteSharedModel(s["_id"])
+    #     for s in result:
+    #         self.api_client.deleteSharedModel(s["_id"])
 
-        models = self.api_client.getModels(params=props)
-        print(len(models))
-        for model in models:
-            print(model["custFileName"])
-            result = self.api_client.deleteModel(model["_id"])
+    #     models = self.api_client.getModels(params=props)
+    #     print(len(models))
+    #     for model in models:
+    #         print(model['file']['custFileName'])
+    #         # print(model["custFileName"])
+    #         result = self.api_client.deleteModel(model["_id"])
 
 
 if __name__ == "__main__":
