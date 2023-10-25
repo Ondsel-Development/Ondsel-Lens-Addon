@@ -93,7 +93,6 @@ class WorkSpaceModel(QAbstractListModel):
                     "",
                 )
                 local_files.append(file_item)
-
         for basename in files:
             # Then we add the files
             file_path = Utils.joinPath(self.getFullPath(), basename)
@@ -114,7 +113,6 @@ class WorkSpaceModel(QAbstractListModel):
                         "Untracked",
                     )
                     local_files.append(file_item)
-
         return local_files
 
     def rowCount(self, parent=None):
@@ -158,7 +156,6 @@ class WorkSpaceModel(QAbstractListModel):
             os.remove(fileName)
         elif os.path.isdir(fileName):
             shutil.rmtree(fileName)
-
         self.refreshModel()
 
     def dump(self):
@@ -181,7 +178,6 @@ class LocalWorkspaceModel(WorkSpaceModel):
         if not os.path.isdir(self.path):
             self.files = []
             return
-
         self.beginResetModel()
         self.files = self.getLocalFiles()
         self.endResetModel()
@@ -189,7 +185,6 @@ class LocalWorkspaceModel(WorkSpaceModel):
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
-
         file_item = self.files[index.row()]
 
         if role == Qt.DisplayRole:
@@ -204,7 +199,6 @@ class LocalWorkspaceModel(WorkSpaceModel):
             return ""
         elif role == self.NameStatusAndIsFolderRole:
             return file_item.name, "", file_item.is_folder
-
         return None
 
     def openParentFolder(self):
@@ -232,7 +226,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
         # if the folder doesnt exist, create it
         if not os.path.exists(self.path):
             os.makedirs(self.path)
-
         # Create an instance of the token refresh thread
         self.refresh_thread = TokenRefreshThread()
         self.refresh_thread.token_refreshed.connect(self.refreshModel)
@@ -258,27 +251,13 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     # print(f"update date are : {serverDate} - {localDate}")
                     if serverDate < localDate:
                         localFile.status = "Server copy outdated"
-
                     elif serverDate > localDate:
                         localFile.status = "Local copy outdated"
-
                     else:
                         localFile.status = "Synced"
-
-                    if "modelId" in serverFileDict:
-                        localFile.serverModelDict = self.API_Client.getModel(
-                            serverFileDict["modelId"]
-                        )
-
                     foundLocal = True
                     break
             if not foundLocal:  # local doesnt have this file
-                serverModelDict = None
-                if "modelId" in serverFileDict:
-                    serverModelDict = self.API_Client.getModel(
-                        serverFileDict["modelId"]
-                    )
-
                 base, extension = os.path.splitext(serverFileDict["custFileName"])
                 file_item = FileItem(
                     serverFileDict["custFileName"],
@@ -291,7 +270,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     serverDate,
                     "Server only",
                     serverFileDict,
-                    serverModelDict,
                 )
                 serverFilesToAdd.append(file_item)
         files += serverFilesToAdd
@@ -306,7 +284,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
             return None
-
         file_item = self.files[index.row()]
 
         if role == Qt.DisplayRole:
@@ -316,22 +293,27 @@ class ServerWorkspaceModel(WorkSpaceModel):
         elif role == self.NameAndIsFolderRole:
             return file_item.name, False
         elif role == self.IdRole:
-            if file_item.serverModelDict is not None:
-                return file_item.serverModelDict["_id"]
+            if (
+                file_item.serverFileDict is not None
+                and "modelId" in file_item.serverFileDict
+            ):
+                return file_item.serverFileDict["modelId"]
         elif role == self.StatusRole:
             return file_item.status
         elif role == self.NameStatusAndIsFolderRole:
             return file_item.name, file_item.status, False
-
         return None
 
     def getServerThumbnail(self, fileId):
         for file_item in self.files:
             if (
-                file_item.serverModelDict is not None
-                and file_item.serverModelDict["_id"] == fileId
+                file_item.serverFileDict is not None
+                and "modelId" in file_item.serverFileDict
+                and file_item.serverFileDict["modelId"] == fileId
+                and "model" in file_item.serverFileDict
+                and "thumbnailUrl" in file_item.serverFileDict["model"]
             ):
-                thumbnailUrl = file_item.serverModelDict["thumbnailUrl"]
+                thumbnailUrl = file_item.serverFileDict["model"]["thumbnailUrl"]
                 try:
                     response = requests.get(thumbnailUrl)
                     image_data = response.content
@@ -350,7 +332,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     return pixmap
                 except requests.exceptions.RequestException as e:
                     pass  # no thumbnail online.
-
         return None
 
     def openFile(self, index):
@@ -362,22 +343,22 @@ class ServerWorkspaceModel(WorkSpaceModel):
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
             if not os.path.isfile(file_path):
                 # download the file
-                # Note: serverModelDict["uniqueFileName"] = asserverFileDict["currentVersion"]["uniqueFileName"]
                 self.API_Client.downloadFileFromServer(
-                    file_item.serverModelDict["uniqueFileName"], file_path
+                    file_item.serverFileDict["currentVersion"]["uniqueFileName"],
+                    file_path,
                 )
-
             if Utils.isOpenableByFreeCAD(file_path):
                 FreeCAD.loadFile(file_path)
 
     def deleteFile(self, index):
         file_item = self.files[index.row()]
-
-        if file_item.serverModelDict is not None:
-            self.API_Client.deleteModel(file_item.serverModelDict["_id"])
+        if (
+            file_item.serverFileDict is not None
+            and "modelId" in file_item.serverFileDict
+        ):
+            self.API_Client.deleteModel(file_item.serverFileDict["modelId"])
         else:
             self.API_Client.deleteFile(file_item.serverFileDict["_id"])
-
         super().deleteFile(index)
 
     def downloadFile(self, index):
@@ -389,7 +370,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
             self.API_Client.downloadFileFromServer(
-                file_item.serverModelDict["uniqueFileName"], file_path
+                file_item.serverFileDict["currentVersion"]["uniqueFileName"], file_path
             )
         self.refreshModel()
 
@@ -416,12 +397,10 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
                 if msg_box.exec_() == QMessageBox.No:
                     return
-
-            if file_item.serverModelDict is None:
-                self.upload(file_item.name, True)
+            if "modelId" in file_item.serverFileDict:
+                self.upload(file_item.name, False, file_item.serverFileDict["modelId"])
             else:
-                self.upload(file_item.name, False, file_item.serverModelDict["_id"])
-
+                self.upload(file_item.name, True)
         self.refreshModel()
 
     def uploadUntrackedFiles(self):
@@ -434,7 +413,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
             if file_item.status == "Untracked":
                 self.upload(file_item.name, True)
                 refreshRequired = True
-
         if refreshRequired:
             self.refreshModel(False)
 
@@ -474,7 +452,6 @@ class FileItem:
         updatedAt,
         status="Untracked",
         serverFileDict=None,
-        serverModelDict=None,
     ):
         self.name = name
         self.ext = ext
@@ -486,4 +463,3 @@ class FileItem:
         self.updatedAt = updatedAt
         self.status = status
         self.serverFileDict = serverFileDict
-        self.serverModelDict = serverModelDict

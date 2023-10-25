@@ -621,8 +621,8 @@ class WorkspaceView(QtGui.QDockWidget):
     def fileListClicked(self, index):
         file_item = self.currentWorkspaceModel.data(index)
         self.currentModelId = None
-        if file_item.serverModelDict is not None:
-            self.currentModelId = file_item.serverModelDict["_id"]
+        if "modelId" in file_item.serverFileDict:
+            self.currentModelId = file_item.serverFileDict["modelId"]
         self.currentFileName = file_item.name
 
         if file_item.is_folder:
