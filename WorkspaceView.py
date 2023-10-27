@@ -363,7 +363,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.newWorkspaceAction = QAction("Add new workspace", userActions)
         self.newWorkspaceAction.triggered.connect(self.newWorkspaceBtnClicked)
-        self.userMenu.addAction(self.newWorkspaceAction)
+        # self.userMenu.addAction(self.newWorkspaceAction)
 
         # Preferences
         submenu = QMenu("Preferences", self.userMenu)
@@ -390,7 +390,7 @@ class WorkspaceView(QtGui.QDockWidget):
         a6.triggered.connect(self.showOndselSignUpPage)
         self.guestMenu.addAction(a6)
 
-        self.guestMenu.addAction(self.newWorkspaceAction)
+        # self.guestMenu.addAction(self.newWorkspaceAction)
 
     def isTokenExpired(self, token):
         expiration_time = self.getTokenExpirationTime(token)
@@ -711,16 +711,18 @@ class WorkspaceView(QtGui.QDockWidget):
                     self.workspacesModel.removeWorkspace(index)
         else:
             menu = QtGui.QMenu()
-            addAction = menu.addAction("Add workspace")
+            # addAction = menu.addAction("Add workspace")
 
             action = menu.exec_(self.form.workspaceListView.viewport().mapToGlobal(pos))
 
-            if action == addAction:
-                self.newWorkspaceBtnClicked()
+            # if action == addAction:
+            #     self.newWorkspaceBtnClicked()
 
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
         file_item = self.currentWorkspaceModel.data(index)
+        if file_item is None:
+            return
 
         menu = QtGui.QMenu()
         if self.currentWorkspace["type"] == "Ondsel":
@@ -782,7 +784,6 @@ class WorkspaceView(QtGui.QDockWidget):
             if action == addLinkAction:
                 self.addShareLink()
 
-                from PyQt5.QtWidgets import QApplication, QMessageBox
 
     def shareShareLinkClicked(self, index):
         model = self.form.linksView.model()
@@ -1020,17 +1021,19 @@ class WorkspaceView(QtGui.QDockWidget):
             workspaceDesc = dialog.descEdit.toPlainText()
             workspaceType = ""
             workspaceUrl = ""
+            workspaceType = "Ondsel"
+            workspaceUrl = cachePath + dialog.nameEdit.text()
 
-            # Determine workspace type and get corresponding values
-            if dialog.localRadio.isChecked():
-                workspaceType = "Local"
-                workspaceUrl = dialog.localFolderLabel.text()
-            elif dialog.ondselRadio.isChecked():
-                workspaceType = "Ondsel"
-                workspaceUrl = cachePath + dialog.nameEdit.text()
-            else:
-                workspaceType = "External"
-                workspaceUrl = dialog.externalServerEdit.text()
+            # # Determine workspace type and get corresponding values
+            # if dialog.localRadio.isChecked():
+            #     workspaceType = "Local"
+            #     workspaceUrl = dialog.localFolderLabel.text()
+            # elif dialog.ondselRadio.isChecked():
+            #     workspaceType = "Ondsel"
+            #     workspaceUrl = cachePath + dialog.nameEdit.text()
+            # else:
+            #     workspaceType = "External"
+            #     workspaceUrl = dialog.externalServerEdit.text()
             # Update workspaceListWidget with new workspace
             self.workspacesModel.addWorkspace(
                 workspaceName, workspaceDesc, workspaceType, workspaceUrl
@@ -1088,29 +1091,29 @@ class NewWorkspaceDialog(QtGui.QDialog):
         layout = QtGui.QVBoxLayout()
 
         # Radio buttons for selecting workspace type
-        self.localRadio = QtGui.QRadioButton("Local")
-        self.ondselRadio = QtGui.QRadioButton("Ondsel Server")
-        self.ondselRadio.setToolTip(
-            "Ondsel currently supports only one workspace that is added automatically on login."
-        )
-        self.ondselRadio.setEnabled(False)
-        self.externalRadio = QtGui.QRadioButton("External Server")
-        self.externalRadio.setToolTip(
-            "Currently external servers support is not implemented."
-        )
-        self.externalRadio.setEnabled(False)
+        # self.localRadio = QtGui.QRadioButton("Local")
+        # self.ondselRadio = QtGui.QRadioButton("Ondsel Server")
+        # self.ondselRadio.setToolTip(
+        #     "Ondsel currently supports only one workspace that is added automatically on login."
+        # )
+        # self.ondselRadio.setEnabled(False)
+        # self.externalRadio = QtGui.QRadioButton("External Server")
+        # self.externalRadio.setToolTip(
+        #     "Currently external servers support is not implemented."
+        # )
+        # self.externalRadio.setEnabled(False)
 
-        button_group = QtGui.QButtonGroup()
-        button_group.addButton(self.localRadio)
-        button_group.addButton(self.ondselRadio)
-        button_group.addButton(self.externalRadio)
+        # button_group = QtGui.QButtonGroup()
+        # button_group.addButton(self.localRadio)
+        # button_group.addButton(self.ondselRadio)
+        # button_group.addButton(self.externalRadio)
 
-        group_box = QtGui.QGroupBox("type")
-        group_box_layout = QtGui.QHBoxLayout()
-        group_box_layout.addWidget(self.localRadio)
-        group_box_layout.addWidget(self.ondselRadio)
-        group_box_layout.addWidget(self.externalRadio)
-        group_box.setLayout(group_box_layout)
+        # group_box = QtGui.QGroupBox("type")
+        # group_box_layout = QtGui.QHBoxLayout()
+        # group_box_layout.addWidget(self.localRadio)
+        # group_box_layout.addWidget(self.ondselRadio)
+        # group_box_layout.addWidget(self.externalRadio)
+        # group_box.setLayout(group_box_layout)
 
         # Workspace Name
         self.nameLabel = QtGui.QLabel("Name")
@@ -1123,32 +1126,32 @@ class NewWorkspaceDialog(QtGui.QDialog):
         self.descLabel = QtGui.QLabel("Description")
         self.descEdit = QtGui.QTextEdit()
 
-        # Widgets for local workspace type
-        self.localFolderLabel = QtGui.QLineEdit("")
-        self.localFolderEdit = QtGui.QPushButton("Select folder")
-        self.localFolderEdit.clicked.connect(self.show_folder_picker)
-        h_layout = QtGui.QHBoxLayout()
-        h_layout.addWidget(self.localFolderLabel)
-        h_layout.addWidget(self.localFolderEdit)
+        # # Widgets for local workspace type
+        # self.localFolderLabel = QtGui.QLineEdit("")
+        # self.localFolderEdit = QtGui.QPushButton("Select folder")
+        # self.localFolderEdit.clicked.connect(self.show_folder_picker)
+        # h_layout = QtGui.QHBoxLayout()
+        # h_layout.addWidget(self.localFolderLabel)
+        # h_layout.addWidget(self.localFolderEdit)
 
-        # Widgets for external server workspace type
-        self.externalServerLabel = QtGui.QLabel("Server URL")
-        self.externalServerEdit = QtGui.QLineEdit()
+        # # Widgets for external server workspace type
+        # self.externalServerLabel = QtGui.QLabel("Server URL")
+        # self.externalServerEdit = QtGui.QLineEdit()
 
         # Add widgets to layout
-        layout.addWidget(group_box)
+        # layout.addWidget(group_box)
         layout.addLayout(nameHlayout)
         layout.addWidget(self.descLabel)
         layout.addWidget(self.descEdit)
-        layout.addLayout(h_layout)
-        layout.addWidget(self.externalServerLabel)
-        layout.addWidget(self.externalServerEdit)
+        # layout.addLayout(h_layout)
+        # layout.addWidget(self.externalServerLabel)
+        # layout.addWidget(self.externalServerEdit)
 
         # Connect radio buttons to updateDialog function
-        self.localRadio.toggled.connect(self.updateDialog)
-        self.ondselRadio.toggled.connect(self.updateDialog)
-        self.externalRadio.toggled.connect(self.updateDialog)
-        self.localRadio.setChecked(True)
+        # self.localRadio.toggled.connect(self.updateDialog)
+        # self.ondselRadio.toggled.connect(self.updateDialog)
+        # self.externalRadio.toggled.connect(self.updateDialog)
+        # self.localRadio.setChecked(True)
 
         # Add OK and Cancel buttons
         buttonBox = QtGui.QDialogButtonBox(
@@ -1163,26 +1166,28 @@ class NewWorkspaceDialog(QtGui.QDialog):
 
     # Function to update the dialog when the workspace type is changed
     def updateDialog(self):
-        if self.ondselRadio.isChecked():
-            self.nameLabel.setText("ondsel.com/")
-        else:
-            self.nameLabel.setText("Name")
-        self.localFolderLabel.setVisible(self.localRadio.isChecked())
-        self.localFolderEdit.setVisible(self.localRadio.isChecked())
+        pass
+        # if self.ondselRadio.isChecked():
+        #     self.nameLabel.setText("ondsel.com/")
+        # else:
+        #     self.nameLabel.setText("Name")
+        # self.localFolderLabel.setVisible(self.localRadio.isChecked())
+        # self.localFolderEdit.setVisible(self.localRadio.isChecked())
 
-        self.externalServerLabel.setVisible(self.externalRadio.isChecked())
-        self.externalServerEdit.setVisible(self.externalRadio.isChecked())
+        # self.externalServerLabel.setVisible(self.externalRadio.isChecked())
+        # self.externalServerEdit.setVisible(self.externalRadio.isChecked())
 
-    def show_folder_picker(self):
-        options = QtGui.QFileDialog.Options()
-        options |= QtGui.QFileDialog.ShowDirsOnly
-        folder_url = QtGui.QFileDialog.getExistingDirectory(
-            self, "Select Folder", options=options
-        )
-        if folder_url:
-            self.localFolderLabel.setText(folder_url)
+    # def show_folder_picker(self):
+    #     options = QtGui.QFileDialog.Options()
+    #     options |= QtGui.QFileDialog.ShowDirsOnly
+    #     folder_url = QtGui.QFileDialog.getExistingDirectory(
+    #         self, "Select Folder", options=options
+    #     )
+    #     if folder_url:
+    #         self.localFolderLabel.setText(folder_url)
 
     def okClicked(self):
+        pass
         if self.localRadio.isChecked():
             if os.path.isdir(self.localFolderLabel.text()):
                 self.accept()
