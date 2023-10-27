@@ -56,6 +56,7 @@ class WorkspaceListModel(QAbstractListModel):
             if workspace["name"] == workspaceName:
                 if workspaceType == "Ondsel" and workspace["type"] == "Local":
                     workspace["type"] = "Ondsel"
+                    self.save()
                 return
 
         self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
