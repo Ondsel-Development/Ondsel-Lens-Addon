@@ -311,9 +311,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 and "modelId" in file_item.serverFileDict
                 and file_item.serverFileDict["modelId"] == fileId
                 and "model" in file_item.serverFileDict
-                and "thumbnailUrl" in file_item.serverFileDict["model"]
+                and "thumbnailUrlCache" in file_item.serverFileDict["model"]
             ):
-                thumbnailUrl = file_item.serverFileDict["model"]["thumbnailUrl"]
+                thumbnailUrl = file_item.serverFileDict["model"]["thumbnailUrlCache"]
                 try:
                     response = requests.get(thumbnailUrl)
                     image_data = response.content

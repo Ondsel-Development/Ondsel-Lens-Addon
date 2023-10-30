@@ -96,7 +96,12 @@ class FileListDelegate(QStyledItemDelegate):
         textToDisplay = fileName
         if status != "":
             textToDisplay += " (" + status + ")"
-        painter.drawText(text_rect, QtCore.Qt.AlignLeft, textToDisplay)
+
+        fontMetrics = painter.fontMetrics()
+        elidedText = fontMetrics.elidedText(
+            textToDisplay, QtGui.Qt.ElideRight, option.rect.width()
+        )
+        painter.drawText(text_rect, QtCore.Qt.AlignLeft, elidedText)
 
 
 class LinkListDelegate(QStyledItemDelegate):
@@ -783,7 +788,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
             if action == addLinkAction:
                 self.addShareLink()
-
 
     def shareShareLinkClicked(self, index):
         model = self.form.linksView.model()
