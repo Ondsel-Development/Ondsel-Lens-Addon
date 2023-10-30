@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>415</width>
-    <height>316</height>
+    <width>639</width>
+    <height>588</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -15,28 +15,32 @@
   </property>
   <layout class="QVBoxLayout">
    <item>
-    <widget class="QLabel" name="label">
-     <property name="text">
-      <string>Link Name</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QLineEdit" name="linkName"/>
-   </item>
-   <item>
-    <widget class="QCheckBox" name="canViewModelAttributesCheckBox">
-     <property name="text">
-      <string>Show model attributes</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QCheckBox" name="canUpdateModelCheckBox">
-     <property name="text">
-      <string>Allow updating the model</string>
-     </property>
-    </widget>
+    <layout class="QVBoxLayout" name="verticalLayout_2">
+     <item>
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Link Name</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="linkName"/>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="canViewModelAttributesCheckBox">
+       <property name="text">
+        <string>Show model attributes</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="canUpdateModelCheckBox">
+       <property name="text">
+        <string>Allow updating the model</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
    </item>
    <item>
     <layout class="QHBoxLayout">
@@ -77,44 +81,6 @@
        </layout>
       </widget>
      </item>
-     <item>
-      <layout class="QVBoxLayout">
-       <item>
-        <widget class="QCheckBox" name="expCheckBox">
-         <property name="enabled">
-          <bool>false</bool>
-         </property>
-         <property name="text">
-          <string>Set expiration date</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout">
-         <item>
-          <widget class="QLabel" name="expirationLabel">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="text">
-            <string>Expiration date:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QDateEdit" name="dateEdit">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="calendarPopup">
-            <bool>true</bool>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </item>
-      </layout>
-     </item>
     </layout>
    </item>
    <item>
@@ -129,7 +95,7 @@
      <item>
       <spacer name="horizontalSpacer">
        <property name="sizePolicy">
-        <sizepolicy hsizetype="MinimumExpanding" vsizetype="Minimum">
+        <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
          <horstretch>0</horstretch>
          <verstretch>0</verstretch>
         </sizepolicy>
