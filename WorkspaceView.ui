@@ -160,7 +160,10 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-		   </widget>
+            <property name="toolTip">
+             <string>You can revert to an older version of the file</string>
+            </property>
+           </widget>
           </item>
           <item>
            <layout class="QHBoxLayout">
@@ -196,10 +199,19 @@
       <item>
        <widget class="QFrame" name="linkDetails">
         <layout class="QVBoxLayout">
-        <property name="margin">
-         <number>0</number>
-        </property>
-	     <item>
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
           <layout class="QHBoxLayout">
            <item>
             <widget class="QLabel" name="shareLinksLabel">
@@ -239,9 +251,6 @@
          </item>
          <item>
           <widget class="QListView" name="linksView">
-           <property name="maximumHeight">
-            <number>90</number>
-           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -269,7 +278,7 @@
       <bool>false</bool>
      </property>
      <property name="text">
-      <string> </string>
+      <string/>
      </property>
     </widget>
    </item>
