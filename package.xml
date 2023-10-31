@@ -2,8 +2,8 @@
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Ondsel Lens</name>
   <description>Workspace Manager for Ondsel and Local Workspaces</description>
-  <version>2023.10.30.01</version>
-  <date>2023-10-30</date>
+  <version>2023.10.31.01</version>
+  <date>2023-10-31</date>
   <maintainer email="development@ondsel.com">Ondsel Development</maintainer>
   <license file="LICENSE">MIT</license>
   <url type="repository" branch="master">https://github.com/ondsel-Development/ondsel-lens</url>
