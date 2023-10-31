@@ -115,6 +115,9 @@
     </widget>
    </item>
    <item>
+    <widget class="QTextEdit" name="txtExplain"/>
+   </item>
+   <item>
     <widget class="QListView" name="workspaceListView">
      <property name="toolTip">
       <string>List of your workspaces.</string>

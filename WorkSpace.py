@@ -126,7 +126,6 @@ class WorkSpaceModel(QAbstractListModel):
         if self.subPath == "":
             return self.name
         else:
-            print(self.name)
             return Utils.joinPath(self.name, self.subPath)
 
     def getFullPath(self):
@@ -248,7 +247,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 if serverFileDict["custFileName"] == localFile.name:
                     localFile.serverFileDict = serverFileDict
                     localDate = localFile.updatedAt
-                    # print(f"update date are : {serverDate} - {localDate}")
                     if serverDate < localDate:
                         localFile.status = "Server copy outdated"
                     elif serverDate > localDate:
@@ -463,3 +461,8 @@ class FileItem:
         self.updatedAt = updatedAt
         self.status = status
         self.serverFileDict = serverFileDict
+
+    def dump(self):
+        print(
+            f"name: {self.name} \n ext: {self.ext} \n path: {self.path} \n is_folder: {self.is_folder} \n versions: {self.versions} \n current_version: {self.current_version} \n      createdAt: {self.createdAt} \n updatedAt: {self.updatedAt} \n status: {self.status} \n serverFileDict: {self.serverFileDict}"
+        )

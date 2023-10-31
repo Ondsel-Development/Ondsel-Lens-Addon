@@ -73,6 +73,7 @@ class FileListDelegate(QStyledItemDelegate):
         # Get the data for the current index
         if not index.isValid():
             return
+
         fileName, status, isFolder = index.data(
             WorkSpaceModel.NameStatusAndIsFolderRole
         )
@@ -238,8 +239,44 @@ class WorkspaceListDelegate(QStyledItemDelegate):
             workspaceData["description"],
         )
 
+        # Draw the button
+        # button_rect = QtCore.QRect(
+        #     option.rect.right() - 80,  # Adjust position as needed
+        #     option.rect.top() + 10,    # Adjust position as needed
+        #     70, 30                      # Width and height of the button
+        # )
+        # painter.save()
+        # painter.setPen(QtCore.Qt.NoPen)
+        # painter.setBrush(QtCore.Qt.lightGray)  # Button color
+        # painter.drawRoundedRect(button_rect, 5, 5)
+        # painter.restore()
+
+        # # Draw button text
+        # painter.setFont(type_font)
+        # painter.drawText(
+        #     button_rect,
+        #     QtCore.Qt.AlignCenter,
+        #     "Enter"
+        # )
+
     def sizeHint(self, option, index):
         return QtCore.QSize(100, 60)  # Adjust the desired width and height
+
+    # def editorEvent(self, event, model, option, index):
+    #     # Check if the event is a mouse button release
+    #     if event.type() == QtCore.QEvent.MouseButtonRelease:
+    #         # Define the button rect same as in the paint method
+    #         button_rect = QtCore.QRect(
+    #             option.rect.right() - 80,
+    #             option.rect.top() + 10,
+    #             70, 30
+    #         )
+    #         # Check if the click was within the button rect
+    #         if button_rect.contains(event.pos()):
+    #             # Handle button click here
+    #             print("Button clicked for item:", index.row())
+    #             return True  # Event was handled
+    #     return super(WorkspaceListDelegate, self).editorEvent(event, model, option, index)
 
 
 class WorkspaceView(QtGui.QDockWidget):
@@ -275,6 +312,8 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.workspaceListView.customContextMenuRequested.connect(
             self.showWorkspaceContextMenu
         )
+        self.workspacesModel.rowsInserted.connect(self.switchView)
+        self.workspacesModel.rowsRemoved.connect(self.switchView)
 
         self.filesDelegate = FileListDelegate(self)
         self.form.fileList.setItemDelegate(self.filesDelegate)
@@ -310,6 +349,22 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.viewOnlineBtn.clicked.connect(self.openModelOnline)
 
         self.form.fileDetails.setVisible(False)
+
+        explainText = """
+
+<h1 style="text-align:center; font-weight:bold;">Welcome</h1>
+
+<p>You're not currently logged in to the Ondsel service. Use the button above to login in or create an account. When you log in, this space will show your workspaces.</p>
+
+<p>You can enter the workspaces by double-clicking them.</p>
+
+<p>Each workspace is a collection of files. Think of it like a project.</p>
+
+        """
+
+        self.form.txtExplain.setHtml(explainText)
+        self.form.txtExplain.setReadOnly(True)
+        self.form.txtExplain.hide()
 
         # Check if user is already logged in.
         loginDataStr = p.GetString("loginData", "")
@@ -502,9 +557,15 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def switchView(self):
         isFileView = self.currentWorkspace is not None
-        self.form.workspaceListView.setVisible(not isFileView)
-        self.form.fileList.setVisible(isFileView)
         self.form.WorkspaceDetails.setVisible(isFileView)
+        self.form.fileList.setVisible(isFileView)
+
+        if self.user is None and self.workspacesModel.rowCount() == 0:
+            self.form.txtExplain.setVisible(True)
+            self.form.workspaceListView.setVisible(False)
+        else:
+            self.form.txtExplain.setVisible(False)
+            self.form.workspaceListView.setVisible(not isFileView)
 
     def backClicked(self):
         if self.currentWorkspace is None:
@@ -1236,7 +1297,6 @@ class SharingLinkEditDialog(QtGui.QDialog):
         self.setLinkProperties()
 
     def setLinkProperties(self):
-        print(self.linkProperties)
         self.dialog.linkName.setText(self.linkProperties["description"])
         self.dialog.canViewModelAttributesCheckBox.setChecked(
             self.linkProperties["canViewModelAttributes"]
