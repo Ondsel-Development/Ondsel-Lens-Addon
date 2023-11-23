@@ -377,8 +377,8 @@ class WorkspaceView(QtGui.QDockWidget):
                 user = None
                 self.logout()
             else:
-                user = loginData["user"]
-                self.setUIForLogin(True, user)
+                self.user = loginData["user"]
+                self.setUIForLogin(True, self.user)
 
                 # Set a timer to logout when token expires.
                 self.setTokenExpirationTimer(self.access_token)
@@ -423,7 +423,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.newWorkspaceAction = QAction("Add new workspace", userActions)
         self.newWorkspaceAction.triggered.connect(self.newWorkspaceBtnClicked)
-        # self.userMenu.addAction(self.newWorkspaceAction)
+        self.userMenu.addAction(self.newWorkspaceAction)
 
         # Preferences
         submenu = QMenu("Preferences", self.userMenu)
@@ -990,22 +990,16 @@ class WorkspaceView(QtGui.QDockWidget):
                     continue  # Present the login dialog again if authentication fails
                 # Check if the request was successful (201 status code)
                 if self.apiClient.access_token is not None:
+                    self.user = self.apiClient.user
                     loginData = {
                         "accessToken": self.apiClient.access_token,
-                        "user": self.apiClient.user,
+                        "user": self.user,
                     }
                     p.SetString("loginData", json.dumps(loginData))
 
                     self.access_token = self.apiClient.access_token
 
                     self.setUIForLogin(True, self.apiClient.user)
-
-                    self.workspacesModel.addWorkspace(
-                        "Ondsel",
-                        "For now single Ondsel workspace of user",
-                        "Ondsel",
-                        cachePath + "ondsel",
-                    )
 
                     # Set a timer to logout when token expires.
                     self.setTokenExpirationTimer(self.access_token)
@@ -1088,10 +1082,35 @@ class WorkspaceView(QtGui.QDockWidget):
         if dialog.exec_() == QtGui.QDialog.Accepted:
             workspaceName = dialog.nameEdit.text()
             workspaceDesc = dialog.descEdit.toPlainText()
-            workspaceType = ""
-            workspaceUrl = ""
+
+            if self.apiClient is None and self.access_token is None:
+                print("You need to login first")
+                self.loginBtnClicked()
+                return
+            if self.apiClient is None and self.access_token is not None:
+                self.apiClient = APIClient(
+                    "", "", baseUrl, lensUrl, self.access_token, self.user
+                )
+
+            personal_organisation = None
+            for organization in self.user["organizations"]:
+                if organization.get("name") == "Personal":
+                    personal_organisation = organization.get("_id")
+                    break
+
+            if personal_organisation is None:
+                return
+
+            result = self.apiClient.createWorkspace(workspaceName, workspaceDesc, personal_organisation)
+
             workspaceType = "Ondsel"
-            workspaceUrl = cachePath + dialog.nameEdit.text()
+            workspaceId = result["_id"]
+            workspaceUrl = cachePath + workspaceId #workspace id.
+            workspaceRootDir = result["rootDirectory"]
+            
+            self.workspacesModel.addWorkspace(
+                workspaceName, workspaceDesc, workspaceType, workspaceUrl, workspaceId, personal_organisation, workspaceRootDir
+            )
 
             # # Determine workspace type and get corresponding values
             # if dialog.localRadio.isChecked():
@@ -1104,9 +1123,6 @@ class WorkspaceView(QtGui.QDockWidget):
             #     workspaceType = "External"
             #     workspaceUrl = dialog.externalServerEdit.text()
             # Update workspaceListWidget with new workspace
-            self.workspacesModel.addWorkspace(
-                workspaceName, workspaceDesc, workspaceType, workspaceUrl
-            )
 
     def get_server_package_file(self):
         response = requests.get(remote_package_url)
@@ -1226,7 +1242,7 @@ class NewWorkspaceDialog(QtGui.QDialog):
         buttonBox = QtGui.QDialogButtonBox(
             QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel
         )
-        buttonBox.accepted.connect(self.okClicked)
+        buttonBox.accepted.connect(self.accept)
         buttonBox.rejected.connect(self.reject)
 
         # Add layout and buttons to dialog
@@ -1255,18 +1271,18 @@ class NewWorkspaceDialog(QtGui.QDialog):
     #     if folder_url:
     #         self.localFolderLabel.setText(folder_url)
 
-    def okClicked(self):
-        pass
-        if self.localRadio.isChecked():
-            if os.path.isdir(self.localFolderLabel.text()):
-                self.accept()
-            else:
-                result = QtGui.QMessageBox.question(
-                    self,
-                    "Wrong URL",
-                    "The URL you entered is not correct.",
-                    QtGui.QMessageBox.Ok,
-                )
+    #def okClicked(self):
+    #    pass
+        #if self.localRadio.isChecked():
+        #    if os.path.isdir(self.localFolderLabel.text()):
+        #        self.accept()
+        #    else:
+        #        result = QtGui.QMessageBox.question(
+        #            self,
+        #            "Wrong URL",
+        #            "The URL you entered is not correct.",
+        #            QtGui.QMessageBox.Ok,
+        #        )
 
 
 class SharingLinkEditDialog(QtGui.QDialog):

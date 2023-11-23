@@ -454,6 +454,26 @@ class APIClient:
         result = self._delete(endpoint)
         return result
 
+    # Workspace functions.
+    @authRequired
+    def createWorkspace(self, name, description, organizationId):
+        print("Creating the workspace...")
+        endpoint = "workspaces"
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "name": name,
+            "description": description,
+            "organizationId": organizationId
+        }
+
+        result = self._post(endpoint, headers=headers, data=json.dumps(payload))
+
+        return result
+
 
 class APIHelper:
     def __init__(self):

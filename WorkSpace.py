@@ -56,6 +56,8 @@ class WorkSpaceModel(QAbstractListModel):
         self.subPath = ""
         self.workspacetype = workspaceDict["type"]
         self.files = []
+        self.organisationId = workspaceDict["organisationId"]
+        self._id = workspaceDict["_id"]
 
         self.watcher = QFileSystemWatcher()
         self.watcher.fileChanged.connect(self.refreshModel)

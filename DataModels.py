@@ -51,7 +51,7 @@ class WorkspaceListModel(QAbstractListModel):
         self.endResetModel()
         self.save()
 
-    def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl):
+    def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl, _id, organisation, rootDirectory):
         for workspace in reversed(self.workspaces):
             if workspace["name"] == workspaceName:
                 if workspaceType == "Ondsel" and workspace["type"] == "Local":
@@ -66,6 +66,10 @@ class WorkspaceListModel(QAbstractListModel):
                 "description": workspaceDesc,
                 "type": workspaceType,
                 "url": workspaceUrl,
+                "_id": _id,
+                "organisationId": organisation,
+                "rootDirectory" : rootDirectory,
+                "currentDirectory" : rootDirectory
             }
         )
         self.endInsertRows()
