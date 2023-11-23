@@ -456,6 +456,27 @@ class APIClient:
 
     # Workspace functions.
     @authRequired
+    def getWorkspaces(self, params=None):
+        paginationparams = {"$limit": 50, "$skip": 0, "isSystemGenerated": "false"}
+        endpoint = "workspaces"
+        if params is None:
+            params = paginationparams
+        else:
+            params = {**params, **paginationparams}
+
+        result = self._request(endpoint, params=params)
+        workspaces = result["data"]
+
+        return workspaces
+
+    @authRequired
+    def getWorkspace(self, workspaceID):
+        endpoint = f"workspaces/{workspaceID}"
+
+        result = self._request(endpoint)
+        return result
+
+    @authRequired
     def createWorkspace(self, name, description, organizationId):
         print("Creating the workspace...")
         endpoint = "workspaces"
@@ -472,6 +493,24 @@ class APIClient:
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
 
+        return result
+
+    @authRequired
+    def updateWorkspace(self, workspaceData):
+        endpoint = f"workspaces/{workspaceData['_id']}"
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        result = self._update(endpoint, headers=headers, data=json.dumps(workspaceData))
+
+        return result
+
+    @authRequired
+    def deleteWorkspace(self, WorkspaceID):
+        endpoint = f"workspaces/{WorkspaceID}"
+
+        result = self._delete(endpoint)
         return result
 
 
