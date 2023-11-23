@@ -781,12 +781,12 @@ class WorkspaceView(QtGui.QDockWidget):
                     self.workspacesModel.removeWorkspace(index)
         else:
             menu = QtGui.QMenu()
-            # addAction = menu.addAction("Add workspace")
+            addAction = menu.addAction("Add workspace")
 
             action = menu.exec_(self.form.workspaceListView.viewport().mapToGlobal(pos))
 
-            # if action == addAction:
-            #     self.newWorkspaceBtnClicked()
+            if action == addAction:
+                self.newWorkspaceBtnClicked()
 
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
