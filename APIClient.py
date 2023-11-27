@@ -457,7 +457,7 @@ class APIClient:
     # Workspace functions.
     @authRequired
     def getWorkspaces(self, params=None):
-        paginationparams = {"$limit": 50, "$skip": 0, "isSystemGenerated": "false"}
+        paginationparams = {"$limit": 50, "$skip": 0}
         endpoint = "workspaces"
         if params is None:
             params = paginationparams
