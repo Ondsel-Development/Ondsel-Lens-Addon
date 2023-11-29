@@ -24,7 +24,7 @@ from DataModels import WorkspaceListModel
 from VersionModel import LocalVersionModel, OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import APIClient, CustomAuthenticationError
-from WorkSpace import WorkSpaceModel, WorkSpaceModelFactory
+from WorkSpace import WorkSpaceModel, ServerWorkspaceModel
 
 from PySide.QtGui import (
     QStyledItemDelegate,
@@ -43,7 +43,6 @@ mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 modPath = os.path.dirname(__file__).replace("\\", "/")
 iconsPath = f"{modPath}/Resources/icons/"
-cachePath = FreeCAD.getUserCachePath()
 
 # Test server
 # baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
@@ -208,8 +207,9 @@ class WorkspaceListDelegate(QStyledItemDelegate):
         # Calculate the width of the name text
         name_width = painter.fontMetrics().boundingRect(workspaceData["name"]).width()
 
-        # Draw the type in parentheses
-        type_text = f"({workspaceData['type']})"
+        # Draw the organization in parentheses TODO : name and not the id.
+
+        type_text = f"({workspaceData['organizationName']})"
         type_rect = QtCore.QRect(
             option.rect.left() + 20 + name_width + 5,
             option.rect.top(),
@@ -303,7 +303,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.buttonBack.clicked.connect(self.backClicked)
 
-        self.workspacesModel = WorkspaceListModel()
+        self.workspacesModel = WorkspaceListModel(WorkspaceView = self)
         self.workspacesDelegate = WorkspaceListDelegate(self)
         self.form.workspaceListView.setModel(self.workspacesModel)
         self.form.workspaceListView.setItemDelegate(self.workspacesDelegate)
@@ -380,12 +380,19 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.user = loginData["user"]
                 self.setUIForLogin(True, self.user)
 
+                if self.apiClient is None:
+                    self.apiClient = APIClient(
+                        "", "", baseUrl, lensUrl, self.access_token, self.user
+                    )
+
                 # Set a timer to logout when token expires.
                 self.setTokenExpirationTimer(self.access_token)
         else:
             user = None
             self.setUIForLogin(False)
         self.switchView()
+        
+        self.workspacesModel.refreshModel()
 
         # Set a timer to check regularly the server
         self.timer = QtCore.QTimer()
@@ -519,17 +526,17 @@ class WorkspaceView(QtGui.QDockWidget):
         self.currentWorkspace = self.workspacesModel.data(index)
 
         # Create a workspace model and set it to the list
-        if self.currentWorkspace["type"] == "Ondsel":
-            if self.apiClient is None and self.access_token is None:
-                print("You need to login first")
-                self.loginBtnClicked()
-                self.enterWorkspace(index)
-                return
-            if self.apiClient is None and self.access_token is not None:
-                self.apiClient = APIClient(
-                    "", "", baseUrl, lensUrl, self.access_token, self.user
-                )
-        self.currentWorkspaceModel = WorkSpaceModelFactory.createWorkspace(
+        if self.apiClient is None and self.access_token is None:
+            print("You need to login first")
+            self.loginBtnClicked()
+            self.enterWorkspace(index)
+            return
+        if self.apiClient is None and self.access_token is not None:
+            self.apiClient = APIClient(
+                "", "", baseUrl, lensUrl, self.access_token, self.user
+            )
+
+        self.currentWorkspaceModel = ServerWorkspaceModel(
             self.currentWorkspace, API_Client=self.apiClient
         )
 
@@ -538,7 +545,6 @@ class WorkspaceView(QtGui.QDockWidget):
         )
 
         self.form.fileList.setModel(self.currentWorkspaceModel)
-        self.synchronizeAction.setVisible(self.currentWorkspace["type"] == "Ondsel")
         self.synchronizeAction.triggered.connect(
             self.currentWorkspaceModel.refreshModel
         )
@@ -626,7 +632,7 @@ class WorkspaceView(QtGui.QDockWidget):
         fileName = self.currentWorkspaceModel.data(idx, WorkSpaceModel.NameRole)
         fullFileName = f"{self.currentWorkspace['url']}/{fileName}"
 
-        if self.currentWorkspace["type"] == "Local":
+        """if self.currentWorkspace["type"] == "Local":
             backupfilename = model.data(index, role=QtCore.Qt.UserRole)
 
             # Process the user's choice
@@ -660,33 +666,33 @@ class WorkspaceView(QtGui.QDockWidget):
                     print(f"Error renaming file: {e}")
                 doc = FreeCAD.open(fullFileName)
                 doc.restore()
-        elif self.currentWorkspace["type"] == "Ondsel":
-            versionUniqueFileName = model.data(index, role=QtCore.Qt.UserRole)
+        elif self.currentWorkspace["type"] == "Ondsel":"""
+        versionUniqueFileName = model.data(index, role=QtCore.Qt.UserRole)
 
-            # Process the user's choice
-            if choice == QMessageBox.Save:
-                # Save and upload the current version
-                doc = FreeCAD.open(fullFileName)
-                doc.save()
-                self.currentWorkspaceModel.uploadFile(idx)
-                FreeCAD.closeDocument(doc.Name)
+        # Process the user's choice
+        if choice == QMessageBox.Save:
+            # Save and upload the current version
+            doc = FreeCAD.open(fullFileName)
+            doc.save()
+            self.currentWorkspaceModel.uploadFile(idx)
+            FreeCAD.closeDocument(doc.Name)
 
-                # Download (and override) the required version from the server
-                model.API_Client.downloadFileFromServer(
-                    versionUniqueFileName, fullFileName
-                )
+            # Download (and override) the required version from the server
+            model.API_Client.downloadFileFromServer(
+                versionUniqueFileName, fullFileName
+            )
 
-                # re-open the file
-                doc = FreeCAD.open(fullFileName)
-            elif choice == QMessageBox.Discard:
-                # Download (and override) the required version from the server
-                model.API_Client.downloadFileFromServer(
-                    versionUniqueFileName, fullFileName
-                )
+            # re-open the file
+            doc = FreeCAD.open(fullFileName)
+        elif choice == QMessageBox.Discard:
+            # Download (and override) the required version from the server
+            model.API_Client.downloadFileFromServer(
+                versionUniqueFileName, fullFileName
+            )
 
-                doc = FreeCAD.open(fullFileName)
-                doc.restore()
-            model.refreshModel()
+            doc = FreeCAD.open(fullFileName)
+            doc.restore()
+        model.refreshModel()
 
     def fileListClicked(self, index):
         file_item = self.currentWorkspaceModel.data(index)
@@ -702,10 +708,9 @@ class WorkspaceView(QtGui.QDockWidget):
             path = self.currentWorkspaceModel.getFullPath()
             pixmap = Utils.extract_thumbnail(f"{path}/{self.currentFileName}")
             if pixmap == None:
-                if self.currentWorkspace["type"] == "Ondsel":
-                    pixmap = self.getServerThumbnail(
-                        self.currentFileName, path, self.currentModelId
-                    )
+                pixmap = self.getServerThumbnail(
+                    self.currentFileName, path, self.currentModelId
+                )
                 if pixmap == None:
                     pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
             self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
@@ -717,24 +722,13 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.viewOnlineBtn.setVisible(False)
         self.form.linkDetails.setVisible(False)
 
-        if file_item.is_folder:
-            pass
-        elif self.currentWorkspace["type"] == "Local":
-            fullFileName = (
-                f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}"
-            )
-            self.form.fileDetails.setVisible(True)
-
-            version_model = LocalVersionModel(fullFileName)
-        elif self.currentWorkspace["type"] == "Ondsel":
+        if not file_item.is_folder:
             self.form.fileDetails.setVisible(True)
             if self.currentModelId is not None:
                 self.links_model = ShareLinkModel(self.currentModelId, self.apiClient)
                 self.form.viewOnlineBtn.setVisible(True)
                 self.form.linkDetails.setVisible(True)
                 version_model = OndselVersionModel(self.currentModelId, self.apiClient)
-        else:
-            self.form.fileDetails.setVisible(False)
         self.form.linksView.setModel(self.links_model)
         self.setVersionListModel(version_model)
 
@@ -768,6 +762,8 @@ class WorkspaceView(QtGui.QDockWidget):
             menu = QtGui.QMenu()
 
             deleteAction = menu.addAction("Delete")
+            deleteAction.setEnabled(self.apiClient is not None)
+
             action = menu.exec_(self.form.workspaceListView.viewport().mapToGlobal(pos))
 
             if action == deleteAction:
@@ -778,10 +774,12 @@ class WorkspaceView(QtGui.QDockWidget):
                     QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
                 )
                 if result == QtGui.QMessageBox.Yes:
-                    self.workspacesModel.removeWorkspace(index)
+                   self.apiClient.deleteWorkspace(self.workspacesModel.data(index)["_id"])
+                   self.workspacesModel.refreshModel()
         else:
             menu = QtGui.QMenu()
             addAction = menu.addAction("Add workspace")
+            addAction.setEnabled(self.apiClient is not None)
 
             action = menu.exec_(self.form.workspaceListView.viewport().mapToGlobal(pos))
 
@@ -795,16 +793,15 @@ class WorkspaceView(QtGui.QDockWidget):
             return
 
         menu = QtGui.QMenu()
-        if self.currentWorkspace["type"] == "Ondsel":
-            openOnlineAction = menu.addAction("View in Lens")
-            uploadAction = menu.addAction("Upload to Lens")
-            downloadAction = menu.addAction("Download from Lens")
-            menu.addSeparator()
-            if file_item.status == "Server only":
-                uploadAction.setEnabled(False)
-            if file_item.status == "Untracked":
-                downloadAction.setEnabled(False)
-            if file_item.ext not in [".fcstd", ".obj"]:
+        openOnlineAction = menu.addAction("View in Lens")
+        uploadAction = menu.addAction("Upload to Lens")
+        downloadAction = menu.addAction("Download from Lens")
+        menu.addSeparator()
+        if file_item.status == "Server only":
+            uploadAction.setEnabled(False)
+        if file_item.status == "Untracked":
+            downloadAction.setEnabled(False)
+        if file_item.ext not in [".fcstd", ".obj"]:
                 openOnlineAction.setEnabled(False)
         deleteAction = menu.addAction("Delete File")
 
@@ -819,12 +816,11 @@ class WorkspaceView(QtGui.QDockWidget):
             )
             if result == QtGui.QMessageBox.Yes:
                 self.currentWorkspaceModel.deleteFile(index)
-        elif self.currentWorkspace["type"] == "Ondsel":
-            if action == openOnlineAction:
-                self.openModelOnline()
-            elif action == downloadAction:
-                self.currentWorkspaceModel.downloadFile(index)
-            elif action == uploadAction:
+        if action == openOnlineAction:
+            self.openModelOnline()
+        elif action == downloadAction:
+            self.currentWorkspaceModel.downloadFile(index)
+        elif action == uploadAction:
                 self.currentWorkspaceModel.uploadFile(index)
                 self.form.versionsComboBox.model().refreshModel()
 
@@ -959,8 +955,7 @@ class WorkspaceView(QtGui.QDockWidget):
         url = ondselUrl
 
         if (
-            self.currentWorkspace["type"] == "Ondsel"
-            and self.currentModelId is not None
+            self.currentModelId is not None
         ):
             url = f"{lensUrl}model/{self.currentModelId}"
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
@@ -1000,6 +995,8 @@ class WorkspaceView(QtGui.QDockWidget):
                     self.access_token = self.apiClient.access_token
 
                     self.setUIForLogin(True, self.apiClient.user)
+                    
+                    self.workspacesModel.refreshModel()
 
                     # Set a timer to logout when token expires.
                     self.setTokenExpirationTimer(self.access_token)
@@ -1016,11 +1013,13 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.leaveWorkspace()
 
-        self.workspacesModel.removeOndselWorkspaces()
+        # self.workspacesModel.removeOndselWorkspaces()
 
     def timerTick(self):
-        if self.currentWorkspace != None and self.currentWorkspace["type"] == "Ondsel":
+        if self.currentWorkspace != None:
             self.currentWorkspaceModel.refreshModel()
+        else:
+            self.workspacesModel.refreshModel()
 
     def addCurrentFile(self):
         # Save current file on the server.
@@ -1077,20 +1076,20 @@ class WorkspaceView(QtGui.QDockWidget):
                     )
 
     def newWorkspaceBtnClicked(self):
+        if self.apiClient is None and self.access_token is None:
+            print("You need to login first")
+            self.loginBtnClicked()
+            return
+        if self.apiClient is None and self.access_token is not None:
+            self.apiClient = APIClient(
+                "", "", baseUrl, lensUrl, self.access_token, self.user
+            )
+
         dialog = NewWorkspaceDialog()
         # Show the dialog and wait for the user to close it
         if dialog.exec_() == QtGui.QDialog.Accepted:
             workspaceName = dialog.nameEdit.text()
             workspaceDesc = dialog.descEdit.toPlainText()
-
-            if self.apiClient is None and self.access_token is None:
-                print("You need to login first")
-                self.loginBtnClicked()
-                return
-            if self.apiClient is None and self.access_token is not None:
-                self.apiClient = APIClient(
-                    "", "", baseUrl, lensUrl, self.access_token, self.user
-                )
 
             personal_organisation = None
             for organization in self.user["organizations"]:
@@ -1101,16 +1100,14 @@ class WorkspaceView(QtGui.QDockWidget):
             if personal_organisation is None:
                 return
 
-            result = self.apiClient.createWorkspace(workspaceName, workspaceDesc, personal_organisation)
+            self.apiClient.createWorkspace(workspaceName, workspaceDesc, personal_organisation)
 
-            workspaceType = "Ondsel"
-            workspaceId = result["_id"]
-            workspaceUrl = cachePath + workspaceId #workspace id.
-            workspaceRootDir = result["rootDirectory"]
+            #workspaceType = "Ondsel"
+            #workspaceId = result["_id"]
+            #workspaceUrl = cachePath + workspaceId #workspace id.
+            #workspaceRootDir = result["rootDirectory"]
             
-            self.workspacesModel.addWorkspace(
-                workspaceName, workspaceDesc, workspaceType, workspaceUrl, workspaceId, personal_organisation, workspaceRootDir
-            )
+            self.workspacesModel.refreshModel()
 
             # # Determine workspace type and get corresponding values
             # if dialog.localRadio.isChecked():

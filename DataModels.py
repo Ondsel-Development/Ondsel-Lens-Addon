@@ -27,14 +27,29 @@ class WorkspaceListModel(QAbstractListModel):
         },
     ]
     """
-
-    def __init__(self, parent=None, filename=None):
+    def __init__(self, **kwargs):
+        parent = kwargs.get("parent", None)
         super(WorkspaceListModel, self).__init__(parent)
-        self.workspaceListFile = (
-            f"{cachePath}/workspaceList.json" if filename is None else filename
-        )
 
-        self.load()
+        self.WorkspaceView = kwargs["WorkspaceView"]
+
+        self.workspaceListFile = f"{cachePath}/workspaceList.json"
+
+        self.refreshModel()
+
+    def refreshModel(self):
+        if self.WorkspaceView.apiClient is not None:
+            self.workspaces = self.WorkspaceView.apiClient.getWorkspaces()
+            
+            # Add keys that we need locally
+            for workspace in self.workspaces:
+                workspace["url"] = cachePath + workspace["_id"]
+                
+                organizationName = next((org['name'] for org in self.WorkspaceView.user["organizations"] if org['_id'] == workspace["organizationId"]), "")
+                workspace["organizationName"] = organizationName
+            self.save()
+        else:
+            self.load()
 
     def rowCount(self, parent=QModelIndex()):
         return len(self.workspaces)
@@ -51,7 +66,7 @@ class WorkspaceListModel(QAbstractListModel):
         self.endResetModel()
         self.save()
 
-    def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl, _id, organisation, rootDirectory):
+    """def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl, _id, organisation, rootDirectory):
         for workspace in reversed(self.workspaces):
             if workspace["name"] == workspaceName:
                 if workspaceType == "Ondsel" and workspace["type"] == "Local":
@@ -67,7 +82,7 @@ class WorkspaceListModel(QAbstractListModel):
                 "type": workspaceType,
                 "url": workspaceUrl,
                 "_id": _id,
-                "organisationId": organisation,
+                "organizationId": organisation,
                 "rootDirectory" : rootDirectory,
                 "currentDirectory" : rootDirectory
             }
@@ -99,7 +114,7 @@ class WorkspaceListModel(QAbstractListModel):
                     workspace["type"] = "Local"
 
         self.endResetModel()
-        self.save()
+        self.save()"""
 
     def load(self):
         self.workspaces = []

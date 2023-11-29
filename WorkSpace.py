@@ -19,15 +19,15 @@ import uuid
 import requests
 
 
-class WorkSpaceModelFactory:
-    @staticmethod
-    def createWorkspace(workspaceDict, **kwargs):
-        if workspaceDict["type"] == "Ondsel":
-            return ServerWorkspaceModel(workspaceDict, **kwargs)
-        elif workspaceDict["type"] == "Local":
-            return LocalWorkspaceModel(workspaceDict, **kwargs)
-        elif workspaceDict["type"] == "External":
-            return None
+#class WorkSpaceModelFactory:
+#    @staticmethod
+#    def createWorkspace(workspaceDict, **kwargs):
+#        if workspaceDict["type"] == "Ondsel":
+#            return ServerWorkspaceModel(workspaceDict, **kwargs)
+#        elif workspaceDict["type"] == "Local":
+#            return LocalWorkspaceModel(workspaceDict, **kwargs)
+#        elif workspaceDict["type"] == "External":
+#            return None
 
 
 class TokenRefreshThread(QThread):
@@ -54,10 +54,7 @@ class WorkSpaceModel(QAbstractListModel):
         self.name = workspaceDict["name"]
         self.path = workspaceDict["url"]
         self.subPath = ""
-        self.workspacetype = workspaceDict["type"]
         self.files = []
-        self.organisationId = workspaceDict["organisationId"]
-        self._id = workspaceDict["_id"]
 
         self.watcher = QFileSystemWatcher()
         self.watcher.fileChanged.connect(self.refreshModel)
@@ -220,6 +217,9 @@ class LocalWorkspaceModel(WorkSpaceModel):
 class ServerWorkspaceModel(WorkSpaceModel):
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
+
+        self.organizationId = workspaceDict["organizationId"]
+        self._id = workspaceDict["_id"]
 
         self.API_Client = kwargs["API_Client"]
         self.refreshModel()
