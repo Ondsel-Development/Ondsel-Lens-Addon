@@ -43,7 +43,7 @@ class WorkspaceListModel(QAbstractListModel):
             
             # Add keys that we need locally
             for workspace in self.workspaces:
-                workspace["url"] = cachePath + workspace["_id"]
+                workspace["path"] = cachePath + workspace["_id"]
                 
                 organizationName = next((org['name'] for org in self.WorkspaceView.user["organizations"] if org['_id'] == workspace["organizationId"]), "")
                 workspace["organizationName"] = organizationName

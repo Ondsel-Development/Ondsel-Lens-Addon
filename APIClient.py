@@ -513,6 +513,70 @@ class APIClient:
         result = self._delete(endpoint)
         return result
 
+    # Directory Functions
+    @authRequired
+    def getDirectories(self, params=None):
+        paginationparams = {"$limit": 50, "$skip": 0}
+        endpoint = "diretories"
+        if params is None:
+            params = paginationparams
+        else:
+            params = {**params, **paginationparams}
+
+        result = self._request(endpoint, params=params)
+        directories = result["data"]
+
+        return directories
+
+    @authRequired
+    def getDirectory(self, directoryID):
+        endpoint = f"diretories/{directoryID}"
+
+        result = self._request(endpoint)
+        return result
+
+    @authRequired
+    def createDirectory(self, name, parentDirId, workspaceId, workspaceName):
+        print("Creating the directory...")
+        endpoint = "diretories"
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+          "name": name,
+          "parentDirectory": {
+            "_id": parentDirId,
+          },
+          "workspace": {
+            "_id": workspaceId,
+            "name": workspaceName
+          }
+        }
+
+        result = self._post(endpoint, headers=headers, data=json.dumps(payload))
+
+        return result
+
+    @authRequired
+    def updateDirectory(self, directoryData):
+        endpoint = f"diretories/{directoryData['_id']}"
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        result = self._update(endpoint, headers=headers, data=json.dumps(directoryData))
+
+        return result
+
+    @authRequired
+    def deleteDirectory(self, directoryID):
+        endpoint = f"diretories/{directoryID}"
+
+        result = self._delete(endpoint)
+        return result
+
 
 class APIHelper:
     def __init__(self):

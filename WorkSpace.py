@@ -52,7 +52,7 @@ class WorkSpaceModel(QAbstractListModel):
         super().__init__(parent)
 
         self.name = workspaceDict["name"]
-        self.path = workspaceDict["url"]
+        self.path = workspaceDict["path"]
         self.subPath = ""
         self.files = []
 
@@ -217,6 +217,8 @@ class LocalWorkspaceModel(WorkSpaceModel):
 class ServerWorkspaceModel(WorkSpaceModel):
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
+        self.workspace = workspaceDict
+        self.currentDirectory = workspaceDict["rootDirectory"]
 
         self.organizationId = workspaceDict["organizationId"]
         self._id = workspaceDict["_id"]
@@ -244,8 +246,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 "fileUpdatedAt", serverFileDict["currentVersion"]["createdAt"]
             )
 
-            foundLocal = False
-            for i, localFile in enumerate(files):
+            for localFile in files:
                 if serverFileDict["custFileName"] == localFile.name:
                     localFile.serverFileDict = serverFileDict
                     localDate = localFile.updatedAt
@@ -255,9 +256,8 @@ class ServerWorkspaceModel(WorkSpaceModel):
                         localFile.status = "Local copy outdated"
                     else:
                         localFile.status = "Synced"
-                    foundLocal = True
                     break
-            if not foundLocal:  # local doesnt have this file
+            else:  # local doesnt have this file
                 base, extension = os.path.splitext(serverFileDict["custFileName"])
                 file_item = FileItem(
                     serverFileDict["custFileName"],
