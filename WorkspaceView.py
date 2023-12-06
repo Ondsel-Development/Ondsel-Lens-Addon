@@ -501,9 +501,13 @@ class WorkspaceView(QtGui.QDockWidget):
         """Toggle the visibility of UI elements based on if user is logged in"""
 
         if state:
-            self.form.userBtn.setText(
-                user["lastName"] + " " + user["firstName"][:1] + "."
-            )
+            userBtnText = ""
+            if "lastName" in user:
+                userBtnText = user["lastName"] + " "
+            if "firstName" in user:
+                userBtnText = userBtnText + user["firstName"]
+
+            self.form.userBtn.setText(userBtnText)
             self.form.userBtn.setIcon(self.ondselIcon)
             self.form.userBtn.setMenu(self.userMenu)
         else:
