@@ -502,9 +502,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if state:
             userBtnText = ""
-            if ("lastName" in user):
+            if "lastName" in user:
                 userBtnText = user["lastName"] + " "
-            if ("firstName" in user):
+            if "firstName" in user:
                 userBtnText = userBtnText + user["firstName"]
 
             self.form.userBtn.setText(userBtnText)
