@@ -71,8 +71,7 @@ This is an _early_ beta.  We know there are many bugs and missing features. Expe
 During this beta, backward compatibility may not be supported between versions for the models you upload on the server. If you encounter errors messages such as 'fileUpdatedAt key does not exist' it is a backward compatibility issue and you will have to delete your old models from the server and upload them again.
 
 We are grateful to you for trying the addon and letting us know what you think.
-The best place to talk with us about bugs and features is in the Telegram group:
-https://t.me/+Q2gm1LdnHotiYWEx.
+The best place to talk with us about bugs and features is on our [Discord Server](https://discord.gg/7jmzezyyfP)
 
 We've also started a [discussion on GithHub](https://github.com/Ondsel-Development/Ondsel-Lens/discussions/25)
 to collect feedback from early adopters.
