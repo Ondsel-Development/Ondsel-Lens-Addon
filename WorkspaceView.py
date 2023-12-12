@@ -43,7 +43,7 @@ mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 modPath = os.path.dirname(__file__).replace("\\", "/")
 iconsPath = f"{modPath}/Resources/icons/"
-cachePath = f"{modPath}/Cache/"
+cachePath = FreeCAD.getUserCachePath()
 
 # Test server
 # baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
