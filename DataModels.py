@@ -11,7 +11,7 @@ import json
 import shutil
 import FreeCAD
 
-modPath = os.path.dirname(__file__).replace("\\", "/")
+cachePath = FreeCAD.getUserCachePath()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 
 
@@ -31,7 +31,7 @@ class WorkspaceListModel(QAbstractListModel):
     def __init__(self, parent=None, filename=None):
         super(WorkspaceListModel, self).__init__(parent)
         self.workspaceListFile = (
-            f"{modPath}/workspaceList.json" if filename is None else filename
+            f"{cachePath}/workspaceList.json" if filename is None else filename
         )
 
         self.load()
