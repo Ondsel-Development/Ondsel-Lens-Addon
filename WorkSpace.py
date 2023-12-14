@@ -218,7 +218,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
         self.workspace = workspaceDict
-        self.currentDirectory = workspaceDict["rootDirectory"]
+        # a stack of directories, the current directory is currentDirectory[-1]
+        # (pushing is 'append()', popping is 'pop()')
+        self.currentDirectory = [workspaceDict["rootDirectory"]]
 
         self.organizationId = workspaceDict["organizationId"]
         self._id = workspaceDict["_id"]
@@ -240,25 +242,26 @@ class ServerWorkspaceModel(WorkSpaceModel):
         items = []
 
         serverDirsToAdd = []
-        serverDirDict = self.API_Client.getDirectory(self.currentDirectory["_id"])
+        serverDirDict = self.API_Client.getDirectory(self.currentDirectory[-1]["_id"])
         for dir in serverDirDict["directories"]:
             file_item = FileItem(
                 dir["name"],
                 "",
-                self.currentDirectory["name"],
+                self.currentDirectory[-1]["name"],
                 True,
                 "",
                 "",
                 "",
                 "",
                 "",
-                serverDirDict,
+                dir,
             )
             serverDirsToAdd.append(file_item)
 
         items = serverDirsToAdd
 
-        localFiles = self.getLocalFiles()
+        localFiles = [] # self.getLocalFiles()
+        items += localFiles
 
         serverFilesToAdd = []
         for serverFileDict in serverDirDict['files']:
@@ -278,7 +281,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     else:
                         localFile.status = 'Synced'
                     break
-            else:  # local doesnt have this file
+            else:  # local doesn't have this file
+                # Note that this 'else' is part of the 'for' and not of the
+                # 'if' inside the 'for'
                 base, extension = os.path.splitext(custFileName)
                 file_item = FileItem(
                     custFileName,
@@ -351,7 +356,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
                     pixmap = pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio)
                     return pixmap
-                except requests.exceptions.RequestException as e:
+                except requests.exceptions.RequestException:
                     pass  # no thumbnail online.
         return None
 
@@ -359,6 +364,8 @@ class ServerWorkspaceModel(WorkSpaceModel):
         file_item = self.files[index.row()]
         if file_item.is_folder:
             self.subPath = Utils.joinPath(self.subPath, file_item.name)
+            # push the new directory to the stack
+            self.currentDirectory.append(file_item.serverFileDict)
             self.refreshModel()
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
@@ -458,6 +465,12 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 self.API_Client.regenerateModelObj(id_, fileUpdateDate, uniqueName)
             else:
                 self.API_Client.updateFileObj(id_, fileUpdateDate, uniqueName)
+
+    def openParentFolder(self):
+        self.subPath = os.path.dirname(self.subPath)
+        self.currentDirectory.pop()
+        self.refreshModel()
+
 
 
 class FileItem:
