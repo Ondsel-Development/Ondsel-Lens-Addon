@@ -312,7 +312,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         elif role == self.NameRole:
             return file_item.name
         elif role == self.NameAndIsFolderRole:
-            return file_item.name, False
+            return file_item.name, file_item.is_folder
         elif role == self.IdRole:
             if (
                 file_item.serverFileDict is not None
@@ -322,7 +322,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         elif role == self.StatusRole:
             return file_item.status
         elif role == self.NameStatusAndIsFolderRole:
-            return file_item.name, file_item.status, False
+            return file_item.name, file_item.status, file_item.is_folder
         return None
 
     def getServerThumbnail(self, fileId):
