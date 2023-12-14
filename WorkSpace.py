@@ -73,25 +73,27 @@ class WorkSpaceModel(QAbstractListModel):
         if not os.path.exists(self.getFullPath()):
             os.makedirs(self.getFullPath())
         files = os.listdir(self.getFullPath())
+        local_dirs = []
         local_files = []
 
         for basename in files:
-            # First we add the folders, such that they appear first in the list.
+            # First we filter the dirs
             if os.path.isdir(
                 Utils.joinPath(self.getFullPath(), basename)
-            ) and not basename.startswith("."):
+            ) and not basename.startswith('.'):
                 file_item = FileItem(
                     basename,
-                    "",
+                    '',
                     self.getFullPath(),
                     True,
                     [],
-                    "",
-                    "",
-                    "",
-                    "",
+                    '',
+                    '',
+                    '',
+                    '',
                 )
-                local_files.append(file_item)
+                local_dirs.append(file_item)
+
         for basename in files:
             # Then we add the files
             file_path = Utils.joinPath(self.getFullPath(), basename)
@@ -112,7 +114,7 @@ class WorkSpaceModel(QAbstractListModel):
                         "Untracked",
                     )
                     local_files.append(file_item)
-        return local_files
+        return local_dirs, local_files
 
     def rowCount(self, parent=None):
         return len(self.files)
@@ -236,37 +238,41 @@ class ServerWorkspaceModel(WorkSpaceModel):
         self.refresh_thread.token_refreshed.connect(self.refreshModel)
         self.refresh_thread.start()
 
-    def refreshModel(self, firstCall=True):
-        self.clearModel()
+    def getServerDirs(self, serverDirDicts, localDirs):
+        currentDir = self.currentDirectory[-1]
+        serverDirs = []
+        for dirDict in serverDirDicts:
+            nameDir = dirDict['name']
 
-        items = []
+            for localDir in localDirs:
+                if nameDir == localDir.name:
+                    break
+            else:  # local doesn't have this directory
+                # Note that this 'else' is part of the 'for' and not of the
+                # 'if' inside the 'for'
+                file_item = FileItem(
+                    nameDir,
+                    '',
+                    currentDir['name'],
+                    True,
+                    '',
+                    '',
+                    '',
+                    '',
+                    '',
+                    dirDict,
+                )
+                serverDirs.append(file_item)
 
-        serverDirsToAdd = []
-        serverDirDict = self.API_Client.getDirectory(self.currentDirectory[-1]["_id"])
-        for dir in serverDirDict["directories"]:
-            file_item = FileItem(
-                dir["name"],
-                "",
-                self.currentDirectory[-1]["name"],
-                True,
-                "",
-                "",
-                "",
-                "",
-                "",
-                dir,
-            )
-            serverDirsToAdd.append(file_item)
+        return serverDirs
 
-        items = serverDirsToAdd
+    def getServerFiles(self, serverFileDicts, localFiles):
+        serverFiles = []
+        for serverFileDict in serverFileDicts:
+            currentVersion = serverFileDict['currentVersion']
 
-        localFiles = [] # self.getLocalFiles()
-        items += localFiles
-
-        serverFilesToAdd = []
-        for serverFileDict in serverDirDict['files']:
-            createdDate = serverFileDict['currentVersion']['createdAt']
-            serverDate = serverFileDict['currentVersion']['additionalData'].get(
+            createdDate = currentVersion['createdAt']
+            serverDate = currentVersion['additionalData'].get(
                 'fileUpdatedAt', createdDate)
             custFileName = serverFileDict['custFileName']
 
@@ -284,7 +290,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
             else:  # local doesn't have this file
                 # Note that this 'else' is part of the 'for' and not of the
                 # 'if' inside the 'for'
-                base, extension = os.path.splitext(custFileName)
+                _, extension = os.path.splitext(custFileName)
                 file_item = FileItem(
                     custFileName,
                     extension.lower(),
@@ -297,11 +303,37 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     'Server only',
                     serverFileDict,
                 )
-                serverFilesToAdd.append(file_item)
-        items += serverFilesToAdd
+                serverFiles.append(file_item)
+        return serverFiles
+
+    def sortFiles(self, dirs, files, funcKey):
+        return sorted(dirs, key=funcKey) + sorted(files, key=funcKey)
+
+    def refreshModel(self, firstCall=True):
+        """Refresh the model in terms of file items.
+
+        We retrieve the local files and directories, the server files and
+        directories, compare them and update the model with FileItem instances
+        that reflect the status of the server and local file system.
+        """
+
+        self.clearModel()
+
+        # get the local dirs and files first
+        # we prefer to show dirs first and then files
+        localDirs, localFiles = self.getLocalFiles()
+
+        currentDir = self.currentDirectory[-1]
+        # retrieve the dirs and files from the server
+        serverDirDict = self.API_Client.getDirectory(currentDir["_id"])
+        serverDirs = self.getServerDirs(serverDirDict['directories'],
+                                        localDirs)
+        serverFiles = self.getServerFiles(serverDirDict['files'], localFiles)
 
         self.beginResetModel()
-        self.files = items
+        self.files = self.sortFiles(serverDirs + localDirs,
+                                    serverFiles + localFiles,
+                                    lambda fileItem: fileItem.name)
         self.endResetModel()
 
         if firstCall:
