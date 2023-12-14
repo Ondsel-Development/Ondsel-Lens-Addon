@@ -679,17 +679,13 @@ class WorkspaceView(QtGui.QDockWidget):
             FreeCAD.closeDocument(doc.Name)
 
             # Download (and override) the required version from the server
-            model.API_Client.downloadFileFromServer(
-                versionUniqueFileName, fullFileName
-            )
+            model.API_Client.downloadFileFromServer(versionUniqueFileName, fullFileName)
 
             # re-open the file
             doc = FreeCAD.open(fullFileName)
         elif choice == QMessageBox.Discard:
             # Download (and override) the required version from the server
-            model.API_Client.downloadFileFromServer(
-                versionUniqueFileName, fullFileName
-            )
+            model.API_Client.downloadFileFromServer(versionUniqueFileName, fullFileName)
 
             doc = FreeCAD.open(fullFileName)
             doc.restore()

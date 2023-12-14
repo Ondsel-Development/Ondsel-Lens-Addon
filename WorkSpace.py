@@ -80,17 +80,17 @@ class WorkSpaceModel(QAbstractListModel):
             # First we filter the dirs
             if os.path.isdir(
                 Utils.joinPath(self.getFullPath(), basename)
-            ) and not basename.startswith('.'):
+            ) and not basename.startswith("."):
                 file_item = FileItem(
                     basename,
-                    '',
+                    "",
                     self.getFullPath(),
                     True,
                     [],
-                    '',
-                    '',
-                    '',
-                    '',
+                    "",
+                    "",
+                    "",
+                    "",
                 )
                 local_dirs.append(file_item)
 
@@ -242,7 +242,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
         currentDir = self.currentDirectory[-1]
         serverDirs = []
         for dirDict in serverDirDicts:
-            nameDir = dirDict['name']
+            nameDir = dirDict["name"]
 
             for localDir in localDirs:
                 if nameDir == localDir.name:
@@ -252,14 +252,14 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 # 'if' inside the 'for'
                 file_item = FileItem(
                     nameDir,
-                    '',
-                    currentDir['name'],
+                    "",
+                    currentDir["name"],
                     True,
-                    '',
-                    '',
-                    '',
-                    '',
-                    '',
+                    "",
+                    "",
+                    "",
+                    "",
+                    "",
                     dirDict,
                 )
                 serverDirs.append(file_item)
@@ -269,23 +269,24 @@ class ServerWorkspaceModel(WorkSpaceModel):
     def getServerFiles(self, serverFileDicts, localFiles):
         serverFiles = []
         for serverFileDict in serverFileDicts:
-            currentVersion = serverFileDict['currentVersion']
+            currentVersion = serverFileDict["currentVersion"]
 
-            createdDate = currentVersion['createdAt']
-            serverDate = currentVersion['additionalData'].get(
-                'fileUpdatedAt', createdDate)
-            custFileName = serverFileDict['custFileName']
+            createdDate = currentVersion["createdAt"]
+            serverDate = currentVersion["additionalData"].get(
+                "fileUpdatedAt", createdDate
+            )
+            custFileName = serverFileDict["custFileName"]
 
             for localFile in localFiles:
                 if custFileName == localFile.name:
                     localFile.serverFileDict = serverFileDict
                     localDate = localFile.updatedAt
                     if serverDate < localDate:
-                        localFile.status = 'Server copy outdated'
+                        localFile.status = "Server copy outdated"
                     elif serverDate > localDate:
-                        localFile.status = 'Local copy outdated'
+                        localFile.status = "Local copy outdated"
                     else:
-                        localFile.status = 'Synced'
+                        localFile.status = "Synced"
                     break
             else:  # local doesn't have this file
                 # Note that this 'else' is part of the 'for' and not of the
@@ -300,7 +301,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
                     custFileName,
                     createdDate,
                     serverDate,
-                    'Server only',
+                    "Server only",
                     serverFileDict,
                 )
                 serverFiles.append(file_item)
@@ -326,14 +327,15 @@ class ServerWorkspaceModel(WorkSpaceModel):
         currentDir = self.currentDirectory[-1]
         # retrieve the dirs and files from the server
         serverDirDict = self.API_Client.getDirectory(currentDir["_id"])
-        serverDirs = self.getServerDirs(serverDirDict['directories'],
-                                        localDirs)
-        serverFiles = self.getServerFiles(serverDirDict['files'], localFiles)
+        serverDirs = self.getServerDirs(serverDirDict["directories"], localDirs)
+        serverFiles = self.getServerFiles(serverDirDict["files"], localFiles)
 
         self.beginResetModel()
-        self.files = self.sortFiles(serverDirs + localDirs,
-                                    serverFiles + localFiles,
-                                    lambda fileItem: fileItem.name)
+        self.files = self.sortFiles(
+            serverDirs + localDirs,
+            serverFiles + localFiles,
+            lambda fileItem: fileItem.name,
+        )
         self.endResetModel()
 
         if firstCall:
@@ -502,7 +504,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
         self.subPath = os.path.dirname(self.subPath)
         self.currentDirectory.pop()
         self.refreshModel()
-
 
 
 class FileItem:
