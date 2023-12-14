@@ -27,6 +27,7 @@ class WorkspaceListModel(QAbstractListModel):
         },
     ]
     """
+
     def __init__(self, **kwargs):
         parent = kwargs.get("parent", None)
         super(WorkspaceListModel, self).__init__(parent)
@@ -40,12 +41,19 @@ class WorkspaceListModel(QAbstractListModel):
     def refreshModel(self):
         if self.WorkspaceView.apiClient is not None:
             self.workspaces = self.WorkspaceView.apiClient.getWorkspaces()
-            
+
             # Add keys that we need locally
             for workspace in self.workspaces:
                 workspace["path"] = cachePath + workspace["_id"]
-                
-                organizationName = next((org['name'] for org in self.WorkspaceView.user["organizations"] if org['_id'] == workspace["organizationId"]), "")
+
+                organizationName = next(
+                    (
+                        org["name"]
+                        for org in self.WorkspaceView.user["organizations"]
+                        if org["_id"] == workspace["organizationId"]
+                    ),
+                    "",
+                )
                 workspace["organizationName"] = organizationName
             self.save()
         else:

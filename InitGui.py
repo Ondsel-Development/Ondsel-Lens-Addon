@@ -9,8 +9,10 @@ import PySide.QtCore as QtCore
 import FreeCAD as App
 import FreeCADGui as Gui
 
+
 Gui.getMainWindow().addDockWidget(
     QtCore.Qt.RightDockWidgetArea,
-    WorkspaceView.WorkspaceView(),
+    # WorkspaceView.WorkspaceView(),
+    WorkspaceView.wsv,
     QtCore.Qt.Orientation.Vertical,
 )

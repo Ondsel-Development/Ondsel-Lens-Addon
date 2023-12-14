@@ -488,7 +488,7 @@ class APIClient:
         payload = {
             "name": name,
             "description": description,
-            "organizationId": organizationId
+            "organizationId": organizationId,
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
@@ -517,7 +517,7 @@ class APIClient:
     @authRequired
     def getDirectories(self, params=None):
         paginationparams = {"$limit": 50, "$skip": 0}
-        endpoint = "diretories"
+        endpoint = "directories"
         if params is None:
             params = paginationparams
         else:
@@ -530,7 +530,7 @@ class APIClient:
 
     @authRequired
     def getDirectory(self, directoryID):
-        endpoint = f"diretories/{directoryID}"
+        endpoint = f"directories/{directoryID}"
 
         result = self._request(endpoint)
         return result
@@ -538,21 +538,18 @@ class APIClient:
     @authRequired
     def createDirectory(self, name, parentDirId, workspaceId, workspaceName):
         print("Creating the directory...")
-        endpoint = "diretories"
+        endpoint = "directories"
 
         headers = {
             "Content-Type": "application/json",
         }
 
         payload = {
-          "name": name,
-          "parentDirectory": {
-            "_id": parentDirId,
-          },
-          "workspace": {
-            "_id": workspaceId,
-            "name": workspaceName
-          }
+            "name": name,
+            "parentDirectory": {
+                "_id": parentDirId,
+            },
+            "workspace": {"_id": workspaceId, "name": workspaceName},
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
@@ -561,7 +558,7 @@ class APIClient:
 
     @authRequired
     def updateDirectory(self, directoryData):
-        endpoint = f"diretories/{directoryData['_id']}"
+        endpoint = f"directories/{directoryData['_id']}"
         headers = {
             "Content-Type": "application/json",
         }
@@ -572,7 +569,7 @@ class APIClient:
 
     @authRequired
     def deleteDirectory(self, directoryID):
-        endpoint = f"diretories/{directoryID}"
+        endpoint = f"directories/{directoryID}"
 
         result = self._delete(endpoint)
         return result

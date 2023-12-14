@@ -58,12 +58,13 @@ remote_changelog_url = (
 remote_package_url = "https://raw.githubusercontent.com/Ondsel-Development/Ondsel-Lens/master/package.xml"
 local_package_path = f"{modPath}/package.xml"
 
-# try:
-#     import config
-#     baseUrl = config.base_url
-#     lensUrl = config.lens_url
-# except ImportError:
-#     pass
+try:
+    import config
+
+    baseUrl = config.base_url
+    lensUrl = config.lens_url
+except ImportError:
+    pass
 
 
 # Simple delegate drawing an icon and text
@@ -303,7 +304,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.buttonBack.clicked.connect(self.backClicked)
 
-        self.workspacesModel = WorkspaceListModel(WorkspaceView = self)
+        self.workspacesModel = WorkspaceListModel(WorkspaceView=self)
         self.workspacesDelegate = WorkspaceListDelegate(self)
         self.form.workspaceListView.setModel(self.workspacesModel)
         self.form.workspaceListView.setItemDelegate(self.workspacesDelegate)
@@ -391,7 +392,7 @@ class WorkspaceView(QtGui.QDockWidget):
             user = None
             self.setUIForLogin(False)
         self.switchView()
-        
+
         self.workspacesModel.refreshModel()
 
         # Set a timer to check regularly the server
@@ -774,8 +775,10 @@ class WorkspaceView(QtGui.QDockWidget):
                     QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
                 )
                 if result == QtGui.QMessageBox.Yes:
-                   self.apiClient.deleteWorkspace(self.workspacesModel.data(index)["_id"])
-                   self.workspacesModel.refreshModel()
+                    self.apiClient.deleteWorkspace(
+                        self.workspacesModel.data(index)["_id"]
+                    )
+                    self.workspacesModel.refreshModel()
         else:
             menu = QtGui.QMenu()
             addAction = menu.addAction("Add workspace")
@@ -802,7 +805,7 @@ class WorkspaceView(QtGui.QDockWidget):
         if file_item.status == "Untracked":
             downloadAction.setEnabled(False)
         if file_item.ext not in [".fcstd", ".obj"]:
-                openOnlineAction.setEnabled(False)
+            openOnlineAction.setEnabled(False)
         deleteAction = menu.addAction("Delete File")
 
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
@@ -821,8 +824,8 @@ class WorkspaceView(QtGui.QDockWidget):
         elif action == downloadAction:
             self.currentWorkspaceModel.downloadFile(index)
         elif action == uploadAction:
-                self.currentWorkspaceModel.uploadFile(index)
-                self.form.versionsComboBox.model().refreshModel()
+            self.currentWorkspaceModel.uploadFile(index)
+            self.form.versionsComboBox.model().refreshModel()
 
     def showLinksContextMenu(self, pos):
         index = self.form.linksView.indexAt(pos)
@@ -954,9 +957,7 @@ class WorkspaceView(QtGui.QDockWidget):
     def openModelOnline(self):
         url = ondselUrl
 
-        if (
-            self.currentModelId is not None
-        ):
+        if self.currentModelId is not None:
             url = f"{lensUrl}model/{self.currentModelId}"
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
@@ -995,8 +996,9 @@ class WorkspaceView(QtGui.QDockWidget):
                     self.access_token = self.apiClient.access_token
 
                     self.setUIForLogin(True, self.apiClient.user)
-                    
+
                     self.workspacesModel.refreshModel()
+                    self.switchView()
 
                     # Set a timer to logout when token expires.
                     self.setTokenExpirationTimer(self.access_token)
@@ -1100,13 +1102,15 @@ class WorkspaceView(QtGui.QDockWidget):
             if personal_organisation is None:
                 return
 
-            self.apiClient.createWorkspace(workspaceName, workspaceDesc, personal_organisation)
+            self.apiClient.createWorkspace(
+                workspaceName, workspaceDesc, personal_organisation
+            )
 
-            #workspaceType = "Ondsel"
-            #workspaceId = result["_id"]
-            #workspaceUrl = cachePath + workspaceId #workspace id.
-            #workspaceRootDir = result["rootDirectory"]
-            
+            # workspaceType = "Ondsel"
+            # workspaceId = result["_id"]
+            # workspaceUrl = cachePath + workspaceId #workspace id.
+            # workspaceRootDir = result["rootDirectory"]
+
             self.workspacesModel.refreshModel()
 
             # # Determine workspace type and get corresponding values
@@ -1268,18 +1272,18 @@ class NewWorkspaceDialog(QtGui.QDialog):
     #     if folder_url:
     #         self.localFolderLabel.setText(folder_url)
 
-    #def okClicked(self):
+    # def okClicked(self):
     #    pass
-        #if self.localRadio.isChecked():
-        #    if os.path.isdir(self.localFolderLabel.text()):
-        #        self.accept()
-        #    else:
-        #        result = QtGui.QMessageBox.question(
-        #            self,
-        #            "Wrong URL",
-        #            "The URL you entered is not correct.",
-        #            QtGui.QMessageBox.Ok,
-        #        )
+    # if self.localRadio.isChecked():
+    #    if os.path.isdir(self.localFolderLabel.text()):
+    #        self.accept()
+    #    else:
+    #        result = QtGui.QMessageBox.question(
+    #            self,
+    #            "Wrong URL",
+    #            "The URL you entered is not correct.",
+    #            QtGui.QMessageBox.Ok,
+    #        )
 
 
 class SharingLinkEditDialog(QtGui.QDialog):
@@ -1428,3 +1432,6 @@ class LoginDialog(QtGui.QDialog):
         email = self.email_input.text()
         password = self.password_input.text()
         return email, password
+
+
+wsv = WorkspaceView()

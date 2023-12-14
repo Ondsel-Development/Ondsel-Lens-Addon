@@ -19,7 +19,7 @@ import uuid
 import requests
 
 
-#class WorkSpaceModelFactory:
+# class WorkSpaceModelFactory:
 #    @staticmethod
 #    def createWorkspace(workspaceDict, **kwargs):
 #        if workspaceDict["type"] == "Ondsel":
@@ -237,45 +237,66 @@ class ServerWorkspaceModel(WorkSpaceModel):
     def refreshModel(self, firstCall=True):
         self.clearModel()
 
-        files = self.getLocalFiles()
+        items = []
+
+        serverDirsToAdd = []
+        serverDirDict = self.API_Client.getDirectory(self.currentDirectory["_id"])
+        for dir in serverDirDict["directories"]:
+            file_item = FileItem(
+                dir["name"],
+                "",
+                self.currentDirectory["name"],
+                True,
+                "",
+                "",
+                "",
+                "",
+                "",
+                serverDirDict,
+            )
+            serverDirsToAdd.append(file_item)
+
+        items = serverDirsToAdd
+
+        localFiles = self.getLocalFiles()
 
         serverFilesToAdd = []
-        serverFiles = self.API_Client.getFiles()
-        for serverFileDict in serverFiles:
-            serverDate = serverFileDict["currentVersion"]["additionalData"].get(
-                "fileUpdatedAt", serverFileDict["currentVersion"]["createdAt"]
-            )
+        for serverFileDict in serverDirDict['files']:
+            createdDate = serverFileDict['currentVersion']['createdAt']
+            serverDate = serverFileDict['currentVersion']['additionalData'].get(
+                'fileUpdatedAt', createdDate)
+            custFileName = serverFileDict['custFileName']
 
-            for localFile in files:
-                if serverFileDict["custFileName"] == localFile.name:
+            for localFile in localFiles:
+                if custFileName == localFile.name:
                     localFile.serverFileDict = serverFileDict
                     localDate = localFile.updatedAt
                     if serverDate < localDate:
-                        localFile.status = "Server copy outdated"
+                        localFile.status = 'Server copy outdated'
                     elif serverDate > localDate:
-                        localFile.status = "Local copy outdated"
+                        localFile.status = 'Local copy outdated'
                     else:
-                        localFile.status = "Synced"
+                        localFile.status = 'Synced'
                     break
             else:  # local doesnt have this file
-                base, extension = os.path.splitext(serverFileDict["custFileName"])
+                base, extension = os.path.splitext(custFileName)
                 file_item = FileItem(
-                    serverFileDict["custFileName"],
+                    custFileName,
                     extension.lower(),
                     self.getFullPath(),
                     False,
-                    [serverFileDict["custFileName"]],
-                    serverFileDict["custFileName"],
-                    serverFileDict["createdAt"],
+                    [custFileName],
+                    custFileName,
+                    createdDate,
                     serverDate,
-                    "Server only",
+                    'Server only',
                     serverFileDict,
                 )
                 serverFilesToAdd.append(file_item)
-        files += serverFilesToAdd
+        items += serverFilesToAdd
 
         self.beginResetModel()
-        self.files = files
+        self.files = items
         self.endResetModel()
 
         if firstCall:
