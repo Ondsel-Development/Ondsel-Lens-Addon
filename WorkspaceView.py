@@ -526,7 +526,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def enterWorkspace(self, index):
         self.currentWorkspace = self.workspacesModel.data(index)
+        self.setWorkspaceModel()
 
+    def setWorkspaceModel(self):
         if self.isLoggedIn():
             self.currentWorkspaceModel = ServerWorkspaceModel(
                 self.currentWorkspace, API_Client=self.apiClient
@@ -1012,7 +1014,7 @@ class WorkspaceView(QtGui.QDockWidget):
                     self.access_token = self.apiClient.access_token
 
                     self.setUIForLogin(True, self.apiClient.user)
-
+                    self.leaveWorkspace()
                     self.workspacesModel.refreshModel()
                     self.switchView()
 
@@ -1029,6 +1031,8 @@ class WorkspaceView(QtGui.QDockWidget):
         p.SetString("loginData", "")
         self.access_token = None
         self.apiClient = None
+
+        self.setWorkspaceModel()
 
         # self.leaveWorkspace()
 
