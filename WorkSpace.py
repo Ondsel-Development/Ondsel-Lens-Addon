@@ -245,35 +245,28 @@ class ServerWorkspaceModel(WorkSpaceModel):
         self.refresh_thread.token_refreshed.connect(self.refreshModel)
         self.refresh_thread.start()
 
-    def getServerDirs(self, serverDirDicts, localDirs):
+    def getServerDirs(self, serverDirDicts):
         currentDir = self.currentDirectory[-1]
         serverDirs = []
         for dirDict in serverDirDicts:
             nameDir = dirDict["name"]
 
-            for localDir in localDirs:
-                if nameDir == localDir.name:
-                    break
-            else:  # local doesn't have this directory
-                # Note that this 'else' is part of the 'for' and not of the
-                # 'if' inside the 'for'
-                file_item = FileItem(
-                    nameDir,
-                    "",
-                    currentDir["name"],
-                    True,
-                    "",
-                    "",
-                    "",
-                    "",
-                    "",
-                    dirDict,
-                )
-                serverDirs.append(file_item)
-
+            file_item = FileItem(
+                nameDir,
+                "",
+                currentDir["name"],
+                True,
+                "",
+                "",
+                "",
+                "",
+                "",
+                dirDict,
+            )
+            serverDirs.append(file_item)
         return serverDirs
 
-    def getServerFiles(self, serverFileDicts, localFiles):
+    def getServerFiles(self, serverFileDicts):
         serverFiles = []
         for serverFileDict in serverFileDicts:
             currentVersion = serverFileDict["currentVersion"]
@@ -283,60 +276,87 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 "fileUpdatedAt", createdDate
             )
             custFileName = serverFileDict["custFileName"]
-
-            for localFile in localFiles:
-                if custFileName == localFile.name:
-                    localFile.serverFileDict = serverFileDict
-                    localDate = localFile.updatedAt
-                    if serverDate < localDate:
-                        localFile.status = "Server copy outdated"
-                    elif serverDate > localDate:
-                        localFile.status = "Local copy outdated"
-                    else:
-                        localFile.status = "Synced"
-                    break
-            else:  # local doesn't have this file
-                # Note that this 'else' is part of the 'for' and not of the
-                # 'if' inside the 'for'
-                _, extension = os.path.splitext(custFileName)
-                file_item = FileItem(
-                    custFileName,
-                    extension.lower(),
-                    self.getFullPath(),
-                    False,
-                    [custFileName],
-                    custFileName,
-                    createdDate,
-                    serverDate,
-                    "Server only",
-                    serverFileDict,
-                )
-                serverFiles.append(file_item)
+            _, extension = os.path.splitext(custFileName)
+            file_item = FileItem(
+                custFileName,
+                extension.lower(),
+                self.getFullPath(),
+                False,
+                [custFileName],
+                custFileName,
+                createdDate,
+                serverDate,
+                "Server only",
+                serverFileDict,
+            )
+            serverFiles.append(file_item)
         return serverFiles
+
+    def mergeFiles(self, serverFiles, localFiles, funcUpdateFound, funcUpdateNotFound):
+        filesToAdd = []
+
+        # O(n^2) can be made more efficient with sorting and parallel iteration
+        # for now it suffices
+        for localFile in localFiles:
+            # print(f'serverFile: {localFile.name}')
+            for serverFile in serverFiles:
+                # print(f'localFile: {serverFile.name}')
+                if serverFile.name == localFile.name:
+                    # print(f'found {serverFile.name} locally')
+                    funcUpdateFound(serverFile, localFile)
+                    break
+            else:  # the server does not have this file
+                # Note that this 'else' is part of the 'for and not of the 'if'
+                # inside the 'for'
+                funcUpdateNotFound(localFile)
+                filesToAdd.append(localFile)
+
+        return serverFiles + filesToAdd
 
     def refreshModel(self, firstCall=True):
         """Refresh the model in terms of file items.
 
-        We retrieve the local files and directories, the server files and
+        We retrieve the server files and directories, the local files and
         directories, compare them and update the model with FileItem instances
         that reflect the status of the server and local file system.
         """
 
         self.clearModel()
 
-        # get the local dirs and files first
-        # we prefer to show dirs first and then files
-        localDirs, localFiles = self.getLocalFiles()
-
         currentDir = self.currentDirectory[-1]
         print(currentDir)
+
         # retrieve the dirs and files from the server
+        # the directories are shown first and then the files
         serverDirDict = self.API_Client.getDirectory(currentDir["_id"])
-        serverDirs = self.getServerDirs(serverDirDict["directories"], localDirs)
-        serverFiles = self.getServerFiles(serverDirDict["files"], localFiles)
+        serverDirs = self.getServerDirs(serverDirDict["directories"])
+        serverFiles = self.getServerFiles(serverDirDict["files"])
+
+        def updateDirFound(serverFileItem, localFileItem):
+            pass
+
+        def updateDirNotFound(fileItem):
+            pass
+
+        def updateFileFound(serverFileItem, localFileItem):
+            serverDate = serverFileItem.updatedAt
+            localDate = localFileItem.updatedAt
+            if serverDate < localDate:
+                serverFileItem.status = "Server copy outdated"
+            elif serverDate > localDate:
+                serverFileItem.status = "Local copy outdated"
+            else:
+                serverFileItem.status = "Synced"
+
+        def updateFileNotFound(localFileItem):
+            localFileItem.status = "Untracked"
+
+        localDirs, localFiles = self.getLocalFiles()
+        dirs = self.mergeFiles(serverDirs, localDirs, updateDirFound, updateDirNotFound)
+        files = self.mergeFiles(serverFiles, localFiles, updateFileFound, updateFileNotFound)
 
         self.beginResetModel()
-        self.files = self.sortFiles(serverDirs + localDirs, serverFiles + localFiles)
+        self.files = self.sortFiles(dirs, files)
         self.endResetModel()
 
         if firstCall:
