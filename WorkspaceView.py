@@ -24,7 +24,7 @@ from DataModels import WorkspaceListModel
 from VersionModel import LocalVersionModel, OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import APIClient, CustomAuthenticationError
-from WorkSpace import WorkSpaceModel, ServerWorkspaceModel
+from WorkSpace import WorkSpaceModel, LocalWorkspaceModel, ServerWorkspaceModel
 
 from PySide.QtGui import (
     QStyledItemDelegate,
@@ -283,7 +283,7 @@ class WorkspaceListDelegate(QStyledItemDelegate):
 class WorkspaceView(QtGui.QDockWidget):
     currentWorkspace = None
     username = "none"
-    access_token = ""
+    access_token = None
     apiClient = None
     user = None
 
@@ -460,6 +460,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
         # self.guestMenu.addAction(self.newWorkspaceAction)
 
+    def isLoggedIn(self):
+        return self.access_token is not None and self.apiClient is not None
+
     def isTokenExpired(self, token):
         expiration_time = self.getTokenExpirationTime(token)
         current_time = datetime.now()
@@ -526,20 +529,30 @@ class WorkspaceView(QtGui.QDockWidget):
     def enterWorkspace(self, index):
         self.currentWorkspace = self.workspacesModel.data(index)
 
-        # Create a workspace model and set it to the list
-        if self.apiClient is None and self.access_token is None:
-            print("You need to login first")
-            self.loginBtnClicked()
-            self.enterWorkspace(index)
-            return
-        if self.apiClient is None and self.access_token is not None:
-            self.apiClient = APIClient(
-                "", "", baseUrl, lensUrl, self.access_token, self.user
+        if self.isLoggedIn():
+            self.currentWorkspaceModel = ServerWorkspaceModel(
+                self.currentWorkspace, API_Client=self.apiClient
             )
+        else:
+            self.currentWorkspaceModel = LocalWorkspaceModel(self.currentWorkspace)
 
-        self.currentWorkspaceModel = ServerWorkspaceModel(
-            self.currentWorkspace, API_Client=self.apiClient
-        )
+
+        # Create a workspace model and set it to the list
+        # if self.apiClient is None and self.access_token is None:
+        #     print("You need to login first")
+        #     self.loginBtnClicked()
+        #     self.enterWorkspace(index)
+        #     return
+        # if self.apiClient is None and self.access_token is not None:
+        #     self.apiClient = APIClient(
+        #         "", "", baseUrl, lensUrl, self.access_token, self.user
+        #     )
+
+        #     self.currentWorkspaceModel = ServerWorkspaceModel(
+        #         self.currentWorkspace, API_Client=self.apiClient
+        #     )
+        # else:
+        #     self.currentWorkspaceModel = LocalWorkspaceModel(self.currentWorkspace)
 
         self.form.workspaceNameLabel.setText(
             self.currentWorkspaceModel.getWorkspacePath()
@@ -691,12 +704,9 @@ class WorkspaceView(QtGui.QDockWidget):
             doc.restore()
         model.refreshModel()
 
-    def fileListClicked(self, index):
-        file_item = self.currentWorkspaceModel.data(index)
-        self.currentModelId = None
-        if "modelId" in file_item.serverFileDict:
+    def fileListClickedLoggedIn(self, file_item):
+        if not file_item.is_folder and "modelId" in file_item.serverFileDict:
             self.currentModelId = file_item.serverFileDict["modelId"]
-        self.currentFileName = file_item.name
 
         if file_item.is_folder:
             self.form.thumbnail_label.hide()
@@ -728,6 +738,13 @@ class WorkspaceView(QtGui.QDockWidget):
                 version_model = OndselVersionModel(self.currentModelId, self.apiClient)
         self.form.linksView.setModel(self.links_model)
         self.setVersionListModel(version_model)
+
+    def fileListClicked(self, index):
+        file_item = self.currentWorkspaceModel.data(index)
+        self.currentFileName = file_item.name
+        self.currentModelId = None
+        if self.isLoggedIn():
+            self.fileListClickedLoggedIn(file_item)
 
     def getServerThumbnail(self, fileName, path, fileId):
         # check if we have stored the thumbnail locally already.
@@ -1007,9 +1024,10 @@ class WorkspaceView(QtGui.QDockWidget):
     def logout(self):
         self.setUIForLogin(False)
         p.SetString("loginData", "")
-        self.access_token = ""
+        self.access_token = None
+        self.apiClient = None
 
-        self.leaveWorkspace()
+        # self.leaveWorkspace()
 
         # self.workspacesModel.removeOndselWorkspaces()
 

@@ -51,6 +51,11 @@ class WorkSpaceModel(QAbstractListModel):
         parent = kwargs.get("parent", None)
         super().__init__(parent)
 
+        self.workspace = workspaceDict
+
+        self.organizationId = workspaceDict["organizationId"]
+        self._id = workspaceDict["_id"]
+
         self.name = workspaceDict["name"]
         self.path = workspaceDict["path"]
         self.subPath = ""
@@ -91,6 +96,7 @@ class WorkSpaceModel(QAbstractListModel):
                     "",
                     "",
                     "",
+                    {"name": basename},
                 )
                 local_dirs.append(file_item)
 
@@ -158,6 +164,9 @@ class WorkSpaceModel(QAbstractListModel):
             shutil.rmtree(fileName)
         self.refreshModel()
 
+    def sortFiles(self, dirs, files, key=lambda fileItem: fileItem.name):
+        return sorted(dirs, key=key) + sorted(files, key=key)
+
     def dump(self):
         """
         useful for debugging.  This will return the contents in a printable form
@@ -178,8 +187,9 @@ class LocalWorkspaceModel(WorkSpaceModel):
         if not os.path.isdir(self.path):
             self.files = []
             return
+        localDirs, localFiles = self.getLocalFiles()
         self.beginResetModel()
-        self.files = self.getLocalFiles()
+        self.files = self.sortFiles(localDirs, localFiles)
         self.endResetModel()
 
     def data(self, index, role=Qt.DisplayRole):
@@ -219,13 +229,10 @@ class LocalWorkspaceModel(WorkSpaceModel):
 class ServerWorkspaceModel(WorkSpaceModel):
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
-        self.workspace = workspaceDict
+
         # a stack of directories, the current directory is currentDirectory[-1]
         # (pushing is 'append()', popping is 'pop()')
         self.currentDirectory = [workspaceDict["rootDirectory"]]
-
-        self.organizationId = workspaceDict["organizationId"]
-        self._id = workspaceDict["_id"]
 
         self.API_Client = kwargs["API_Client"]
         self.refreshModel()
@@ -307,9 +314,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 serverFiles.append(file_item)
         return serverFiles
 
-    def sortFiles(self, dirs, files, funcKey):
-        return sorted(dirs, key=funcKey) + sorted(files, key=funcKey)
-
     def refreshModel(self, firstCall=True):
         """Refresh the model in terms of file items.
 
@@ -325,17 +329,14 @@ class ServerWorkspaceModel(WorkSpaceModel):
         localDirs, localFiles = self.getLocalFiles()
 
         currentDir = self.currentDirectory[-1]
+        print(currentDir)
         # retrieve the dirs and files from the server
         serverDirDict = self.API_Client.getDirectory(currentDir["_id"])
         serverDirs = self.getServerDirs(serverDirDict["directories"], localDirs)
         serverFiles = self.getServerFiles(serverDirDict["files"], localFiles)
 
         self.beginResetModel()
-        self.files = self.sortFiles(
-            serverDirs + localDirs,
-            serverFiles + localFiles,
-            lambda fileItem: fileItem.name,
-        )
+        self.files = self.sortFiles(serverDirs + localDirs, serverFiles + localFiles)
         self.endResetModel()
 
         if firstCall:
@@ -400,6 +401,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
             self.subPath = Utils.joinPath(self.subPath, file_item.name)
             # push the new directory to the stack
             self.currentDirectory.append(file_item.serverFileDict)
+            print(f'just appended: {self.currentDirectory}')
             self.refreshModel()
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
@@ -502,7 +504,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
     def openParentFolder(self):
         self.subPath = os.path.dirname(self.subPath)
-        self.currentDirectory.pop()
+        print(f'popping {self.currentDirectory.pop()}')
         self.refreshModel()
 
 
