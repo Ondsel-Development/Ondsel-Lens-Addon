@@ -292,7 +292,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.setObjectName("workspaceView")
         self.form = Gui.PySideUic.loadUi(f"{modPath}/WorkspaceView.ui")
         self.setWidget(self.form)
-        self.setWindowTitle("Workspace View")
+        self.setWindowTitle("Ondsel Lens")
 
         self.createOndselButtonMenus()
 
@@ -513,16 +513,14 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if state:
             userBtnText = ""
-            if "lastName" in user:
-                userBtnText = user["lastName"] + " "
-            if "firstName" in user:
-                userBtnText = userBtnText + user["firstName"]
+            if "name" in user:
+                userBtnText = user["name"]
 
             self.form.userBtn.setText(userBtnText)
             self.form.userBtn.setIcon(self.ondselIcon)
             self.form.userBtn.setMenu(self.userMenu)
         else:
-            self.form.userBtn.setText("Local Only")
+            self.form.userBtn.setText("Local")
             self.form.userBtn.setIcon(self.ondselIconOff)
             self.form.userBtn.setMenu(self.guestMenu)
 
@@ -812,13 +810,18 @@ class WorkspaceView(QtGui.QDockWidget):
         openOnlineAction = menu.addAction("View in Lens")
         uploadAction = menu.addAction("Upload to Lens")
         downloadAction = menu.addAction("Download from Lens")
-        menu.addSeparator()
-        if file_item.status == "Server only":
+        if self.isLoggedIn():
+            if file_item.status == "Server only":
+                uploadAction.setEnabled(False)
+            if file_item.status == "Untracked":
+                downloadAction.setEnabled(False)
+            if file_item.ext not in [".fcstd", ".obj"]:
+                openOnlineAction.setEnabled(False)
+        else:
             uploadAction.setEnabled(False)
-        if file_item.status == "Untracked":
             downloadAction.setEnabled(False)
-        if file_item.ext not in [".fcstd", ".obj"]:
             openOnlineAction.setEnabled(False)
+        menu.addSeparator()
         deleteAction = menu.addAction("Delete File")
 
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))

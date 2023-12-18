@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Workspaces view</string>
+   <string>Ondsel Lens</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -32,7 +32,7 @@
          </sizepolicy>
         </property>
         <property name="toolTip">
-         <string>Workspace View Controls</string>
+         <string>Ondsel Lens Controls</string>
         </property>
         <property name="text">
          <string/>
