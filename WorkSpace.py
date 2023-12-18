@@ -58,7 +58,7 @@ class WorkSpaceModel(QAbstractListModel):
 
         self.name = workspaceDict["name"]
         self.path = workspaceDict["path"]
-        self.subPath = ""
+        self.subPath = kwargs.get("subPath", "")
         self.files = []
 
         self.watcher = QFileSystemWatcher()
