@@ -167,6 +167,18 @@ class WorkSpaceModel(QAbstractListModel):
     def sortFiles(self, dirs, files, key=lambda fileItem: fileItem.name):
         return sorted(dirs, key=key) + sorted(files, key=key)
 
+    def getFileNames(self):
+        """
+        Get the filenames of the current directory.
+        """
+        localDirs, localFiles = self.getLocalFiles()
+        return [fi.name for fi in localDirs + localFiles]
+
+    def createDir(self, dir):
+        fullPath = Utils.joinPath(self.getFullPath(), dir)
+        if not os.path.exists(fullPath):
+            os.makedirs(fullPath)
+
     def dump(self):
         """
         useful for debugging.  This will return the contents in a printable form
@@ -526,6 +538,18 @@ class ServerWorkspaceModel(WorkSpaceModel):
         self.subPath = os.path.dirname(self.subPath)
         print(f'popping {self.currentDirectory.pop()}')
         self.refreshModel()
+
+    def getFileNames(self):
+        currentDir = self.currentDirectory[-1]
+        serverDirDict = self.API_Client.getDirectory(currentDir["_id"])
+        return (super().getFileNames() +
+                [itemDict['custFileName'] for itemDict in serverDirDict['files']] +
+                [itemDict['name'] for itemDict in serverDirDict['directories']])
+
+    def createDir(self, dir):
+        currentDir = self.currentDirectory[-1]
+        self.API_Client.createDirectory(dir, currentDir['_id'],
+                                        self.workspace['_id'], self.workspace['name'])
 
 
 class FileItem:

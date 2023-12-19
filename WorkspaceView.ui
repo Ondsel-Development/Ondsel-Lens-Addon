@@ -104,10 +104,10 @@
          <bool>true</bool>
         </property>
         <property name="toolTip">
-         <string>Add files to your workspace</string>
+         <string>Add files or directories to your workspace</string>
         </property>
         <property name="text">
-         <string>Add files</string>
+         <string>Add</string>
         </property>
        </widget>
       </item>

@@ -343,8 +343,11 @@ class WorkspaceView(QtGui.QDockWidget):
         addFileAction.triggered.connect(self.addCurrentFile)
         addFileMenu.addAction(addFileAction)
         addFileAction2 = QtGui.QAction("Select files...", self.form.addFileBtn)
-        addFileAction2.triggered.connect(self.addFileBtnClicked)
+        addFileAction2.triggered.connect(self.addSelectedFiles)
         addFileMenu.addAction(addFileAction2)
+        addFileAction3 = QtGui.QAction("Add a directory", self.form.addFileBtn)
+        addFileAction3.triggered.connect(self.addDir)
+        addFileMenu.addAction(addFileAction3)
         self.form.addFileBtn.setMenu(addFileMenu)
 
         self.form.viewOnlineBtn.clicked.connect(self.openModelOnline)
@@ -530,11 +533,17 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def setWorkspaceModel(self):
         if self.isLoggedIn():
+            # not necessary to set the path because we will start with the list
+            # of workspaces.
             self.currentWorkspaceModel = ServerWorkspaceModel(
                 self.currentWorkspace, API_Client=self.apiClient
             )
         else:
-            self.currentWorkspaceModel = LocalWorkspaceModel(self.currentWorkspace)
+            subPath = ""
+            if hasattr(self, "currentWorkspaceModel") and self.currentWorkspaceModel:
+                subPath = self.currentWorkspaceModel.subPath
+            self.currentWorkspaceModel = LocalWorkspaceModel(self.currentWorkspace,
+                                                             subPath=subPath)
 
 
         # Create a workspace model and set it to the list
@@ -1073,7 +1082,7 @@ class WorkspaceView(QtGui.QDockWidget):
             FreeCAD.Console.PrintMessage(f"Saving document to file: {file_name}\n")
             doc.saveAs(file_name)
 
-    def addFileBtnClicked(self):
+    def addSelectedFiles(self):
         # open file browser dialog to select files to copy
         selectedFiles, _ = QtGui.QFileDialog.getOpenFileNames(
             None,
@@ -1097,6 +1106,15 @@ class WorkspaceView(QtGui.QDockWidget):
                     QtGui.QMessageBox.warning(
                         None, "Error", "Failed to copy file " + fileName
                     )
+
+    def addDir(self):
+        existingFileNames = self.currentWorkspaceModel.getFileNames()
+        dialog = CreateDirDialog(existingFileNames)
+        if dialog.exec_() == QtGui.QDialog.Accepted:
+            dir = dialog.getDir()
+            self.currentWorkspaceModel.createDir(dir)
+        self.currentWorkspaceModel.refreshModel()
+        self.switchView()
 
     def newWorkspaceBtnClicked(self):
         if self.apiClient is None and self.access_token is None:
@@ -1377,6 +1395,47 @@ class SharingLinkEditDialog(QtGui.QDialog):
         ] = self.dialog.canExportOBJCheckBox.isChecked()
 
         return self.linkProperties
+
+
+class CreateDirDialog(QtGui.QDialog):
+    def __init__(self, filenames):
+        super().__init__()
+        self.setWindowTitle("Create Directory")
+
+        self.filenames = filenames
+        self.label = QtGui.QLabel("Directory name:")
+        self.directory_input = QtGui.QLineEdit()
+
+        self.create_button = QtGui.QPushButton("Create")
+        self.create_button.clicked.connect(self.accept)
+
+        self.cancel_button = QtGui.QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.reject)
+
+        self.create_button.setEnabled(False)
+
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(self.directory_input)
+
+        buttons_layout = QtGui.QHBoxLayout()
+        buttons_layout.addWidget(self.create_button)
+        buttons_layout.addWidget(self.cancel_button)
+
+        layout.addLayout(buttons_layout)
+
+        self.setLayout(layout)
+
+        # Connect textChanged signals to enable/disable the create button
+        self.directory_input.textChanged.connect(self.check_dir)
+
+    def check_dir(self):
+        dir = self.directory_input.text()
+        enabled = not (dir in self.filenames or dir == "")
+        self.create_button.setEnabled(enabled)
+
+    def getDir(self):
+        return self.directory_input.text()
 
 
 class LoginDialog(QtGui.QDialog):
