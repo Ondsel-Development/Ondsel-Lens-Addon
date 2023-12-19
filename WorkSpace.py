@@ -548,8 +548,13 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
     def createDir(self, dir):
         currentDir = self.currentDirectory[-1]
-        self.API_Client.createDirectory(dir, currentDir['_id'],
-                                        self.workspace['_id'], self.workspace['name'])
+        result = self.API_Client.createDirectory(dir, currentDir,
+                                                 self.workspace['_id'],
+                                                 self.workspace['name'],
+                                                 self.workspace['refName'])
+        from pprint import pprint
+        pprint(result)
+        return result
 
 
 class FileItem:

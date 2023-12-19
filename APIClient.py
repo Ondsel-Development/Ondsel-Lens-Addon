@@ -536,7 +536,8 @@ class APIClient:
         return result
 
     @authRequired
-    def createDirectory(self, name, parentDirId, workspaceId, workspaceName):
+    def createDirectory(self, name, parentDir, workspaceId,
+                        workspaceName, workspaceRefName):
         print("Creating the directory...")
         endpoint = "directories"
 
@@ -546,11 +547,15 @@ class APIClient:
 
         payload = {
             "name": name,
-            "parentDirectory": {
-                "_id": parentDirId,
-            },
-            "workspace": {"_id": workspaceId, "name": workspaceName},
+            "parentDirectory": parentDir,
+            "workspace": {"_id": workspaceId,
+                          "name": workspaceName,
+                          "refName": workspaceRefName},
         }
+
+        from pprint import pprint
+        pprint(headers)
+        pprint(payload)
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
 
