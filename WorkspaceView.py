@@ -1069,18 +1069,23 @@ class WorkspaceView(QtGui.QDockWidget):
         default_path = self.currentWorkspaceModel.getFullPath()
         default_file_path = Utils.joinPath(default_path, default_name)
 
-        # Open a dialog box for the user to select a file location and name
-        file_name, _ = QtGui.QFileDialog.getSaveFileName(
-            self, "Save File", default_file_path, "FreeCAD file (*.fcstd)"
-        )
+        doc.FileName = default_file_path
+        Gui.SendMsgToActiveView('SaveAs')
 
-        if file_name:
-            # Make sure the file has the correct extension
-            if not file_name.lower().endswith(".fcstd"):
-                file_name += ".FCStd"
-            # Save the file
-            FreeCAD.Console.PrintMessage(f"Saving document to file: {file_name}\n")
-            doc.saveAs(file_name)
+        # Open a dialog box for the user to select a file location and name
+        # file_name, _ = QtGui.QFileDialog.getSaveFileName(
+        #     self, "Save File", default_file_path, "FreeCAD file (*.fcstd)"
+        # )
+
+        # if file_name:
+        #     # Make sure the file has the correct extension
+        #     if not file_name.lower().endswith(".fcstd"):
+        #         file_name += ".FCStd"
+        #     # Save the file
+        #     FreeCAD.Console.PrintMessage(f"Saving document to file: {file_name}\n")
+        #     doc.saveAs(file_name)
+        self.currentWorkspaceModel.refreshModel()
+        self.switchView()
 
     def addSelectedFiles(self):
         # open file browser dialog to select files to copy
@@ -1106,6 +1111,8 @@ class WorkspaceView(QtGui.QDockWidget):
                     QtGui.QMessageBox.warning(
                         None, "Error", "Failed to copy file " + fileName
                     )
+        self.currentWorkspaceModel.refreshModel()
+        self.switchView()
 
     def addDir(self):
         existingFileNames = self.currentWorkspaceModel.getFileNames()
