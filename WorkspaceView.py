@@ -378,7 +378,7 @@ class WorkspaceView(QtGui.QDockWidget):
             # self.access_token = self.generate_expired_token()
 
             if self.isTokenExpired(self.access_token):
-                user = None
+                self.user = None
                 self.logout()
             else:
                 self.user = loginData["user"]
@@ -392,7 +392,7 @@ class WorkspaceView(QtGui.QDockWidget):
                 # Set a timer to logout when token expires.
                 self.setTokenExpirationTimer(self.access_token)
         else:
-            user = None
+            self.user = None
             self.setUIForLogin(False)
         self.switchView()
 
@@ -491,7 +491,7 @@ class WorkspaceView(QtGui.QDockWidget):
             "Your authentication token has expired, you have been logged out.",
         )
 
-        user = None
+        self.user = None
         self.logout()
 
     def getTokenExpirationTime(self, token):
@@ -715,6 +715,8 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def fileListClickedLoggedIn(self, file_item):
         if not file_item.is_folder and "modelId" in file_item.serverFileDict:
+            # currentModelId is used for the server model and is necessary to
+            # open models online
             self.currentModelId = file_item.serverFileDict["modelId"]
 
         if file_item.is_folder:
@@ -723,11 +725,11 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.thumbnail_label.show()
             path = self.currentWorkspaceModel.getFullPath()
             pixmap = Utils.extract_thumbnail(f"{path}/{self.currentFileName}")
-            if pixmap == None:
+            if pixmap is None:
                 pixmap = self.getServerThumbnail(
                     self.currentFileName, path, self.currentModelId
                 )
-                if pixmap == None:
+                if pixmap is None:
                     pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
             self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
             self.form.thumbnail_label.setPixmap(pixmap)
@@ -847,7 +849,9 @@ class WorkspaceView(QtGui.QDockWidget):
             if result == QtGui.QMessageBox.Yes:
                 self.currentWorkspaceModel.deleteFile(index)
         if action == openOnlineAction:
+            self.currentModelId = file_item.serverFileDict['modelId']
             self.openModelOnline()
+            self.currentModelId = None
         elif action == downloadAction:
             self.currentWorkspaceModel.downloadFile(index)
         elif action == uploadAction:
