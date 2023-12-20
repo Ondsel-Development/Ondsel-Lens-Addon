@@ -612,6 +612,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.workspaceNameLabel.setText(
                 self.currentWorkspaceModel.getWorkspacePath()
             )
+            self.hideFileDetails()
 
     def fileListDoubleClicked(self, index):
         # print("fileListDoubleClicked")
@@ -714,48 +715,71 @@ class WorkspaceView(QtGui.QDockWidget):
         model.refreshModel()
 
     def fileListClickedLoggedIn(self, file_item):
-        if not file_item.is_folder and "modelId" in file_item.serverFileDict:
+        fileName = file_item.name
+        if "modelId" in file_item.serverFileDict:
             # currentModelId is used for the server model and is necessary to
             # open models online
             self.currentModelId = file_item.serverFileDict["modelId"]
 
-        if file_item.is_folder:
-            self.form.thumbnail_label.hide()
-        else:
-            self.form.thumbnail_label.show()
-            path = self.currentWorkspaceModel.getFullPath()
-            pixmap = Utils.extract_thumbnail(f"{path}/{self.currentFileName}")
+        self.form.thumbnail_label.show()
+        path = self.currentWorkspaceModel.getFullPath()
+        pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
+        if pixmap is None:
+            pixmap = self.getServerThumbnail(fileName, path, self.currentModelId)
             if pixmap is None:
-                pixmap = self.getServerThumbnail(
-                    self.currentFileName, path, self.currentModelId
-                )
-                if pixmap is None:
-                    pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
-            self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
-            self.form.thumbnail_label.setPixmap(pixmap)
-        self.form.fileNameLabel.setText(self.currentFileName)
+                pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
+        self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
+        self.form.thumbnail_label.setPixmap(pixmap)
+        self.form.fileNameLabel.setText(fileName)
 
         version_model = None
         self.links_model = None
         self.form.viewOnlineBtn.setVisible(False)
         self.form.linkDetails.setVisible(False)
 
-        if not file_item.is_folder:
-            self.form.fileDetails.setVisible(True)
-            if self.currentModelId is not None:
-                self.links_model = ShareLinkModel(self.currentModelId, self.apiClient)
-                self.form.viewOnlineBtn.setVisible(True)
-                self.form.linkDetails.setVisible(True)
-                version_model = OndselVersionModel(self.currentModelId, self.apiClient)
+        self.form.fileDetails.setVisible(True)
+        if self.currentModelId is not None:
+            self.links_model = ShareLinkModel(self.currentModelId, self.apiClient)
+            self.form.viewOnlineBtn.setVisible(True)
+            self.form.linkDetails.setVisible(True)
+            version_model = OndselVersionModel(self.currentModelId, self.apiClient)
         self.form.linksView.setModel(self.links_model)
         self.setVersionListModel(version_model)
 
+    def hideFileDetails(self):
+        """Hide all the links/thumbnails/etc"""
+        self.form.thumbnail_label.hide()
+        self.form.fileNameLabel.hide()
+        self.form.viewOnlineBtn.setVisible(False)
+        self.form.linkDetails.setVisible(False)
+        self.form.fileDetails.setVisible(False)
+
+    def fileListClickedLoggedOut(self, fileName):
+        path = self.currentWorkspaceModel.getFullPath()
+        pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
+        print(f"{path}/{fileName}")
+        if pixmap:
+            self.form.thumbnail_label.show()
+            self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
+            self.form.thumbnail_label.setPixmap(pixmap)
+            self.form.fileNameLabel.setText(fileName)
+            self.form.viewOnlineBtn.setVisible(False)
+            self.form.linkDetails.setVisible(False)
+            self.form.fileDetails.setVisible(True)
+            self.form.linksView.setModel(None)
+            self.setVersionListModel(None)
+
     def fileListClicked(self, index):
         file_item = self.currentWorkspaceModel.data(index)
-        self.currentFileName = file_item.name
+        fileName = file_item.name
         self.currentModelId = None
-        if self.isLoggedIn():
-            self.fileListClickedLoggedIn(file_item)
+        if Utils.isOpenableByFreeCAD(fileName):
+            if self.isLoggedIn():
+                self.fileListClickedLoggedIn(file_item)
+            else:
+                self.fileListClickedLoggedOut(fileName)
+        else:
+            self.hideFileDetails()
 
     def getServerThumbnail(self, fileName, path, fileId):
         # check if we have stored the thumbnail locally already.
