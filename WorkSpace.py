@@ -403,10 +403,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 file_item.serverFileDict is not None
                 and "modelId" in file_item.serverFileDict
                 and file_item.serverFileDict["modelId"] == fileId
-                and "model" in file_item.serverFileDict
-                and "thumbnailUrlCache" in file_item.serverFileDict["model"]
+                and "thumbnailUrlCache" in file_item.serverFileDict
             ):
-                thumbnailUrl = file_item.serverFileDict["model"]["thumbnailUrlCache"]
+                thumbnailUrl = file_item.serverFileDict["thumbnailUrlCache"]
                 try:
                     response = requests.get(thumbnailUrl)
                     image_data = response.content
