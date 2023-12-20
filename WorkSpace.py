@@ -521,17 +521,19 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
         self.API_Client.uploadFileToServer(uniqueName, file_path)
 
+        currentDir = self.currentDirectory[-1]
+        workspace = self.summarizeWorkspace()
+
         if create:
-            # First time the file is uploaded.
+            result = self.API_Client.createFile(fileName, fileUpdateDate, uniqueName, currentDir, workspace)
+            fileId = result["_id"]
             if extension.lower() in [".fcstd", ".obj"]:
-                self.API_Client.createModel(fileName, fileUpdateDate, uniqueName)
-            else:
-                self.API_Client.createFile(fileName, fileUpdateDate, uniqueName)
+                # TODO: This creates a file in the root directory as well
+                self.API_Client.createModel(fileName, uniqueName, fileId)
         else:
+            self.API_Client.updateFileObj(id_, fileUpdateDate, uniqueName, currentDir, workspace)
             if extension.lower() in [".fcstd", ".obj"]:
                 self.API_Client.regenerateModelObj(id_, fileUpdateDate, uniqueName)
-            else:
-                self.API_Client.updateFileObj(id_, fileUpdateDate, uniqueName)
 
     def openParentFolder(self):
         self.subPath = os.path.dirname(self.subPath)
@@ -545,14 +547,14 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 [itemDict['custFileName'] for itemDict in serverDirDict['files']] +
                 [itemDict['name'] for itemDict in serverDirDict['directories']])
 
+    def summarizeWorkspace(self):
+        return {k: self.workspace[k] for k in ("_id", "name", "refName")}
+
     def createDir(self, dir):
         currentDir = self.currentDirectory[-1]
-        result = self.API_Client.createDirectory(dir, currentDir,
-                                                 self.workspace['_id'],
-                                                 self.workspace['name'],
-                                                 self.workspace['refName'])
-        from pprint import pprint
-        pprint(result)
+        workspace = self.summarizeWorkspace()
+        result = self.API_Client.createDirectory(dir, currentDir["_id"], workspace)
+
         return result
 
 

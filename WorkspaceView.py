@@ -1108,13 +1108,12 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.currentWorkspaceModel.getFullPath(), fileName
             )
 
-            if Utils.isOpenableByFreeCAD(fileName):
-                try:
-                    shutil.copy(fileUrl, destFileUrl)
-                except:
-                    QtGui.QMessageBox.warning(
-                        None, "Error", "Failed to copy file " + fileName
-                    )
+            try:
+                shutil.copy(fileUrl, destFileUrl)
+            except:
+                QtGui.QMessageBox.warning(
+                    None, "Error", "Failed to copy file " + fileName
+                )
         self.currentWorkspaceModel.refreshModel()
         self.switchView()
 

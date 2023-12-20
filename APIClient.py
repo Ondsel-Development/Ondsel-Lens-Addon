@@ -252,7 +252,7 @@ class APIClient:
         return result
 
     @authRequired
-    def createModel(self, fileName, fileUpdatedAt, uniqueName):
+    def createModel(self, fileName, uniqueName, fileId):
         print("Creating the model...")
         endpoint = "models"
 
@@ -263,9 +263,9 @@ class APIClient:
         payload = {
             "custFileName": fileName,
             "uniqueFileName": uniqueName,
+            "fileId": fileId,
             "shouldStartObjGeneration": True,
             "errorMsg": "",
-            "fileUpdatedAt": fileUpdatedAt,
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
@@ -316,7 +316,7 @@ class APIClient:
         return files
 
     @authRequired
-    def createFile(self, fileName, fileUpdatedAt, uniqueName):
+    def createFile(self, fileName, fileUpdatedAt, uniqueName, directory, workspace):
         print("Creating the file object...")
         endpoint = "file"
 
@@ -332,6 +332,8 @@ class APIClient:
                 "message": "",
                 "fileUpdatedAt": fileUpdatedAt,
             },
+            "directory": directory,
+            "workspace": workspace,
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
@@ -339,7 +341,7 @@ class APIClient:
         return result
 
     @authRequired
-    def updateFileObj(self, fileId, fileUpdatedAt, uniqueFileName):
+    def updateFileObj(self, fileId, fileUpdatedAt, uniqueFileName, directory, workspace):
         print(f"Posting new version of file...")
         endpoint = f"file/{fileId}"
 
@@ -353,9 +355,13 @@ class APIClient:
                 "fileUpdatedAt": fileUpdatedAt,
                 "message": "",
             },
+            "directory": directory,
+            "workspace": workspace,
         }
 
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))
+
+        return result
 
     @authRequired
     def deleteFile(self, _id):
@@ -536,8 +542,7 @@ class APIClient:
         return result
 
     @authRequired
-    def createDirectory(self, name, parentDir, workspaceId,
-                        workspaceName, workspaceRefName):
+    def createDirectory(self, name, parentDirId, workspace):
         print("Creating the directory...")
         endpoint = "directories"
 
@@ -547,17 +552,18 @@ class APIClient:
 
         payload = {
             "name": name,
-            "parentDirectory": parentDir,
-            "workspace": {"_id": workspaceId,
-                          "name": workspaceName,
-                          "refName": workspaceRefName},
+            "workspace": workspace,
         }
 
-        from pprint import pprint
-        pprint(headers)
-        pprint(payload)
-
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
+
+        payload = {
+            "shouldAddDirectoriesToDirectory": True,
+            "directoryIds": [result["_id"]],
+        }
+
+        result = self._update(f"{endpoint}/{parentDirId}",
+                              headers=headers, data=json.dumps(payload))
 
         return result
 
