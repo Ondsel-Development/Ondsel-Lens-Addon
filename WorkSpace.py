@@ -446,15 +446,17 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 FreeCAD.loadFile(file_path)
 
     def deleteFile(self, index):
-        file_item = self.files[index.row()]
-        if (
-            file_item.serverFileDict is not None
-            and "modelId" in file_item.serverFileDict
-        ):
-            self.API_Client.deleteModel(file_item.serverFileDict["modelId"])
-        else:
-            self.API_Client.deleteFile(file_item.serverFileDict["_id"])
-        super().deleteFile(index)
+        # TODO: awaiting further instructions
+        # file_item = self.files[index.row()]
+        # if (
+        #     file_item.serverFileDict is not None
+        #     and "modelId" in file_item.serverFileDict
+        # ):
+        #     self.API_Client.deleteModel(file_item.serverFileDict["modelId"])
+        # else:
+        #     self.API_Client.deleteFile(file_item.serverFileDict["_id"])
+        # super().deleteFile(index)
+        pass
 
     def downloadFile(self, index):
         # This will download the latest version.

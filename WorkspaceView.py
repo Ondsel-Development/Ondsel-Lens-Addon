@@ -837,16 +837,13 @@ class WorkspaceView(QtGui.QDockWidget):
             if action == addAction:
                 self.newWorkspaceBtnClicked()
 
-    def showFileContextMenu(self, pos):
-        index = self.form.fileList.indexAt(pos)
-        file_item = self.currentWorkspaceModel.data(index)
-        if file_item is None:
-            return
-
+    def showFileContextMenuFile(self, file_item, pos, index):
         menu = QtGui.QMenu()
         openOnlineAction = menu.addAction("View in Lens")
         uploadAction = menu.addAction("Upload to Lens")
         downloadAction = menu.addAction("Download from Lens")
+        menu.addSeparator()
+        deleteAction = menu.addAction("Delete File")
         if self.isLoggedIn():
             if file_item.status == "Server only":
                 uploadAction.setEnabled(False)
@@ -854,12 +851,12 @@ class WorkspaceView(QtGui.QDockWidget):
                 downloadAction.setEnabled(False)
             if file_item.ext not in [".fcstd", ".obj"]:
                 openOnlineAction.setEnabled(False)
+            # disable delete
+            deleteAction.setEnabled(False)
         else:
             uploadAction.setEnabled(False)
             downloadAction.setEnabled(False)
             openOnlineAction.setEnabled(False)
-        menu.addSeparator()
-        deleteAction = menu.addAction("Delete File")
 
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
 
@@ -881,6 +878,34 @@ class WorkspaceView(QtGui.QDockWidget):
         elif action == uploadAction:
             self.currentWorkspaceModel.uploadFile(index)
             self.form.versionsComboBox.model().refreshModel()
+
+    def showFileContextMenuDir(self, pos, index):
+        menu = QtGui.QMenu()
+        deleteAction = menu.addAction("Delete Directory")
+        if self.isLoggedIn():
+            deleteAction.setEnabled(False)
+
+        action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
+        if action == deleteAction:
+            result = QtGui.QMessageBox.question(
+                self.form.fileList,
+                "Delete Directory",
+                "Are you sure you want to delete this directory?",
+                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+            )
+            if result == QtGui.QMessageBox.Yes:
+                self.currentWorkspaceModel.deleteFile(index)
+                
+    def showFileContextMenu(self, pos):
+        index = self.form.fileList.indexAt(pos)
+        file_item = self.currentWorkspaceModel.data(index)
+        if file_item is None:
+            return
+
+        if file_item.is_folder:
+            self.showFileContextMenuDir(pos, index)
+        else:
+            self.showFileContextMenuFile(file_item, pos, index)
 
     def showLinksContextMenu(self, pos):
         index = self.form.linksView.indexAt(pos)
