@@ -542,9 +542,9 @@ class WorkspaceView(QtGui.QDockWidget):
             subPath = ""
             if hasattr(self, "currentWorkspaceModel") and self.currentWorkspaceModel:
                 subPath = self.currentWorkspaceModel.subPath
-            self.currentWorkspaceModel = LocalWorkspaceModel(self.currentWorkspace,
-                                                             subPath=subPath)
-
+            self.currentWorkspaceModel = LocalWorkspaceModel(
+                self.currentWorkspace, subPath=subPath
+            )
 
         # Create a workspace model and set it to the list
         # if self.apiClient is None and self.access_token is None:
@@ -870,7 +870,7 @@ class WorkspaceView(QtGui.QDockWidget):
             if result == QtGui.QMessageBox.Yes:
                 self.currentWorkspaceModel.deleteFile(index)
         if action == openOnlineAction:
-            self.currentModelId = file_item.serverFileDict['modelId']
+            self.currentModelId = file_item.serverFileDict["modelId"]
             self.openModelOnline()
             self.currentModelId = None
         elif action == downloadAction:
@@ -895,7 +895,7 @@ class WorkspaceView(QtGui.QDockWidget):
             )
             if result == QtGui.QMessageBox.Yes:
                 self.currentWorkspaceModel.deleteFile(index)
-                
+
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
         file_item = self.currentWorkspaceModel.data(index)
@@ -1123,7 +1123,7 @@ class WorkspaceView(QtGui.QDockWidget):
         default_file_path = Utils.joinPath(default_path, default_name)
 
         doc.FileName = default_file_path
-        Gui.SendMsgToActiveView('SaveAs')
+        Gui.SendMsgToActiveView("SaveAs")
 
         # Open a dialog box for the user to select a file location and name
         # file_name, _ = QtGui.QFileDialog.getSaveFileName(

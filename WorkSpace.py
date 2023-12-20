@@ -365,7 +365,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
 
         localDirs, localFiles = self.getLocalFiles()
         dirs = self.mergeFiles(serverDirs, localDirs, updateDirFound, updateDirNotFound)
-        files = self.mergeFiles(serverFiles, localFiles, updateFileFound, updateFileNotFound)
+        files = self.mergeFiles(
+            serverFiles, localFiles, updateFileFound, updateFileNotFound
+        )
 
         self.beginResetModel()
         self.files = self.sortFiles(dirs, files)
@@ -432,7 +434,7 @@ class ServerWorkspaceModel(WorkSpaceModel):
             self.subPath = Utils.joinPath(self.subPath, file_item.name)
             # push the new directory to the stack
             self.currentDirectory.append(file_item.serverFileDict)
-            print(f'just appended: {self.currentDirectory}')
+            print(f"just appended: {self.currentDirectory}")
             self.refreshModel()
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
@@ -527,27 +529,33 @@ class ServerWorkspaceModel(WorkSpaceModel):
         workspace = self.summarizeWorkspace()
 
         if create:
-            result = self.API_Client.createFile(fileName, fileUpdateDate, uniqueName, currentDir, workspace)
+            result = self.API_Client.createFile(
+                fileName, fileUpdateDate, uniqueName, currentDir, workspace
+            )
             fileId = result["_id"]
             if extension.lower() in [".fcstd", ".obj"]:
                 # TODO: This creates a file in the root directory as well
                 self.API_Client.createModel(fileName, uniqueName, fileId)
         else:
-            self.API_Client.updateFileObj(id_, fileUpdateDate, uniqueName, currentDir, workspace)
+            self.API_Client.updateFileObj(
+                id_, fileUpdateDate, uniqueName, currentDir, workspace
+            )
             if extension.lower() in [".fcstd", ".obj"]:
                 self.API_Client.regenerateModelObj(id_, fileUpdateDate, uniqueName)
 
     def openParentFolder(self):
         self.subPath = os.path.dirname(self.subPath)
-        print(f'popping {self.currentDirectory.pop()}')
+        print(f"popping {self.currentDirectory.pop()}")
         self.refreshModel()
 
     def getFileNames(self):
         currentDir = self.currentDirectory[-1]
         serverDirDict = self.API_Client.getDirectory(currentDir["_id"])
-        return (super().getFileNames() +
-                [itemDict['custFileName'] for itemDict in serverDirDict['files']] +
-                [itemDict['name'] for itemDict in serverDirDict['directories']])
+        return (
+            super().getFileNames()
+            + [itemDict["custFileName"] for itemDict in serverDirDict["files"]]
+            + [itemDict["name"] for itemDict in serverDirDict["directories"]]
+        )
 
     def summarizeWorkspace(self):
         return {k: self.workspace[k] for k in ("_id", "name", "refName")}

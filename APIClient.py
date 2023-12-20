@@ -341,7 +341,9 @@ class APIClient:
         return result
 
     @authRequired
-    def updateFileObj(self, fileId, fileUpdatedAt, uniqueFileName, directory, workspace):
+    def updateFileObj(
+        self, fileId, fileUpdatedAt, uniqueFileName, directory, workspace
+    ):
         print(f"Posting new version of file...")
         endpoint = f"file/{fileId}"
 
@@ -562,8 +564,9 @@ class APIClient:
             "directoryIds": [result["_id"]],
         }
 
-        result = self._update(f"{endpoint}/{parentDirId}",
-                              headers=headers, data=json.dumps(payload))
+        result = self._update(
+            f"{endpoint}/{parentDirId}", headers=headers, data=json.dumps(payload)
+        )
 
         return result
 
