@@ -261,11 +261,9 @@ class APIClient:
         }
 
         payload = {
-            "custFileName": fileName,
-            "uniqueFileName": uniqueName,
             "fileId": fileId,
-            "shouldStartObjGeneration": True,
-            "errorMsg": "",
+            "shouldStartObjGeneration": False,
+            "createSystemGeneratedShareLink": False,
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
@@ -329,7 +327,7 @@ class APIClient:
             "shouldCommitNewVersion": True,
             "version": {
                 "uniqueFileName": uniqueName,
-                "message": "",
+                "message": "Initial commit",
                 "fileUpdatedAt": fileUpdatedAt,
             },
             "directory": directory,
