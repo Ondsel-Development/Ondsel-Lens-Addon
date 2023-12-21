@@ -432,8 +432,14 @@ class ServerWorkspaceModel(WorkSpaceModel):
         file_item = self.files[index.row()]
         if file_item.is_folder:
             self.subPath = Utils.joinPath(self.subPath, file_item.name)
-            # push the new directory to the stack
-            self.currentDirectory.append(file_item.serverFileDict)
+            # push the directory to the stack
+            if file_item.serverFileDict.get("_id"):
+                # the server knows about this directory
+                self.currentDirectory.append(file_item.serverFileDict)
+            else:
+                # the server needs to know about this directory
+                id = self.createDir(file_item.name)
+                self.currentDirectory.append({"_id": id, "name": file_item.name})
             print(f"just appended: {self.currentDirectory}")
             self.refreshModel()
         else:

@@ -556,17 +556,18 @@ class APIClient:
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
+        dirId = result["_id"]
 
         payload = {
             "shouldAddDirectoriesToDirectory": True,
-            "directoryIds": [result["_id"]],
+            "directoryIds": [dirId],
         }
 
         result = self._update(
             f"{endpoint}/{parentDirId}", headers=headers, data=json.dumps(payload)
         )
 
-        return result
+        return dirId
 
     @authRequired
     def updateDirectory(self, directoryData):
