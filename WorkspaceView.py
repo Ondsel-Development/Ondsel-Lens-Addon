@@ -397,6 +397,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.switchView()
 
         self.workspacesModel.refreshModel()
+        self.currentWorkspaceModel = None
 
         # Set a timer to check regularly the server
         self.timer = QtCore.QTimer()
@@ -1094,7 +1095,8 @@ class WorkspaceView(QtGui.QDockWidget):
         self.access_token = None
         self.apiClient = None
 
-        self.setWorkspaceModel()
+        if self.currentWorkspaceModel:
+            self.setWorkspaceModel()
 
         # self.leaveWorkspace()
 
