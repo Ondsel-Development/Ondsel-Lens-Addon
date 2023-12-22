@@ -558,7 +558,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 fileId, fileUpdateDate, uniqueName, currentDir, workspace
             )
             if extension.lower() in [".fcstd", ".obj"]:
-                self.API_Client.regenerateModelObj(result["modelId"], fileUpdateDate, uniqueName)
+                self.API_Client.regenerateModelObj(
+                    result["modelId"], fileUpdateDate, uniqueName
+                )
 
     def openParentFolder(self):
         self.subPath = os.path.dirname(self.subPath)

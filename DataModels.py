@@ -41,7 +41,6 @@ class WorkspaceListModel(QAbstractListModel):
     def refreshModel(self):
         self.beginResetModel()
         if self.WorkspaceView.apiClient is not None:
-
             self.workspaces = self.WorkspaceView.apiClient.getWorkspaces()
 
             # Add keys that we need locally
