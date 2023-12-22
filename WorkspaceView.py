@@ -585,6 +585,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.currentWorkspace = None
         self.currentWorkspaceModel = None
         self.form.fileList.setModel(None)
+        self.workspacesModel.refreshModel()
         self.switchView()
         self.form.workspaceNameLabel.setText("")
         self.form.fileDetails.setVisible(False)

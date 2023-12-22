@@ -479,6 +479,18 @@ class ServerWorkspaceModel(WorkSpaceModel):
             )
         self.refreshModel()
 
+    def confirmUpload(self):
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle("Confirmation")
+        msg_box.setText(
+            "The server version is newer than your local copy. Uploading will override the server version.\nAre you sure you want to proceed?"
+        )
+        msg_box.setIcon(QMessageBox.Warning)
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
+
+        return msg_box.exec_() == QMessageBox.Yes
+
     def uploadFile(self, index):
         print("uploading file...")
 
@@ -486,26 +498,24 @@ class ServerWorkspaceModel(WorkSpaceModel):
         if file_item.is_folder:
             print("Upload of folders not supported yet.")
         else:
+            # TODO: in a shared setting refreshing is dangerous, suppose
+            # another user pushes a file, then the index does not point to the
+            # correct file any longer.
             # First we refresh to make sure the file status have not changed.
-            self.refreshModel()
+            # self.refreshModel()
 
             # Check if the file is not newer on the server first.
             if file_item.status == "Local copy outdated":
-                msg_box = QMessageBox()
-                msg_box.setWindowTitle("Confirmation")
-                msg_box.setText(
-                    "The server version is newer than your local copy. Uploading will override the server version.\nAre you sure you want to proceed?"
-                )
-                msg_box.setIcon(QMessageBox.Warning)
-                msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-                msg_box.setDefaultButton(QMessageBox.No)
-
-                if msg_box.exec_() == QMessageBox.No:
+                if not self.confirmUpload():
                     return
-            if "modelId" in file_item.serverFileDict:
-                self.upload(file_item.name, False, file_item.serverFileDict["modelId"])
-            else:
+                else:
+                    self.upload(file_item.name, False, file_item.serverFileDict["_id"])
+            elif file_item.status == "Untracked" or file_item.status == "Local only":
                 self.upload(file_item.name, True)
+            elif file_item.status == "Server copy outdated":
+                self.upload(file_item.name, False, file_item.serverFileDict["_id"])
+            else:
+                print(f"Unknown file status: {file_item.status}")
         self.refreshModel()
 
     def uploadUntrackedFiles(self):
@@ -521,8 +531,9 @@ class ServerWorkspaceModel(WorkSpaceModel):
         if refreshRequired:
             self.refreshModel(False)
 
-    def upload(self, fileName, create, id_=0):
+    def upload(self, fileName, create, fileId):
         # unique file name is always generated even if file is already on the server under another uniqueFileName.
+        # fileId
         base, extension = os.path.splitext(fileName)
         uniqueName = f"{str(uuid.uuid4())}.fcstd"  # TODO replace .fcstd by {extension}
 
@@ -541,13 +552,13 @@ class ServerWorkspaceModel(WorkSpaceModel):
             fileId = result["_id"]
             if extension.lower() in [".fcstd", ".obj"]:
                 # TODO: This creates a file in the root directory as well
-                self.API_Client.createModel(fileName, uniqueName, fileId)
+                self.API_Client.createModel(fileId)
         else:
-            self.API_Client.updateFileObj(
-                id_, fileUpdateDate, uniqueName, currentDir, workspace
+            result = self.API_Client.updateFileObj(
+                fileId, fileUpdateDate, uniqueName, currentDir, workspace
             )
             if extension.lower() in [".fcstd", ".obj"]:
-                self.API_Client.regenerateModelObj(id_, fileUpdateDate, uniqueName)
+                self.API_Client.regenerateModelObj(result["modelId"], fileUpdateDate, uniqueName)
 
     def openParentFolder(self):
         self.subPath = os.path.dirname(self.subPath)

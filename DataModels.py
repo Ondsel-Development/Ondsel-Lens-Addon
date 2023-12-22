@@ -39,7 +39,9 @@ class WorkspaceListModel(QAbstractListModel):
         self.refreshModel()
 
     def refreshModel(self):
+        self.beginResetModel()
         if self.WorkspaceView.apiClient is not None:
+
             self.workspaces = self.WorkspaceView.apiClient.getWorkspaces()
 
             # Add keys that we need locally
@@ -58,6 +60,7 @@ class WorkspaceListModel(QAbstractListModel):
             self.save()
         else:
             self.load()
+        self.endResetModel()
 
     def rowCount(self, parent=QModelIndex()):
         return len(self.workspaces)
