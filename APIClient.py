@@ -271,21 +271,18 @@ class APIClient:
         return result
 
     @authRequired
-    def regenerateModelObj(self, modelId, fileUpdatedAt, uniqueFileName):
-        print(f"Regenerating the model OBJ... {fileUpdatedAt}")
+    def regenerateModelObj(self, modelId, fileId):
+        print("Regenerating the model OBJ... ")
         endpoint = f"models/{modelId}"
 
         headers = {
             "Content-Type": "application/json",
         }
         payload = {
-            "shouldCommitNewVersion": True,
-            "version": {
-                "uniqueFileName": uniqueFileName,
-                "fileUpdatedAt": fileUpdatedAt,
-                "message": "Commit message",
-            },
-            "shouldStartObjGeneration": True,
+            # "shouldCommitNewVersion": True,
+            "fileId": fileId,
+            "shouldStartObjGeneration": False,
+            # "createSystemGeneratedShareLink": False,
         }
 
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))
@@ -355,7 +352,7 @@ class APIClient:
             "version": {
                 "uniqueFileName": uniqueFileName,
                 "fileUpdatedAt": fileUpdatedAt,
-                "message": "",
+                "message": "Update from the Ondsel Lens addon",
             },
             "directory": directory,
             "workspace": workspace,

@@ -879,7 +879,8 @@ class WorkspaceView(QtGui.QDockWidget):
             self.currentWorkspaceModel.downloadFile(index)
         elif action == uploadAction:
             self.currentWorkspaceModel.uploadFile(index)
-            self.form.versionsComboBox.model().refreshModel()
+            if self.form.versionsComboBox.isVisible():
+                self.form.versionsComboBox.model().refreshModel()
 
     def showFileContextMenuDir(self, pos, index):
         menu = QtGui.QMenu()

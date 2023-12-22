@@ -509,11 +509,11 @@ class ServerWorkspaceModel(WorkSpaceModel):
                 if not self.confirmUpload():
                     return
                 else:
-                    self.upload(file_item.name, False, file_item.serverFileDict["_id"])
+                    self.upload(file_item.name, file_item.serverFileDict["_id"])
             elif file_item.status == "Untracked" or file_item.status == "Local only":
-                self.upload(file_item.name, True)
+                self.upload(file_item.name)
             elif file_item.status == "Server copy outdated":
-                self.upload(file_item.name, False, file_item.serverFileDict["_id"])
+                self.upload(file_item.name, file_item.serverFileDict["_id"])
             else:
                 print(f"Unknown file status: {file_item.status}")
         self.refreshModel()
@@ -526,14 +526,14 @@ class ServerWorkspaceModel(WorkSpaceModel):
         refreshRequired = False
         for file_item in self.files:
             if file_item.status == "Untracked":
-                self.upload(file_item.name, True)
+                self.upload(file_item.name)
                 refreshRequired = True
         if refreshRequired:
             self.refreshModel(False)
 
-    def upload(self, fileName, create, fileId):
+    def upload(self, fileName, fileId=None):
         # unique file name is always generated even if file is already on the server under another uniqueFileName.
-        # fileId
+        # fileId is only used for updates
         base, extension = os.path.splitext(fileName)
         uniqueName = f"{str(uuid.uuid4())}.fcstd"  # TODO replace .fcstd by {extension}
 
@@ -545,7 +545,13 @@ class ServerWorkspaceModel(WorkSpaceModel):
         currentDir = self.currentDirectory[-1]
         workspace = self.summarizeWorkspace()
 
-        if create:
+        if fileId:
+            result = self.API_Client.updateFileObj(
+                fileId, fileUpdateDate, uniqueName, currentDir, workspace
+            )
+            if extension.lower() in [".fcstd", ".obj"]:
+                self.API_Client.regenerateModelObj(result["modelId"], fileId)
+        else:
             result = self.API_Client.createFile(
                 fileName, fileUpdateDate, uniqueName, currentDir, workspace
             )
@@ -553,14 +559,6 @@ class ServerWorkspaceModel(WorkSpaceModel):
             if extension.lower() in [".fcstd", ".obj"]:
                 # TODO: This creates a file in the root directory as well
                 self.API_Client.createModel(fileId)
-        else:
-            result = self.API_Client.updateFileObj(
-                fileId, fileUpdateDate, uniqueName, currentDir, workspace
-            )
-            if extension.lower() in [".fcstd", ".obj"]:
-                self.API_Client.regenerateModelObj(
-                    result["modelId"], fileUpdateDate, uniqueName
-                )
 
     def openParentFolder(self):
         self.subPath = os.path.dirname(self.subPath)
