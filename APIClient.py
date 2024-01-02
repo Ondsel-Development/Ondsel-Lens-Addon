@@ -281,10 +281,13 @@ class APIClient:
         payload = {
             # "shouldCommitNewVersion": True,
             "fileId": fileId,
-            "shouldStartObjGeneration": False,
+            "shouldStartObjGeneration": True,
             # "createSystemGeneratedShareLink": False,
         }
 
+        from pprint import pprint
+        pprint(payload)
+        print(modelId)
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))
 
         return result
