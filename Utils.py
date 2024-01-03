@@ -8,9 +8,27 @@ import os
 import FreeCAD
 import zipfile
 import math
+import logging
 from PySide2.QtGui import QPixmap
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
+
+DEBUG_LEVEL = logging.DEBUG
+
+
+class FreeCADHandler(logging.Handler):
+    def __init__(self):
+        logging.Handler.__init__(self)
+
+    def emit(self, record):
+        msg = self.format(record) + "\n"
+        c = FreeCAD.Console
+        if record.levelno >= logging.ERROR:
+            c.PrintError(msg)
+        elif record.levelno >= logging.WARNING:
+            c.PrintWarning(msg)
+        else:
+            c.PrintMessage(msg)
 
 
 def joinPath(first, second):
@@ -51,7 +69,8 @@ def extract_thumbnail(file_path):
             # Handle the case where the thumbnail file doesn't exist
             return None
     else:
-        # If file doesn't exist then the file is on the server only. We could fetch the server thumbnail.
+        # If file doesn't exist then the file is on the server only. We could fetch the
+        # server thumbnail.
         return None
 
 
@@ -61,3 +80,13 @@ def getFileUpdatedAt(file_path):
 
 def getFileCreateddAt(file_path):
     return math.floor(os.path.getctime(file_path) * 1000)
+
+
+def getLogger(name):
+    logger = logging.getLogger(name)
+    logger.setLevel(DEBUG_LEVEL)
+    handler = FreeCADHandler()
+    formatter = logging.Formatter('%(levelname)s: %(name)s:%(lineno)d %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger

@@ -21,13 +21,13 @@ from jwt.exceptions import ExpiredSignatureError
 import FreeCAD
 import FreeCADGui as Gui
 
-import logging
 
 from DataModels import WorkspaceListModel
 from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import APIClient, CustomAuthenticationError
-from Workspace import WorkspaceModel, LocalWorkspaceModel, ServerWorkspaceModel
+from Workspace import WorkspaceModel, LocalWorkspaceModel, \
+    ServerWorkspaceModel, FileStatus
 
 from PySide.QtGui import (
     QStyledItemDelegate,
@@ -41,9 +41,7 @@ from PySide.QtGui import (
     QPixmap,
 )
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
-
+logger = Utils.getLogger(__name__)
 
 mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
@@ -102,8 +100,8 @@ class FileListDelegate(QStyledItemDelegate):
             )
         icon.paint(painter, icon_rect)
         textToDisplay = fileName
-        if status != "":
-            textToDisplay += " (" + status + ")"
+        if status:
+            textToDisplay += " (" + str(status) + ")"
 
         fontMetrics = painter.fontMetrics()
         elidedText = fontMetrics.elidedText(
@@ -189,6 +187,8 @@ class WorkspaceListDelegate(QStyledItemDelegate):
         if organizationData:
             organizationName = organizationData.get("name")
             if organizationName:
+                logger.debug("Got organization name")
+                logger.info("Got organization name")
                 return f"({organizationName})"
             else:
                 logger.debug("No 'name' in organization'")
@@ -783,7 +783,7 @@ class WorkspaceView(QtGui.QDockWidget):
     def fileListClickedLoggedOut(self, fileName):
         path = self.currentWorkspaceModel.getFullPath()
         pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
-        print(f"{path}/{fileName}")
+        logger.debug(f"{path}/{fileName}")
         if pixmap:
             self.form.thumbnail_label.show()
             self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
@@ -871,9 +871,9 @@ class WorkspaceView(QtGui.QDockWidget):
         menu.addSeparator()
         deleteAction = menu.addAction("Delete File")
         if self.isLoggedIn():
-            if file_item.status == "Server only":
+            if file_item.status == FileStatus.SERVER_ONLY:
                 uploadAction.setEnabled(False)
-            if file_item.status == "Untracked":
+            if file_item.status == FileStatus.UNTRACKED:
                 downloadAction.setEnabled(False)
             if file_item.ext not in [".fcstd", ".obj"]:
                 openOnlineAction.setEnabled(False)

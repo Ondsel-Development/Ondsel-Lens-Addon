@@ -18,10 +18,13 @@ import shutil
 import uuid
 import requests
 
+from enum import Enum, auto
+
 from inspect import cleandoc
 
 from DataModels import CACHE_PATH
 
+logger = Utils.getLogger(__name__)
 
 # class WorkspaceModelFactory:
 #    @staticmethod
@@ -32,6 +35,28 @@ from DataModels import CACHE_PATH
 #            return LocalWorkspaceModel(workspaceDict, **kwargs)
 #        elif workspaceDict["type"] == "External":
 #            return None
+
+
+# TODO: what is the difference between untracked and local only?
+class FileStatus(Enum):
+    SERVER_ONLY = auto()
+    LOCAL_ONLY = auto()
+    SERVER_COPY_OUTDATED = auto()
+    LOCAL_COPY_OUTDATED = auto()
+    SYNCED = auto()
+    UNTRACKED = auto()
+
+    def __str__(self):
+        match self:
+            case FileStatus.SERVER_ONLY: return "Server only"
+            case FileStatus.LOCAL_ONLY: return "Local only"
+            case FileStatus.SERVER_COPY_OUTDATED: return "Server copy outdated"
+            case FileStatus.LOCAL_COPY_OUTDATED: return "Local copy outdated"
+            case FileStatus.SYNCED: return "Synced"
+            case FileStatus.UNTRACKED: return "Untracked"
+            case _:
+                logger.error(f"Unknown file status: {self}")
+                return "Unknown"
 
 
 class TokenRefreshThread(QThread):
@@ -121,7 +146,7 @@ class WorkspaceModel(QAbstractListModel):
                         basename,
                         created_time,
                         modified_time,
-                        "Untracked",
+                        FileStatus.UNTRACKED,
                     )
                     local_files.append(file_item)
         return local_dirs, local_files
@@ -224,7 +249,7 @@ class LocalWorkspaceModel(WorkspaceModel):
         elif role == self.StatusRole:
             return ""
         elif role == self.NameStatusAndIsFolderRole:
-            return file_item.name, "", file_item.is_folder
+            return file_item.name, None, file_item.is_folder
         return None
 
     def openParentFolder(self):
@@ -302,7 +327,7 @@ class ServerWorkspaceModel(WorkspaceModel):
                 custFileName,
                 createdDate,
                 serverDate,
-                "Server only",
+                FileStatus.SERVER_ONLY,
                 serverFileDict,
             )
             serverFiles.append(file_item)
@@ -340,7 +365,7 @@ class ServerWorkspaceModel(WorkspaceModel):
         self.clearModel()
 
         currentDir = self.currentDirectory[-1]
-        print(currentDir)
+        logger.debug(f'{currentDir}')
 
         # retrieve the dirs and files from the server
         # the directories are shown first and then the files
@@ -358,14 +383,14 @@ class ServerWorkspaceModel(WorkspaceModel):
             serverDate = serverFileItem.updatedAt
             localDate = localFileItem.updatedAt
             if serverDate < localDate:
-                serverFileItem.status = "Server copy outdated"
+                serverFileItem.status = FileStatus.SERVER_COPY_OUTDATED
             elif serverDate > localDate:
-                serverFileItem.status = "Local copy outdated"
+                serverFileItem.status = FileStatus.LOCAL_COPY_OUTDATED
             else:
-                serverFileItem.status = "Synced"
+                serverFileItem.status = FileStatus.SYNCED
 
         def updateFileNotFound(localFileItem):
-            localFileItem.status = "Untracked"
+            localFileItem.status = FileStatus.UNTRACKED
 
         localDirs, localFiles = self.getLocalFiles()
         dirs = self.mergeFiles(serverDirs, localDirs, updateDirFound, updateDirNotFound)
@@ -444,7 +469,7 @@ class ServerWorkspaceModel(WorkspaceModel):
                 # the server needs to know about this directory
                 id = self.createDir(file_item.name)
                 self.currentDirectory.append({"_id": id, "name": file_item.name})
-            print(f"just appended: {self.currentDirectory}")
+            logger.debug(f"just appended: {self.currentDirectory}")
             self.refreshModel()
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
@@ -510,17 +535,18 @@ class ServerWorkspaceModel(WorkspaceModel):
             # self.refreshModel()
 
             # Check if the file is not newer on the server first.
-            if file_item.status == "Local copy outdated":
+            if file_item.status == FileStatus.LOCAL_COPY_OUTDATED:
                 if not self.confirmUpload():
                     return
                 else:
                     self.upload(file_item.name, file_item.serverFileDict["_id"])
-            elif file_item.status == "Untracked" or file_item.status == "Local only":
+            elif (file_item.status is FileStatus.UNTRACKED or
+                  file_item.status is FileStatus.LOCAL_ONLY):
                 self.upload(file_item.name)
-            elif file_item.status == "Server copy outdated":
+            elif file_item.status is FileStatus.SERVER_COPY_OUTDATED:
                 self.upload(file_item.name, file_item.serverFileDict["_id"])
             else:
-                print(f"Unknown file status: {file_item.status}")
+                logger.error(f"Unknown file status: {file_item.status}")
         self.refreshModel()
 
     def uploadUntrackedFiles(self):
@@ -530,7 +556,7 @@ class ServerWorkspaceModel(WorkspaceModel):
         # A parameter to refreshModel is added to prevent infinite loops just in case.
         refreshRequired = False
         for file_item in self.files:
-            if file_item.status == "Untracked":
+            if file_item.status == FileStatus.UNTRACKED:
                 self.upload(file_item.name)
                 refreshRequired = True
         if refreshRequired:
@@ -567,7 +593,9 @@ class ServerWorkspaceModel(WorkspaceModel):
 
     def openParentFolder(self):
         self.subPath = os.path.dirname(self.subPath)
-        print(f"popping {self.currentDirectory.pop()}")
+        logger.debug(f"popping {self.currentDirectory.pop()}")
+        logger.warn("popping warn")
+        logger.error("popping error")
         self.refreshModel()
 
     def getFileNames(self):
@@ -601,7 +629,7 @@ class FileItem:
         current_version,
         createdAt,
         updatedAt,
-        status="Untracked",
+        status=FileStatus.UNTRACKED,
         serverFileDict=None,
     ):
         self.name = name
