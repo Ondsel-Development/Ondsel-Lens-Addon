@@ -1,6 +1,5 @@
 import requests
 import json
-import uuid
 import os
 
 
@@ -19,7 +18,7 @@ class APIClient:
         self.base_url = api_url
         self.lens_url = lens_url
 
-        if access_token == None:
+        if access_token is None:
             self.email = email
             self.password = password
             self.access_token = None
@@ -55,12 +54,10 @@ class APIClient:
             data = self._post(endpoint, headers=headers, data=json.dumps(payload))
             self.access_token = data["accessToken"]
             self.user = data["user"]
-        except requests.exceptions.RequestException as e:
+        except requests.exceptions.RequestException:
             raise CustomConnectionError("Connection Error")
-
-        except CustomAuthenticationError as e:
+        except CustomAuthenticationError:
             raise CustomAuthenticationError("Authentication Error")
-
         except Exception as e:
             raise e
 
@@ -345,7 +342,7 @@ class APIClient:
     def updateFileObj(
         self, fileId, fileUpdatedAt, uniqueFileName, directory, workspace
     ):
-        print(f"Posting new version of file...")
+        print("Posting new version of file...")
         endpoint = f"file/{fileId}"
 
         headers = {
@@ -378,7 +375,10 @@ class APIClient:
     @authRequired
     def uploadFileToServer(self, uniqueName, filename):
         print(filename)
-        # files to be uploaded needs to have a unique name generated with uuid (use str(uuid.uuid4()) ) : test.fcstd -> c4481734-c18f-4b8c-8867-9694ae2a9f5a.fcstd
+        # files to be uploaded need to have a unique name generated with uuid
+        # (use str(uuid.uuid4()) ) : test.fcstd ->
+        # c4481734-c18f-4b8c-8867-9694ae2a9f5a.fcstd
+        # Note that this is not a hash but a random identifier.
         endpoint = "upload"
 
         if not os.path.isfile(filename):

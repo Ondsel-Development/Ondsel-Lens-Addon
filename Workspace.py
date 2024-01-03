@@ -133,7 +133,7 @@ class WorkspaceModel(QAbstractListModel):
             # Then we add the files
             file_path = Utils.joinPath(self.getFullPath(), basename)
             if not os.path.isdir(file_path):
-                created_time = Utils.getFileCreateddAt(file_path)
+                created_time = Utils.getFileCreatedAt(file_path)
                 modified_time = Utils.getFileUpdatedAt(file_path)
                 base, extension = os.path.splitext(basename)
                 if extension.lower() != ".fcbak":
@@ -307,15 +307,27 @@ class ServerWorkspaceModel(WorkspaceModel):
             serverDirs.append(file_item)
         return serverDirs
 
+    def getServerDates(self, currentVersion):
+        """
+        Return the updated and created date given a server version
+
+        The updatedDate may not be available in which case the createdDate is
+        used.
+        """
+        createdDate = currentVersion["createdAt"]
+        hasFileUpdatedAt = "fileUpdatedAt" in currentVersion["additionalData"]
+        logger.debug(f"has fileUpdatedAt? {hasFileUpdatedAt}")
+        updatedDate = currentVersion["additionalData"].get(
+            "fileUpdatedAt", createdDate
+        )
+        return updatedDate, createdDate
+
     def getServerFiles(self, serverFileDicts):
         serverFiles = []
         for serverFileDict in serverFileDicts:
             currentVersion = serverFileDict["currentVersion"]
 
-            createdDate = currentVersion["createdAt"]
-            serverDate = currentVersion["additionalData"].get(
-                "fileUpdatedAt", createdDate
-            )
+            updatedDate, createdDate = self.getServerDates(currentVersion)
             custFileName = serverFileDict["custFileName"]
             _, extension = os.path.splitext(custFileName)
             file_item = FileItem(
@@ -326,7 +338,7 @@ class ServerWorkspaceModel(WorkspaceModel):
                 [custFileName],
                 custFileName,
                 createdDate,
-                serverDate,
+                updatedDate,
                 FileStatus.SERVER_ONLY,
                 serverFileDict,
             )
@@ -365,7 +377,6 @@ class ServerWorkspaceModel(WorkspaceModel):
         self.clearModel()
 
         currentDir = self.currentDirectory[-1]
-        logger.debug(f'{currentDir}')
 
         # retrieve the dirs and files from the server
         # the directories are shown first and then the files
@@ -383,6 +394,10 @@ class ServerWorkspaceModel(WorkspaceModel):
             serverDate = serverFileItem.updatedAt
             localDate = localFileItem.updatedAt
             if serverDate < localDate:
+                logger.debug(f"serverDate updated: {serverDate}")
+                logger.debug(f"serverCreated: {serverFileItem.createdAt}")
+                logger.debug(f"localDate updated: {localDate}")
+                logger.debug(f"localCreated: {localFileItem.createdAt}")
                 serverFileItem.status = FileStatus.SERVER_COPY_OUTDATED
             elif serverDate > localDate:
                 serverFileItem.status = FileStatus.LOCAL_COPY_OUTDATED
@@ -469,7 +484,6 @@ class ServerWorkspaceModel(WorkspaceModel):
                 # the server needs to know about this directory
                 id = self.createDir(file_item.name)
                 self.currentDirectory.append({"_id": id, "name": file_item.name})
-            logger.debug(f"just appended: {self.currentDirectory}")
             self.refreshModel()
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
@@ -503,9 +517,12 @@ class ServerWorkspaceModel(WorkspaceModel):
             print("Download of folders not supported yet.")
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
+            currentVersion = file_item.serverFileDict["currentVersion"]
             self.API_Client.downloadFileFromServer(
-                file_item.serverFileDict["currentVersion"]["uniqueFileName"], file_path
+                currentVersion["uniqueFileName"], file_path
             )
+            updatedAt, createdAt = self.getServerDates(currentVersion)
+            Utils.setFileModificationTimes(file_path, updatedAt, createdAt)
         self.refreshModel()
 
     def confirmUpload(self):
@@ -593,9 +610,6 @@ class ServerWorkspaceModel(WorkspaceModel):
 
     def openParentFolder(self):
         self.subPath = os.path.dirname(self.subPath)
-        logger.debug(f"popping {self.currentDirectory.pop()}")
-        logger.warn("popping warn")
-        logger.error("popping error")
         self.refreshModel()
 
     def getFileNames(self):

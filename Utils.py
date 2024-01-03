@@ -75,11 +75,23 @@ def extract_thumbnail(file_path):
 
 
 def getFileUpdatedAt(file_path):
+    "Returns the modified time in milliseconds"
     return math.floor(os.path.getmtime(file_path) * 1000)
 
 
-def getFileCreateddAt(file_path):
+def getFileCreatedAt(file_path):
+    "Returns the created time in milliseconds"
     return math.floor(os.path.getctime(file_path) * 1000)
+
+
+def setFileModificationTimes(file_path, updatedAt, createdAt):
+    """
+    Set the modified and created time for a file
+
+    The parameters createdAt and updatedAt are in milliseconds,
+    whereas os.utime expects a float in seconds
+    """
+    os.utime(file_path, (createdAt / 1000.0, updatedAt / 1000.0))
 
 
 def getLogger(name):

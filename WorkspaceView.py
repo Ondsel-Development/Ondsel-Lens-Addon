@@ -187,8 +187,6 @@ class WorkspaceListDelegate(QStyledItemDelegate):
         if organizationData:
             organizationName = organizationData.get("name")
             if organizationName:
-                logger.debug("Got organization name")
-                logger.info("Got organization name")
                 return f"({organizationName})"
             else:
                 logger.debug("No 'name' in organization'")
@@ -783,7 +781,6 @@ class WorkspaceView(QtGui.QDockWidget):
     def fileListClickedLoggedOut(self, fileName):
         path = self.currentWorkspaceModel.getFullPath()
         pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
-        logger.debug(f"{path}/{fileName}")
         if pixmap:
             self.form.thumbnail_label.show()
             self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
