@@ -616,16 +616,18 @@ class FileItem:
         self.serverFileDict = serverFileDict
 
     def dump(self):
-        print(cleandoc(
-            f"""
-            name: {self.name}
-             ext: {self.ext}
-             path: {self.path}
-             is_folder: {self.is_folder}
-             versions: {self.versions}
-             current_version: {self.current_version}
-                   createdAt: {self.createdAt}
-             updatedAt: {self.updatedAt}
-             status: {self.status}
-             serverFileDict: {self.serverFileDict}"""
-        ))
+        print(
+            cleandoc(
+                f"""
+                name: {self.name}
+                 ext: {self.ext}
+                 path: {self.path}
+                 is_folder: {self.is_folder}
+                 versions: {self.versions}
+                 current_version: {self.current_version}
+                       createdAt: {self.createdAt}
+                 updatedAt: {self.updatedAt}
+                 status: {self.status}
+                 serverFileDict: {self.serverFileDict}"""
+            )
+        )
