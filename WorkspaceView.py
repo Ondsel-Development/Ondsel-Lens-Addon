@@ -8,12 +8,13 @@ import Utils
 
 from PySide import QtCore, QtGui
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import shutil
-import tempfile
 import re
 import requests
+
+from inspect import cleandoc
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError
@@ -22,15 +23,14 @@ import FreeCADGui as Gui
 
 import logging
 
-from DataModels import WorkspaceListModel, CACHE_PATH
-from VersionModel import LocalVersionModel, OndselVersionModel
+from DataModels import WorkspaceListModel
+from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import APIClient, CustomAuthenticationError
 from Workspace import WorkspaceModel, LocalWorkspaceModel, ServerWorkspaceModel
 
 from PySide.QtGui import (
     QStyledItemDelegate,
-    QCheckBox,
     QStyle,
     QMessageBox,
     QApplication,
@@ -61,7 +61,8 @@ remote_changelog_url = (
     "https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/changeLog.md"
 )
 
-remote_package_url = "https://raw.githubusercontent.com/Ondsel-Development/Ondsel-Lens/master/package.xml"
+remote_package_url = "https://raw.githubusercontent.com/Ondsel-Development/"\
+    "Ondsel-Lens/master/package.xml"
 local_package_path = f"{modPath}/package.xml"
 
 try:
@@ -295,7 +296,8 @@ class WorkspaceListDelegate(QStyledItemDelegate):
     #             # Handle button click here
     #             print("Button clicked for item:", index.row())
     #             return True  # Event was handled
-    #     return super(WorkspaceListDelegate, self).editorEvent(event, model, option, index)
+    #     return super(WorkspaceListDelegate, self).editorEvent(event, model,
+    #                                                           option, index)
 
 
 class WorkspaceView(QtGui.QDockWidget):
@@ -372,17 +374,18 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.fileDetails.setVisible(False)
 
-        explainText = """
+        explainText = cleandoc("""
+        <h1 style="text-align:center; font-weight:bold;">Welcome</h1>
 
-<h1 style="text-align:center; font-weight:bold;">Welcome</h1>
+        <p>You're not currently logged in to the Ondsel service. Use the button above
+           to log in or create an account. When you log in, this space will show your
+           workspaces.
+        </p>
 
-<p>You're not currently logged in to the Ondsel service. Use the button above to login in or create an account. When you log in, this space will show your workspaces.</p>
+        <p>You can enter the workspaces by double-clicking them.</p>
 
-<p>You can enter the workspaces by double-clicking them.</p>
-
-<p>Each workspace is a collection of files. Think of it like a project.</p>
-
-        """
+        <p>Each workspace is a collection of files. Think of it like a project.</p>
+        """)
 
         self.form.txtExplain.setHtml(explainText)
         self.form.txtExplain.setReadOnly(True)
@@ -429,7 +432,8 @@ class WorkspaceView(QtGui.QDockWidget):
 
     # def generate_expired_token(self):
     #     # generate an expired token for testing
-    #     expiration_time = datetime.now() - timedelta(minutes=5)  # Set expiration time to 5 minutes ago
+    #     # Set expiration time to 5 minutes ago
+    #     expiration_time = datetime.now() - timedelta(minutes=5)
     #     payload = {
     #         "exp": expiration_time.timestamp(),
     #         # Add other claims as needed
@@ -658,7 +662,8 @@ class WorkspaceView(QtGui.QDockWidget):
         message_box = QMessageBox()
         message_box.setWindowTitle("Confirmation")
         message_box.setText(
-            "You are reverting to a backup file.\nDo you want to save the current version as new backup or discard the changes?",
+            "You are reverting to a backup file.\nDo you want to save the current "
+            "version as new backup or discard the changes?"
         )
         message_box.setStandardButtons(
             QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
@@ -684,7 +689,8 @@ class WorkspaceView(QtGui.QDockWidget):
                 # make sure the document is open and get a reference
                 doc = FreeCAD.open(fullFileName)
 
-                # create a temporary copy of the backup so it isn't lost by backup policy
+                # create a temporary copy of the backup so it isn't lost by backup
+                # policy
                 temp_dir = tempfile.gettempdir()
                 temp_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
                 temp_file_path = temp_file.name
@@ -810,12 +816,12 @@ class WorkspaceView(QtGui.QDockWidget):
             pixmap = QPixmap(localThumbPath)
         else:
             pixmap = self.currentWorkspaceModel.getServerThumbnail(fileId)
-            if pixmap != None:
+            if pixmap is not None:
                 pixmap.save(localThumbPath, "PNG")
         return pixmap
 
     def setVersionListModel(self, model):
-        if model == None:
+        if model is None:
             self.form.versionsComboBox.clear()
             emptyModel = QtCore.QStringListModel()
             self.form.versionsComboBox.setModel(emptyModel)
@@ -975,12 +981,14 @@ class WorkspaceView(QtGui.QDockWidget):
         # Add custom buttons with desired tooltips
         model_url_button = QtGui.QPushButton("Model URL")
         model_url_button.setToolTip(
-            "This is the URL where anyone with the link can view your model through Ondsel Lens."
+            "This is the URL where anyone with the link "
+            "can view your model through Ondsel Lens."
         )
 
         forum_iframe_button = QtGui.QPushButton("FreeCAD forum")
         forum_iframe_button.setToolTip(
-            "This is a shortcode that you can paste in FreeCAD forum posts to embed a view of your model in your post."
+            "This is a shortcode that you can paste in FreeCAD forum posts "
+            "to embed a view of your model in your post."
         )
 
         # Add buttons to the layout
@@ -1123,7 +1131,7 @@ class WorkspaceView(QtGui.QDockWidget):
         # self.workspacesModel.removeOndselWorkspaces()
 
     def timerTick(self):
-        if self.currentWorkspace != None:
+        if self.currentWorkspace is not None:
             self.currentWorkspaceModel.refreshModel()
         else:
             self.workspacesModel.refreshModel()
@@ -1181,7 +1189,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
             try:
                 shutil.copy(fileUrl, destFileUrl)
-            except:
+            except (shutil.SameFileError, OSError):
                 QtGui.QMessageBox.warning(
                     None, "Error", "Failed to copy file " + fileName
                 )
@@ -1281,8 +1289,10 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.updateAvailable.setText(
                 f"Ondsel Lens v{remote_version} available!"
             )
+            # TODO: the </a> at the end?
             self.form.updateAvailable.setToolTip(
-                f"Click to see the change-log of Ondsel Lens v{remote_version} in your browser.</a>"
+                "Click to see the change-log of Ondsel Lens "
+                f"v{remote_version} in your browser.</a>"
             )
 
             self.form.updateAvailable.show()
@@ -1300,7 +1310,8 @@ class NewWorkspaceDialog(QtGui.QDialog):
         # self.localRadio = QtGui.QRadioButton("Local")
         # self.ondselRadio = QtGui.QRadioButton("Ondsel Server")
         # self.ondselRadio.setToolTip(
-        #     "Ondsel currently supports only one workspace that is added automatically on login."
+        #     "Ondsel currently supports only one workspace "
+        #     "that is added automatically on login."
         # )
         # self.ondselRadio.setEnabled(False)
         # self.externalRadio = QtGui.QRadioButton("External Server")
