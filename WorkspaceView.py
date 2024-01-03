@@ -20,7 +20,9 @@ from jwt.exceptions import ExpiredSignatureError
 import FreeCAD
 import FreeCADGui as Gui
 
-from DataModels import WorkspaceListModel
+import logging
+
+from DataModels import WorkspaceListModel, CACHE_PATH
 from VersionModel import LocalVersionModel, OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import APIClient, CustomAuthenticationError
@@ -38,6 +40,10 @@ from PySide.QtGui import (
     QMenu,
     QPixmap,
 )
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
+
 
 mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
@@ -177,6 +183,18 @@ class LinkListDelegate(QStyledItemDelegate):
 
 
 class WorkspaceListDelegate(QStyledItemDelegate):
+    def getOrganizationText(self, workspaceData):
+        organizationData = workspaceData.get("organization")
+        if organizationData:
+            organizationName = organizationData.get("name")
+            if organizationName:
+                return f"({organizationName})"
+            else:
+                logger.debug("No 'name' in organization'")
+        else:
+            logger.debug("No 'organization' in workspaceData")
+        return ""
+
     def paint(self, painter, option, index):
         # Get the data for the current index
         workspaceData = index.data(QtCore.Qt.DisplayRole)
@@ -210,7 +228,7 @@ class WorkspaceListDelegate(QStyledItemDelegate):
 
         # Draw the organization in parentheses TODO : name and not the id.
 
-        type_text = f"({workspaceData['organizationName']})"
+        type_text = self.getOrganizationText(workspaceData)
         type_rect = QtCore.QRect(
             option.rect.left() + 20 + name_width + 5,
             option.rect.top(),

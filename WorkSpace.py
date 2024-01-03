@@ -18,6 +18,10 @@ import shutil
 import uuid
 import requests
 
+from inspect import cleandoc
+
+from DataModels import CACHE_PATH
+
 
 # class WorkSpaceModelFactory:
 #    @staticmethod
@@ -57,7 +61,7 @@ class WorkSpaceModel(QAbstractListModel):
         self._id = workspaceDict["_id"]
 
         self.name = workspaceDict["name"]
-        self.path = workspaceDict["path"]
+        self.path = CACHE_PATH + self._id
         self.subPath = kwargs.get("subPath", "")
         self.files = []
 
@@ -483,7 +487,8 @@ class ServerWorkspaceModel(WorkSpaceModel):
         msg_box = QMessageBox()
         msg_box.setWindowTitle("Confirmation")
         msg_box.setText(
-            "The server version is newer than your local copy. Uploading will override the server version.\nAre you sure you want to proceed?"
+            "The server version is newer than your local copy. Uploading will "
+            "override the server version.\nAre you sure you want to proceed?"
         )
         msg_box.setIcon(QMessageBox.Warning)
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
@@ -532,8 +537,8 @@ class ServerWorkspaceModel(WorkSpaceModel):
             self.refreshModel(False)
 
     def upload(self, fileName, fileId=None):
-        # unique file name is always generated even if file is already on the server under another uniqueFileName.
-        # fileId is only used for updates
+        # unique file name is always generated even if file is already on the
+        # server under another uniqueFileName.  fileId is only used for updates
         base, extension = os.path.splitext(fileName)
         uniqueName = f"{str(uuid.uuid4())}.fcstd"  # TODO replace .fcstd by {extension}
 
@@ -611,6 +616,16 @@ class FileItem:
         self.serverFileDict = serverFileDict
 
     def dump(self):
-        print(
-            f"name: {self.name} \n ext: {self.ext} \n path: {self.path} \n is_folder: {self.is_folder} \n versions: {self.versions} \n current_version: {self.current_version} \n      createdAt: {self.createdAt} \n updatedAt: {self.updatedAt} \n status: {self.status} \n serverFileDict: {self.serverFileDict}"
-        )
+        print(cleandoc(
+            f"""
+            name: {self.name}
+             ext: {self.ext}
+             path: {self.path}
+             is_folder: {self.is_folder}
+             versions: {self.versions}
+             current_version: {self.current_version}
+                   createdAt: {self.createdAt}
+             updatedAt: {self.updatedAt}
+             status: {self.status}
+             serverFileDict: {self.serverFileDict}"""
+        ))

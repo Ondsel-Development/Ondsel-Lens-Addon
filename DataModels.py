@@ -11,7 +11,7 @@ import json
 import shutil
 import FreeCAD
 
-cachePath = FreeCAD.getUserCachePath()
+CACHE_PATH = FreeCAD.getUserCachePath()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 
 
@@ -32,30 +32,31 @@ class WorkspaceListModel(QAbstractListModel):
         parent = kwargs.get("parent", None)
         super(WorkspaceListModel, self).__init__(parent)
 
-        self.WorkspaceView = kwargs["WorkspaceView"]
+        self.workspaceView = kwargs["WorkspaceView"]
 
-        self.workspaceListFile = f"{cachePath}/workspaceList.json"
+        self.workspaceListFile = f"{CACHE_PATH}/workspaceList.json"
 
         self.refreshModel()
 
     def refreshModel(self):
         self.beginResetModel()
-        if self.WorkspaceView.apiClient is not None:
-            self.workspaces = self.WorkspaceView.apiClient.getWorkspaces()
+        if self.workspaceView.isLoggedIn():
+            self.workspaces = self.workspaceView.apiClient.getWorkspaces()
 
             # Add keys that we need locally
-            for workspace in self.workspaces:
-                workspace["path"] = cachePath + workspace["_id"]
+            # Is this still necessary?!?!
+            # for workspace in self.workspaces:
+            #     workspace["path"] = CACHE_PATH + workspace["_id"]
 
-                organizationName = next(
-                    (
-                        org["name"]
-                        for org in self.WorkspaceView.user["organizations"]
-                        if org["_id"] == workspace["organizationId"]
-                    ),
-                    "",
-                )
-                workspace["organizationName"] = organizationName
+            #     organizationName = next(
+            #         (
+            #             org["name"]
+            #             for org in self.workspaceView.user["organizations"]
+            #             if org["_id"] == workspace["organizationId"]
+            #         ),
+            #         "",
+            #     )
+            #     workspace["organizationName"] = organizationName
             self.save()
         else:
             self.load()
