@@ -26,7 +26,7 @@ from DataModels import WorkspaceListModel, CACHE_PATH
 from VersionModel import LocalVersionModel, OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import APIClient, CustomAuthenticationError
-from WorkSpace import WorkSpaceModel, LocalWorkspaceModel, ServerWorkspaceModel
+from Workspace import WorkspaceModel, LocalWorkspaceModel, ServerWorkspaceModel
 
 from PySide.QtGui import (
     QStyledItemDelegate,
@@ -81,7 +81,7 @@ class FileListDelegate(QStyledItemDelegate):
             return
 
         fileName, status, isFolder = index.data(
-            WorkSpaceModel.NameStatusAndIsFolderRole
+            WorkspaceModel.NameStatusAndIsFolderRole
         )
 
         if option.state & QStyle.State_Selected:
@@ -673,7 +673,7 @@ class WorkspaceView(QtGui.QDockWidget):
         index = model.index(row, 0)
 
         idx = self.form.fileList.currentIndex()
-        fileName = self.currentWorkspaceModel.data(idx, WorkSpaceModel.NameRole)
+        fileName = self.currentWorkspaceModel.data(idx, WorkspaceModel.NameRole)
         fullFileName = f"{self.currentWorkspace['url']}/{fileName}"
 
         """if self.currentWorkspace["type"] == "Local":

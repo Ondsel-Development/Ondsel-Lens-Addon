@@ -23,7 +23,7 @@ from inspect import cleandoc
 from DataModels import CACHE_PATH
 
 
-# class WorkSpaceModelFactory:
+# class WorkspaceModelFactory:
 #    @staticmethod
 #    def createWorkspace(workspaceDict, **kwargs):
 #        if workspaceDict["type"] == "Ondsel":
@@ -43,7 +43,7 @@ class TokenRefreshThread(QThread):
             self.sleep(600)
 
 
-class WorkSpaceModel(QAbstractListModel):
+class WorkspaceModel(QAbstractListModel):
     NameRole = Qt.UserRole + 1
     NameAndIsFolderRole = Qt.UserRole + 2
     IdRole = Qt.UserRole + 3
@@ -159,7 +159,7 @@ class WorkSpaceModel(QAbstractListModel):
         }
 
     def deleteFile(self, index):
-        fileName = self.data(index, WorkSpaceModel.NameRole)
+        fileName = self.data(index, WorkspaceModel.NameRole)
 
         fileName = Utils.joinPath(self.getFullPath(), fileName)
         if os.path.isfile(fileName):
@@ -192,7 +192,7 @@ class WorkSpaceModel(QAbstractListModel):
             print(file)
 
 
-class LocalWorkspaceModel(WorkSpaceModel):
+class LocalWorkspaceModel(WorkspaceModel):
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
 
@@ -242,7 +242,7 @@ class LocalWorkspaceModel(WorkSpaceModel):
                 FreeCAD.loadFile(file_path)
 
 
-class ServerWorkspaceModel(WorkSpaceModel):
+class ServerWorkspaceModel(WorkspaceModel):
     def __init__(self, workspaceDict, **kwargs):
         super().__init__(workspaceDict, **kwargs)
 
