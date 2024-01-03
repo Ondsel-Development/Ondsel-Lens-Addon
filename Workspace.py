@@ -48,12 +48,18 @@ class FileStatus(Enum):
 
     def __str__(self):
         match self:
-            case FileStatus.SERVER_ONLY: return "Server only"
-            case FileStatus.LOCAL_ONLY: return "Local only"
-            case FileStatus.SERVER_COPY_OUTDATED: return "Server copy outdated"
-            case FileStatus.LOCAL_COPY_OUTDATED: return "Local copy outdated"
-            case FileStatus.SYNCED: return "Synced"
-            case FileStatus.UNTRACKED: return "Untracked"
+            case FileStatus.SERVER_ONLY:
+                return "Server only"
+            case FileStatus.LOCAL_ONLY:
+                return "Local only"
+            case FileStatus.SERVER_COPY_OUTDATED:
+                return "Server copy outdated"
+            case FileStatus.LOCAL_COPY_OUTDATED:
+                return "Local copy outdated"
+            case FileStatus.SYNCED:
+                return "Synced"
+            case FileStatus.UNTRACKED:
+                return "Untracked"
             case _:
                 logger.error(f"Unknown file status: {self}")
                 return "Unknown"
@@ -317,9 +323,7 @@ class ServerWorkspaceModel(WorkspaceModel):
         createdDate = currentVersion["createdAt"]
         hasFileUpdatedAt = "fileUpdatedAt" in currentVersion["additionalData"]
         logger.debug(f"has fileUpdatedAt? {hasFileUpdatedAt}")
-        updatedDate = currentVersion["additionalData"].get(
-            "fileUpdatedAt", createdDate
-        )
+        updatedDate = currentVersion["additionalData"].get("fileUpdatedAt", createdDate)
         return updatedDate, createdDate
 
     def getServerFiles(self, serverFileDicts):
@@ -557,8 +561,10 @@ class ServerWorkspaceModel(WorkspaceModel):
                     return
                 else:
                     self.upload(file_item.name, file_item.serverFileDict["_id"])
-            elif (file_item.status is FileStatus.UNTRACKED or
-                  file_item.status is FileStatus.LOCAL_ONLY):
+            elif (
+                file_item.status is FileStatus.UNTRACKED
+                or file_item.status is FileStatus.LOCAL_ONLY
+            ):
                 self.upload(file_item.name)
             elif file_item.status is FileStatus.SERVER_COPY_OUTDATED:
                 self.upload(file_item.name, file_item.serverFileDict["_id"])

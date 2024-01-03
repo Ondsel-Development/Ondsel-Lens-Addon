@@ -98,7 +98,7 @@ def getLogger(name):
     logger = logging.getLogger(name)
     logger.setLevel(DEBUG_LEVEL)
     handler = FreeCADHandler()
-    formatter = logging.Formatter('%(levelname)s: %(name)s:%(lineno)d %(message)s')
+    formatter = logging.Formatter("%(levelname)s: %(name)s:%(lineno)d %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger

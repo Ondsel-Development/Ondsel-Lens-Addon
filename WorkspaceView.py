@@ -26,8 +26,12 @@ from DataModels import WorkspaceListModel
 from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import APIClient, CustomAuthenticationError
-from Workspace import WorkspaceModel, LocalWorkspaceModel, \
-    ServerWorkspaceModel, FileStatus
+from Workspace import (
+    WorkspaceModel,
+    LocalWorkspaceModel,
+    ServerWorkspaceModel,
+    FileStatus,
+)
 
 from PySide.QtGui import (
     QStyledItemDelegate,
@@ -59,8 +63,10 @@ remote_changelog_url = (
     "https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/changeLog.md"
 )
 
-remote_package_url = "https://raw.githubusercontent.com/Ondsel-Development/"\
+remote_package_url = (
+    "https://raw.githubusercontent.com/Ondsel-Development/"
     "Ondsel-Lens/master/package.xml"
+)
 local_package_path = f"{modPath}/package.xml"
 
 try:
@@ -372,18 +378,20 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.fileDetails.setVisible(False)
 
-        explainText = cleandoc("""
-        <h1 style="text-align:center; font-weight:bold;">Welcome</h1>
+        explainText = cleandoc(
+            """
+            <h1 style="text-align:center; font-weight:bold;">Welcome</h1>
 
-        <p>You're not currently logged in to the Ondsel service. Use the button above
-           to log in or create an account. When you log in, this space will show your
-           workspaces.
-        </p>
+            <p>You're not currently logged in to the Ondsel service. Use the button
+               above to log in or create an account. When you log in, this space will
+               show your workspaces.
+            </p>
 
-        <p>You can enter the workspaces by double-clicking them.</p>
+            <p>You can enter the workspaces by double-clicking them.</p>
 
-        <p>Each workspace is a collection of files. Think of it like a project.</p>
-        """)
+            <p>Each workspace is a collection of files. Think of it like a project.</p>
+            """
+        )
 
         self.form.txtExplain.setHtml(explainText)
         self.form.txtExplain.setReadOnly(True)
