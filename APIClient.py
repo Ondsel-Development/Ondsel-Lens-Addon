@@ -2,6 +2,10 @@ import requests
 import json
 import os
 
+import Utils
+
+logger = Utils.getLogger(__name__)
+
 
 class CustomAuthenticationError(Exception):
     pass
@@ -116,6 +120,7 @@ class APIClient:
             headers["Authorization"] = f"Bearer {self.access_token}"
         headers["Accept"] = "application/json"
         try:
+            logger.debug(f"Posting {endpoint} {data} {files}")
             response = requests.post(
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
@@ -315,7 +320,7 @@ class APIClient:
 
     @authRequired
     def createFile(self, fileName, fileUpdatedAt, uniqueName, directory, workspace):
-        print("Creating the file object...")
+        logger.debug(f"Creating file {fileName} in dir {directory}")
         endpoint = "file"
 
         headers = {
@@ -342,7 +347,7 @@ class APIClient:
     def updateFileObj(
         self, fileId, fileUpdatedAt, uniqueFileName, directory, workspace
     ):
-        print("Posting new version of file...")
+        logger.debug(f"updatingFileObj {fileId} in dir {directory}")
         endpoint = f"file/{fileId}"
 
         headers = {

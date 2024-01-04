@@ -37,10 +37,8 @@ logger = Utils.getLogger(__name__)
 #            return None
 
 
-# TODO: what is the difference between untracked and local only?
 class FileStatus(Enum):
     SERVER_ONLY = auto()
-    LOCAL_ONLY = auto()
     SERVER_COPY_OUTDATED = auto()
     LOCAL_COPY_OUTDATED = auto()
     SYNCED = auto()
@@ -50,8 +48,6 @@ class FileStatus(Enum):
         match self:
             case FileStatus.SERVER_ONLY:
                 return "Server only"
-            case FileStatus.LOCAL_ONLY:
-                return "Local only"
             case FileStatus.SERVER_COPY_OUTDATED:
                 return "Server copy outdated"
             case FileStatus.LOCAL_COPY_OUTDATED:
@@ -560,13 +556,14 @@ class ServerWorkspaceModel(WorkspaceModel):
                 if not self.confirmUpload():
                     return
                 else:
+                    logger.debug(f"Upload a file {file_item.name} while "
+                                 "local copy is outdated")
                     self.upload(file_item.name, file_item.serverFileDict["_id"])
-            elif (
-                file_item.status is FileStatus.UNTRACKED
-                or file_item.status is FileStatus.LOCAL_ONLY
-            ):
+            elif file_item.status is FileStatus.UNTRACKED:
+                logger.debug(f"Upload untracked file {file_item.name}")
                 self.upload(file_item.name)
             elif file_item.status is FileStatus.SERVER_COPY_OUTDATED:
+                logger.debug(f"Upload outdated file {file_item.name}")
                 self.upload(file_item.name, file_item.serverFileDict["_id"])
             else:
                 logger.error(f"Unknown file status: {file_item.status}")
@@ -580,6 +577,8 @@ class ServerWorkspaceModel(WorkspaceModel):
         refreshRequired = False
         for file_item in self.files:
             if file_item.status == FileStatus.UNTRACKED:
+                logger.debug(f"Upload untracked file {file_item.name} "
+                             "from uploadUntrackedFiles()")
                 self.upload(file_item.name)
                 refreshRequired = True
         if refreshRequired:
@@ -616,6 +615,7 @@ class ServerWorkspaceModel(WorkspaceModel):
 
     def openParentFolder(self):
         self.subPath = os.path.dirname(self.subPath)
+        self.currentDirectory.pop()
         self.refreshModel()
 
     def getFileNames(self):
