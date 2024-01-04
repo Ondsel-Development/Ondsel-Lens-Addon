@@ -4,14 +4,14 @@
 # *                                                                     *
 # ***********************************************************************
 
-from PySide.QtCore import Qt, QAbstractTableModel, QAbstractListModel, QModelIndex
-from PySide import QtCore
+
+from PySide.QtCore import Qt, QAbstractListModel, QModelIndex
 import os
 import json
-import shutil
 import FreeCAD
+from pathlib import Path
 
-CACHE_PATH = FreeCAD.getUserCachePath()
+CACHE_PATH = FreeCAD.getUserCachePath() + "Ondsel-Lens/"
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 
 
@@ -77,7 +77,8 @@ class WorkspaceListModel(QAbstractListModel):
         self.endResetModel()
         self.save()
 
-    """def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl, _id, organisation, rootDirectory):
+    """def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl,
+                     _id, organisation, rootDirectory):
         for workspace in reversed(self.workspaces):
             if workspace["name"] == workspaceName:
                 if workspaceType == "Ondsel" and workspace["type"] == "Local":
@@ -137,6 +138,8 @@ class WorkspaceListModel(QAbstractListModel):
                 self.workspaces = json.loads(dataStr)
 
     def save(self):
+        dirname = os.path.dirname(self.workspaceListFile)
+        Path(dirname).mkdir(parents=True, exist_ok=True)
         with open(self.workspaceListFile, "w") as file:
             file.write(json.dumps(self.workspaces))
 
@@ -156,7 +159,8 @@ class WorkspaceListModel(QAbstractListModel):
 
 # Unused
 class FilesData:
-    """This class contains all the data of the workspaces and their files under the structure of a dictionary :
+    """This class contains all the data of the workspaces and their files under the
+    structure of a dictionary :
     [
         {
             "Name" : "myWorkspace",
