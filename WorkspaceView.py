@@ -25,7 +25,7 @@ import FreeCADGui as Gui
 from DataModels import WorkspaceListModel
 from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
-from APIClient import APIClient, APIClientAuthenticationException
+from APIClient import APIClient, APIClientException, APIClientAuthenticationException
 from Workspace import (
     WorkspaceModel,
     LocalWorkspaceModel,
@@ -397,6 +397,8 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.txtExplain.setReadOnly(True)
         self.form.txtExplain.hide()
 
+        self.currentWorkspaceModel = None
+
         # Check if user is already logged in.
         loginDataStr = p.GetString("loginData", "")
         if loginDataStr != "":
@@ -409,7 +411,7 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.logout()
             else:
                 self.user = loginData["user"]
-                self.setUIForLogin(True, self.user)
+                self.setUILoggedIn(True, self.user)
 
                 if self.apiClient is None:
                     self.apiClient = APIClient(
@@ -417,22 +419,25 @@ class WorkspaceView(QtGui.QDockWidget):
                     )
 
                 # Set a timer to logout when token expires.
+                # we know that the token is not expired
                 self.setTokenExpirationTimer(self.access_token)
         else:
             self.user = None
-            self.setUIForLogin(False)
+            self.setUILoggedIn(False)
         self.switchView()
 
-        self.workspacesModel.refreshModel()
-        self.currentWorkspaceModel = None
+        def tryRefresh():
+            self.workspacesModel.refreshModel()
 
-        # Set a timer to check regularly the server
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.timerTick)
-        self.timer.setInterval(60000)
-        self.timer.start()
+            # Set a timer to check regularly the server
+            self.timer = QtCore.QTimer()
+            self.timer.timeout.connect(self.timerTick)
+            self.timer.setInterval(60000)
+            self.timer.start()
 
-        self.check_for_update()
+            self.check_for_update()
+
+        self.handle(tryRefresh)
 
         # linksView.setModel(self.linksModel)
 
@@ -457,9 +462,9 @@ class WorkspaceView(QtGui.QDockWidget):
         a.triggered.connect(self.ondselAccount)
         self.userMenu.addAction(a)
 
-        self.synchronizeAction = QAction("Synchronize", userActions)
-        self.synchronizeAction.setVisible(False)
-        self.userMenu.addAction(self.synchronizeAction)
+        # self.synchronizeAction = QAction("Synchronize", userActions)
+        # self.synchronizeAction.setVisible(False)
+        # self.userMenu.addAction(self.synchronizeAction)
 
         self.newWorkspaceAction = QAction("Add new workspace", userActions)
         self.newWorkspaceAction.triggered.connect(self.newWorkspaceBtnClicked)
@@ -496,22 +501,33 @@ class WorkspaceView(QtGui.QDockWidget):
         return self.access_token is not None and self.apiClient is not None
 
     def isTokenExpired(self, token):
-        expiration_time = self.getTokenExpirationTime(token)
+        try:
+            expiration_time = self.getTokenExpirationTime(token)
+        except ExpiredSignatureError:
+            return True
         current_time = datetime.now()
         return current_time > expiration_time
 
     def setTokenExpirationTimer(self, token):
-        expiration_time = self.getTokenExpirationTime(token)
-        current_time = datetime.now()
+        # Should be called when there is no risk for an expired signature
+        # However, the code still handles the error gracefully.
+        try:
+            expiration_time = self.getTokenExpirationTime(token)
+            current_time = datetime.now()
 
-        time_difference = expiration_time - current_time
-        interval_milliseconds = max(0, time_difference.total_seconds() * 1000)
+            time_difference = expiration_time - current_time
+            interval_milliseconds = max(0, time_difference.total_seconds() * 1000)
 
-        # Create a QTimer that triggers only once when the token is expired
-        self.token_timer = QtCore.QTimer()
-        self.token_timer.setSingleShot(True)
-        self.token_timer.timeout.connect(self.token_expired_handler)
-        self.token_timer.start(interval_milliseconds)
+            # Create a QTimer that triggers only once when the token is expired
+            self.token_timer = QtCore.QTimer()
+            self.token_timer.setSingleShot(True)
+            self.token_timer.timeout.connect(self.token_expired_handler)
+            self.token_timer.start(interval_milliseconds)
+        except ExpiredSignatureError as e:
+            # unexpected
+            self.logout()
+            self.setUILoggedIn(False)
+            logger.error(e)
 
     def token_expired_handler(self):
         QMessageBox.information(
@@ -524,26 +540,34 @@ class WorkspaceView(QtGui.QDockWidget):
         self.logout()
 
     def getTokenExpirationTime(self, token):
+        """Get a token expiration time.
+
+        Should be called only when we assume that the token is not expired.
+
+        Otherwise we log out and raise the exception again.  In case another
+        exception happens, we do the same.
+        """
+
         try:
             decoded_token = jwt.decode(
                 token,
                 audience="lens.ondsel.com",
                 options={"verify_signature": False, "verify_aud": False},
             )
-        except ExpiredSignatureError:
+        except ExpiredSignatureError as e:
+            raise e
+        except Exception as e:
             self.logout()
 
-            self.setUIForLogin(False)
-            return False
-        except Exception as e:
-            print(e)
+            self.setUILoggedIn(False)
+            logger.error(e)
             raise e
         return datetime.fromtimestamp(decoded_token["exp"])
 
-    def setUIForLogin(self, state, user=None):
+    def setUILoggedIn(self, loggedIn, user=None):
         """Toggle the visibility of UI elements based on if user is logged in"""
 
-        if state:
+        if loggedIn:
             userBtnText = ""
             if "name" in user:
                 userBtnText = user["name"]
@@ -565,7 +589,7 @@ class WorkspaceView(QtGui.QDockWidget):
             # not necessary to set the path because we will start with the list
             # of workspaces.
             self.currentWorkspaceModel = ServerWorkspaceModel(
-                self.currentWorkspace, API_Client=self.apiClient
+                self.currentWorkspace, apiClient=self.apiClient
             )
         else:
             subPath = ""
@@ -597,9 +621,9 @@ class WorkspaceView(QtGui.QDockWidget):
         )
 
         self.form.fileList.setModel(self.currentWorkspaceModel)
-        self.synchronizeAction.triggered.connect(
-            self.currentWorkspaceModel.refreshModel
-        )
+        # self.synchronizeAction.triggered.connect(
+        #     self.currentWorkspaceModel.refreshModel
+        # )
         self.newWorkspaceAction.setVisible(False)
 
         self.switchView()
@@ -608,12 +632,12 @@ class WorkspaceView(QtGui.QDockWidget):
         if self.currentWorkspace is None:
             return
         self.newWorkspaceAction.setVisible(True)
-        self.synchronizeAction.setVisible(False)
-        self.synchronizeAction.triggered.disconnect()
+        # self.synchronizeAction.setVisible(False)
+        # self.synchronizeAction.triggered.disconnect()
         self.currentWorkspace = None
         self.currentWorkspaceModel = None
         self.form.fileList.setModel(None)
-        self.workspacesModel.refreshModel()
+        self.handle(self.workspacesModel.refreshModel)
         self.switchView()
         self.form.workspaceNameLabel.setText("")
         self.form.fileDetails.setVisible(False)
@@ -638,20 +662,39 @@ class WorkspaceView(QtGui.QDockWidget):
         if subPath == "":
             self.leaveWorkspace()
         else:
-            self.currentWorkspaceModel.openParentFolder()
-            self.form.workspaceNameLabel.setText(
-                self.currentWorkspaceModel.getWorkspacePath()
-            )
-            self.hideFileDetails()
+
+            def tryOpenParent():
+                self.currentWorkspaceModel.openParentFolder()
+                self.form.workspaceNameLabel.setText(
+                    self.currentWorkspaceModel.getWorkspacePath()
+                )
+                self.hideFileDetails()
+
+            self.handle(tryOpenParent)
+
+    def handle(self, func):
+        """Handle a function that raises an APICLientException
+
+        The function will issue a warning and it will log out the user, making
+        it still possible to use the addon offline.
+        """
+        try:
+            func()
+        except APIClientException as e:
+            logger.warn(e)
+            self.user = None
+            self.logout()
 
     def fileListDoubleClicked(self, index):
         # print("fileListDoubleClicked")
 
-        self.currentWorkspaceModel.openFile(index)
+        def tryOpenFile():
+            self.currentWorkspaceModel.openFile(index)
+            self.form.workspaceNameLabel.setText(
+                self.currentWorkspaceModel.getWorkspacePath()
+            )
 
-        self.form.workspaceNameLabel.setText(
-            self.currentWorkspaceModel.getWorkspacePath()
-        )
+        self.handle(tryOpenFile)
 
     def linksListDoubleClicked(self, index):
         # print("linksListDoubleClicked")
@@ -662,8 +705,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if dialog.exec_() == QtGui.QDialog.Accepted:
             link_properties = dialog.getLinkProperties()
-            model.update_link(index, link_properties)
+            self.handle(lambda: model.update_link(index, link_properties))
 
+    # TODO
     def versionClicked(self, row):
         message_box = QMessageBox()
         message_box.setWindowTitle("Confirmation")
@@ -835,6 +879,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.versionsComboBox.setModel(model)
             self.form.versionsComboBox.setVisible(True)
 
+    # TODO allow deleting workspace?
     def showWorkspaceContextMenu(self, pos):
         index = self.form.workspaceListView.indexAt(pos)
 
@@ -907,9 +952,13 @@ class WorkspaceView(QtGui.QDockWidget):
         elif action == downloadAction:
             self.currentWorkspaceModel.downloadFile(index)
         elif action == uploadAction:
-            self.currentWorkspaceModel.uploadFile(index)
-            if self.form.versionsComboBox.isVisible():
-                self.form.versionsComboBox.model().refreshModel()
+
+            def tryUpload():
+                self.currentWorkspaceModel.uploadFile(index)
+                if self.form.versionsComboBox.isVisible():
+                    self.form.versionsComboBox.model().refreshModel()
+
+            self.handle(tryUpload)
 
     def showFileContextMenuDir(self, pos, index):
         menu = QtGui.QMenu()
@@ -926,7 +975,7 @@ class WorkspaceView(QtGui.QDockWidget):
                 QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
             )
             if result == QtGui.QMessageBox.Yes:
-                self.currentWorkspaceModel.deleteFile(index)
+                self.handle(lambda: self.currentWorkspaceModel.deleteFile(index))
 
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
@@ -1036,7 +1085,7 @@ class WorkspaceView(QtGui.QDockWidget):
     def copyToClipboard(self, text):
         clipboard = QApplication.clipboard()
         clipboard.setText(text)
-        print("Link copied!")
+        logger.info("Link copied!")
 
     def editShareLinkClicked(self, index):
         model = self.form.linksView.model()
@@ -1046,7 +1095,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if dialog.exec_() == QtGui.QDialog.Accepted:
             link_properties = dialog.getLinkProperties()
-            model.update_link(index, link_properties)
+            self.handle(lambda: model.update_link(index, link_properties))
 
     def deleteShareLinkClicked(self, index):
         model = self.form.linksView.model()
@@ -1058,7 +1107,7 @@ class WorkspaceView(QtGui.QDockWidget):
             QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
         )
         if result == QtGui.QMessageBox.Yes:
-            model.delete_link(linkId)
+            self.handle(model.delete_link(linkId))
 
     def addShareLink(self):
         dialog = SharingLinkEditDialog(None, self)
@@ -1066,7 +1115,7 @@ class WorkspaceView(QtGui.QDockWidget):
         if dialog.exec_() == QtGui.QDialog.Accepted:
             link_properties = dialog.getLinkProperties()
 
-            self.form.linksView.model().add_new_link(link_properties)
+            self.handle(self.form.linksView.model().add_new_link(link_properties))
 
     def openModelOnline(self):
         url = ondselUrl
@@ -1076,7 +1125,7 @@ class WorkspaceView(QtGui.QDockWidget):
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
     def openPreferences(self):
-        print("Preferences clicked")
+        logger.debug("Preferences clicked")
 
     def ondselAccount(self):
         url = f"{lensUrl}login"
@@ -1096,8 +1145,12 @@ class WorkspaceView(QtGui.QDockWidget):
                     self.apiClient = APIClient(email, password, baseUrl, lensUrl)
                     self.apiClient._authenticate()
                 except APIClientAuthenticationException as e:
-                    logger.warn(str(e))
+                    logger.warn(e)
                     continue  # Present the login dialog again if authentication fails
+                except APIClientException as e:
+                    logger.error(e)
+                    self.apiClient = None
+                    break
                 # Check if the request was successful (201 status code)
                 if self.apiClient.access_token is not None:
                     self.user = self.apiClient.user
@@ -1109,12 +1162,14 @@ class WorkspaceView(QtGui.QDockWidget):
 
                     self.access_token = self.apiClient.access_token
 
-                    self.setUIForLogin(True, self.apiClient.user)
+                    self.setUILoggedIn(True, self.apiClient.user)
                     self.leaveWorkspace()
-                    self.workspacesModel.refreshModel()
+                    self.handle(self.workspacesModel.refreshModel)
                     self.switchView()
 
-                    # Set a timer to logout when token expires.
+                    # Set a timer to logout when token expires.  since we've
+                    # just received the access token, it is very unlikely that
+                    # it is expired.
                     self.setTokenExpirationTimer(self.access_token)
                 else:
                     logger.warn("Authentication failed")
@@ -1123,7 +1178,7 @@ class WorkspaceView(QtGui.QDockWidget):
                 break  # Exit the login loop if the dialog is canceled
 
     def logout(self):
-        self.setUIForLogin(False)
+        self.setUILoggedIn(False)
         p.SetString("loginData", "")
         self.access_token = None
         self.apiClient = None
@@ -1136,10 +1191,13 @@ class WorkspaceView(QtGui.QDockWidget):
         # self.workspacesModel.removeOndselWorkspaces()
 
     def timerTick(self):
-        if self.currentWorkspace is not None:
-            self.currentWorkspaceModel.refreshModel()
-        else:
-            self.workspacesModel.refreshModel()
+        def tryRefresh():
+            if self.currentWorkspace is not None:
+                self.currentWorkspaceModel.refreshModel()
+            else:
+                self.workspacesModel.refreshModel()
+
+        self.handle(tryRefresh)
 
     def addCurrentFile(self):
         # Save current file on the server.
@@ -1172,7 +1230,7 @@ class WorkspaceView(QtGui.QDockWidget):
         #     # Save the file
         #     FreeCAD.Console.PrintMessage(f"Saving document to file: {file_name}\n")
         #     doc.saveAs(file_name)
-        self.currentWorkspaceModel.refreshModel()
+        self.handle(self.currentWorkspaceModel.refreshModel)
         self.switchView()
 
     def addSelectedFiles(self):
@@ -1198,18 +1256,23 @@ class WorkspaceView(QtGui.QDockWidget):
                 QtGui.QMessageBox.warning(
                     None, "Error", "Failed to copy file " + fileName
                 )
-        self.currentWorkspaceModel.refreshModel()
+        self.handle(self.currentWorkspaceModel.refreshModel)
         self.switchView()
 
     def addDir(self):
         existingFileNames = self.currentWorkspaceModel.getFileNames()
         dialog = CreateDirDialog(existingFileNames)
-        if dialog.exec_() == QtGui.QDialog.Accepted:
-            dir = dialog.getDir()
-            self.currentWorkspaceModel.createDir(dir)
-        self.currentWorkspaceModel.refreshModel()
+
+        def tryCreateDir():
+            if dialog.exec_() == QtGui.QDialog.Accepted:
+                dir = dialog.getDir()
+                self.currentWorkspaceModel.createDir(dir)
+            self.currentWorkspaceModel.refreshModel()
+
+        self.handle(tryCreateDir)
         self.switchView()
 
+    # TODO disable
     def newWorkspaceBtnClicked(self):
         if self.apiClient is None and self.access_token is None:
             print("You need to login first")
@@ -1303,6 +1366,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.updateAvailable.show()
 
 
+# TODO disable
 class NewWorkspaceDialog(QtGui.QDialog):
     def __init__(self, parent=None):
         super(NewWorkspaceDialog, self).__init__(parent)

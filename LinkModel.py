@@ -4,7 +4,7 @@
 # *                                                                     *
 # ***********************************************************************
 
-from PySide.QtCore import Qt, QAbstractListModel, QModelIndex, QDateTime
+from PySide.QtCore import Qt, QAbstractListModel, QModelIndex
 
 
 class ShareLinkModel(QAbstractListModel):
@@ -31,11 +31,11 @@ class ShareLinkModel(QAbstractListModel):
     ActiveRole = Qt.UserRole + 4
     EditLinkRole = Qt.UserRole + 5
 
-    def __init__(self, model_id, api_client, parent=None):
+    def __init__(self, model_id, apiClient, parent=None):
         super().__init__(parent)
         self.links = []
         self.model_id = model_id
-        self.api_client = api_client
+        self.apiClient = apiClient
 
         self.refresh_model()
 
@@ -58,6 +58,7 @@ class ShareLinkModel(QAbstractListModel):
         return None
 
     def update_link(self, index, linkData):
+        # throws an APIClientException
         if not index.isValid():
             return False
 
@@ -67,7 +68,7 @@ class ShareLinkModel(QAbstractListModel):
 
         link = self.links[row]
         linkData["_id"] = link["_id"]
-        self.api_client.updateSharedModel(linkData)
+        self.apiClient.updateSharedModel(linkData)
         self.refresh_model()
 
         # self.dataChanged.emit(index, index, [Qt.EditRole])
@@ -77,11 +78,12 @@ class ShareLinkModel(QAbstractListModel):
         return len(self.links)
 
     def refresh_model(self):
+        # throws an APIClientException
         self.beginResetModel()
         self.links = []
 
         params = {"cloneModelId": self.model_id}
-        shared_models = self.api_client.getSharedModels(params=params)
+        shared_models = self.apiClient.getSharedModels(params=params)
 
         for model in shared_models:
             canExport = model.get("canExportModel", True)
@@ -107,7 +109,8 @@ class ShareLinkModel(QAbstractListModel):
         self.endResetModel()
 
     def compute_url(self, model_id):
-        return f"{self.api_client.get_base_url()}share/{model_id}"
+        # raises an APICLientException
+        return f"{self.apiClient.get_base_url()}share/{model_id}"
 
     def compute_forum_iframe(self, model_id):
         return f"[ondsel]{model_id}[/ondsel]"
@@ -118,26 +121,23 @@ class ShareLinkModel(QAbstractListModel):
             print(link)
 
     def delete_link(self, link_id):
-        try:
-            self.api_client.deleteSharedModel(link_id)
-            self.refresh_model()
-        except Exception as e:
-            self.api_client = None
-            raise e
+        # raises an APIClientException
+        self.apiClient.deleteSharedModel(link_id)
+        self.refresh_model()
 
     def add_new_link(self, link):
-        """public method to add link to the model on server"""
+        """public method to add link to the model on server
+
+        raises an APIClientException
+        """
 
         link["cloneModelId"] = self.model_id
 
         if link.get("isActive", None) is not None:
             link.pop("isActive")
 
-        try:
-            result = self.api_client.createSharedModel(link)
+            self.apiClient.createSharedModel(link)
             self.refresh_model()
-        except Exception as e:
-            raise e  # need to handle connection problem at least
 
     def _add_link(self, link):
         """private method to add to the qabstractTableModel"""

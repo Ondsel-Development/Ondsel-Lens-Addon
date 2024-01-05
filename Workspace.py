@@ -1,4 +1,3 @@
-# from APIClient import APIClient
 from PySide.QtCore import (
     QAbstractListModel,
     Qt,
@@ -277,7 +276,7 @@ class ServerWorkspaceModel(WorkspaceModel):
         # (pushing is 'append()', popping is 'pop()')
         self.currentDirectory = [workspaceDict["rootDirectory"]]
 
-        self.API_Client = kwargs["API_Client"]
+        self.apiClient = kwargs["apiClient"]
         self.refreshModel()
 
         # if the folder doesnt exist, create it
@@ -372,6 +371,8 @@ class ServerWorkspaceModel(WorkspaceModel):
         We retrieve the server files and directories, the local files and
         directories, compare them and update the model with FileItem instances
         that reflect the status of the server and local file system.
+
+        throws an APIClientException
         """
 
         self.clearModel()
@@ -380,7 +381,7 @@ class ServerWorkspaceModel(WorkspaceModel):
 
         # retrieve the dirs and files from the server
         # the directories are shown first and then the files
-        serverDirDict = self.API_Client.getDirectory(currentDir["_id"])
+        serverDirDict = self.apiClient.getDirectory(currentDir["_id"])
         serverDirs = self.getServerDirs(serverDirDict["directories"])
         serverFiles = self.getServerFiles(serverDirDict["files"])
 
@@ -473,6 +474,10 @@ class ServerWorkspaceModel(WorkspaceModel):
         return None
 
     def openFile(self, index):
+        """Open a file
+
+        throws an APIClientException
+        """
         file_item = self.files[index.row()]
         if file_item.is_folder:
             self.subPath = Utils.joinPath(self.subPath, file_item.name)
@@ -489,7 +494,7 @@ class ServerWorkspaceModel(WorkspaceModel):
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
             if not os.path.isfile(file_path):
                 # download the file
-                self.API_Client.downloadFileFromServer(
+                self.apiClient.downloadFileFromServer(
                     file_item.serverFileDict["currentVersion"]["uniqueFileName"],
                     file_path,
                 )
@@ -503,22 +508,24 @@ class ServerWorkspaceModel(WorkspaceModel):
         #     file_item.serverFileDict is not None
         #     and "modelId" in file_item.serverFileDict
         # ):
-        #     self.API_Client.deleteModel(file_item.serverFileDict["modelId"])
+        #     self.apiClient.deleteModel(file_item.serverFileDict["modelId"])
         # else:
-        #     self.API_Client.deleteFile(file_item.serverFileDict["_id"])
+        #     self.apiClient.deleteFile(file_item.serverFileDict["_id"])
         # super().deleteFile(index)
         pass
 
     def downloadFile(self, index):
         # This will download the latest version.
-        print("downloading file...")
+        # Throws an APIClientException
+
+        logger.info("Downloading file...")
         file_item = self.files[index.row()]
         if file_item.is_folder:
-            print("Download of folders not supported yet.")
+            logger.warn("Download of folders not supported yet.")
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
             currentVersion = file_item.serverFileDict["currentVersion"]
-            self.API_Client.downloadFileFromServer(
+            self.apiClient.downloadFileFromServer(
                 currentVersion["uniqueFileName"], file_path
             )
             updatedAt, createdAt = self.getServerDates(currentVersion)
@@ -556,8 +563,10 @@ class ServerWorkspaceModel(WorkspaceModel):
                 if not self.confirmUpload():
                     return
                 else:
-                    logger.debug(f"Upload a file {file_item.name} while "
-                                 "local copy is outdated")
+                    logger.debug(
+                        f"Upload a file {file_item.name} while "
+                        "local copy is outdated"
+                    )
                     self.upload(file_item.name, file_item.serverFileDict["_id"])
             elif file_item.status is FileStatus.UNTRACKED:
                 logger.debug(f"Upload untracked file {file_item.name}")
@@ -577,8 +586,10 @@ class ServerWorkspaceModel(WorkspaceModel):
         refreshRequired = False
         for file_item in self.files:
             if file_item.status == FileStatus.UNTRACKED:
-                logger.debug(f"Upload untracked file {file_item.name} "
-                             "from uploadUntrackedFiles()")
+                logger.debug(
+                    f"Upload untracked file {file_item.name} "
+                    "from uploadUntrackedFiles()"
+                )
                 self.upload(file_item.name)
                 refreshRequired = True
         if refreshRequired:
@@ -587,31 +598,34 @@ class ServerWorkspaceModel(WorkspaceModel):
     def upload(self, fileName, fileId=None):
         # unique file name is always generated even if file is already on the
         # server under another uniqueFileName.  fileId is only used for updates
+
+        # raises APIClientException
+
         base, extension = os.path.splitext(fileName)
         uniqueName = f"{str(uuid.uuid4())}.fcstd"  # TODO replace .fcstd by {extension}
 
         file_path = Utils.joinPath(self.getFullPath(), fileName)
         fileUpdateDate = Utils.getFileUpdatedAt(file_path)
 
-        self.API_Client.uploadFileToServer(uniqueName, file_path)
+        self.apiClient.uploadFileToServer(uniqueName, file_path)
 
         currentDir = self.currentDirectory[-1]
         workspace = self.summarizeWorkspace()
 
         if fileId:
-            result = self.API_Client.updateFileObj(
+            result = self.apiClient.updateFileObj(
                 fileId, fileUpdateDate, uniqueName, currentDir, workspace
             )
             if extension.lower() in [".fcstd", ".obj"]:
-                self.API_Client.regenerateModelObj(result["modelId"], fileId)
+                self.apiClient.regenerateModelObj(result["modelId"], fileId)
         else:
-            result = self.API_Client.createFile(
+            result = self.apiClient.createFile(
                 fileName, fileUpdateDate, uniqueName, currentDir, workspace
             )
             fileId = result["_id"]
             if extension.lower() in [".fcstd", ".obj"]:
                 # TODO: This creates a file in the root directory as well
-                self.API_Client.createModel(fileId)
+                self.apiClient.createModel(fileId)
 
     def openParentFolder(self):
         self.subPath = os.path.dirname(self.subPath)
@@ -619,8 +633,9 @@ class ServerWorkspaceModel(WorkspaceModel):
         self.refreshModel()
 
     def getFileNames(self):
+        # raises an APIClientException
         currentDir = self.currentDirectory[-1]
-        serverDirDict = self.API_Client.getDirectory(currentDir["_id"])
+        serverDirDict = self.apiClient.getDirectory(currentDir["_id"])
         return (
             super().getFileNames()
             + [itemDict["custFileName"] for itemDict in serverDirDict["files"]]
@@ -631,9 +646,10 @@ class ServerWorkspaceModel(WorkspaceModel):
         return {k: self.workspace[k] for k in ("_id", "name", "refName")}
 
     def createDir(self, dir):
+        # raises an APIClientException
         currentDir = self.currentDirectory[-1]
         workspace = self.summarizeWorkspace()
-        result = self.API_Client.createDirectory(dir, currentDir["_id"], workspace)
+        result = self.apiClient.createDirectory(dir, currentDir["_id"], workspace)
 
         return result
 

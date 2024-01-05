@@ -76,7 +76,7 @@ class APIClient:
         # dump only when debugging is enabled
         self._dump_response(response, **kwargs)
         raise APIClientException(
-            "API request failed with status code {response.status_code}"
+            f"API request failed with status code {response.status_code}"
         )
 
     def _delete(self, endpoint, headers={}, params=None):
@@ -93,8 +93,9 @@ class APIClient:
         if response.status_code == OK:
             return response.json()
         else:
-            self._raiseError(response, endpoint=endpoint,
-                             headers=headers, params=params)
+            self._raiseError(
+                response, endpoint=endpoint, headers=headers, params=params
+            )
 
     def _request(self, endpoint, headers={}, params=None):
         headers["Authorization"] = f"Bearer {self.access_token}"
@@ -109,8 +110,9 @@ class APIClient:
         if response.status_code == OK:
             return response.json()
         else:
-            self._raiseError(response, endpoint=endpoint,
-                             headers=headers, params=params)
+            self._raiseError(
+                response, endpoint=endpoint, headers=headers, params=params
+            )
 
     def _post(self, endpoint, headers={}, params=None, data=None, files=None):
         if endpoint != "authentication":
@@ -124,13 +126,18 @@ class APIClient:
         except requests.exceptions.RequestException as e:
             raise APIClientException(e)
 
+        # only _post makes a distinction between the general error and
+        # unauthorized because _authenticate makes use of post and unauthorized
+        # should be handled differently for the _authenticate function (for
+        # example give the user another try to log in).
         if response.status_code in [CREATED, OK]:
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
         else:
-            self._raiseError(response, endpoint=endpoint, headers=headers,
-                             data=data, files=files)
+            self._raiseError(
+                response, endpoint=endpoint, headers=headers, data=data, files=files
+            )
 
     def _update(self, endpoint, headers={}, data=None, files=None):
         headers["Authorization"] = f"Bearer {self.access_token}"
@@ -146,8 +153,9 @@ class APIClient:
         if response.status_code in [CREATED, OK]:
             return response.json()
         else:
-            self._raiseError(response, endpoint=endpoint, headers=headers,
-                             data=data, files=files)
+            self._raiseError(
+                response, endpoint=endpoint, headers=headers, data=data, files=files
+            )
 
     def _download(self, url, filename):
         try:

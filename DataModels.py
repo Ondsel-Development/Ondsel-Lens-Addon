@@ -39,24 +39,11 @@ class WorkspaceListModel(QAbstractListModel):
         self.refreshModel()
 
     def refreshModel(self):
+        # raises an APIClientException
         self.beginResetModel()
         if self.workspaceView.isLoggedIn():
             self.workspaces = self.workspaceView.apiClient.getWorkspaces()
 
-            # Add keys that we need locally
-            # Is this still necessary?!?!
-            # for workspace in self.workspaces:
-            #     workspace["path"] = CACHE_PATH + workspace["_id"]
-
-            #     organizationName = next(
-            #         (
-            #             org["name"]
-            #             for org in self.workspaceView.user["organizations"]
-            #             if org["_id"] == workspace["organizationId"]
-            #         ),
-            #         "",
-            #     )
-            #     workspace["organizationName"] = organizationName
             self.save()
         else:
             self.load()

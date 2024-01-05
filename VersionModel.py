@@ -196,16 +196,17 @@ class LocalVersionModel(VersionModel):
 
 
 class OndselVersionModel(VersionModel):
-    def __init__(self, model_id, API_Client, parent=None):
+    def __init__(self, model_id, apiClient, parent=None):
         super().__init__(parent)
         self.model_id = model_id
-        self.API_Client = API_Client
+        self.apiClient = apiClient
 
         self.refreshModel()
 
     def refreshModel(self):
+        # raises an APIClientException
         self.clearModel()
-        model = self.API_Client.getModel(self.model_id)
+        model = self.apiClient.getModel(self.model_id)
 
         self.beginResetModel()
         self.versions = model["file"]["versions"][::-1]
