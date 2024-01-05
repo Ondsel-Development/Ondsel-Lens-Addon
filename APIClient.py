@@ -7,12 +7,21 @@ import Utils
 logger = Utils.getLogger(__name__)
 
 
-class CustomAuthenticationError(Exception):
+class APIClientException(Exception):
     pass
 
 
-class CustomConnectionError(Exception):
+class APIClientAuthenticationException(APIClientException):
     pass
+
+
+class APIClientConnectionError(APIClientException):
+    pass
+
+
+OK = requests.codes.ok
+CREATED = requests.codes.created
+UNAUTHORIZED = requests.codes.unauthorized
 
 
 class APIClient:
@@ -58,12 +67,17 @@ class APIClient:
             data = self._post(endpoint, headers=headers, data=json.dumps(payload))
             self.access_token = data["accessToken"]
             self.user = data["user"]
-        except requests.exceptions.RequestException:
-            raise CustomConnectionError("Connection Error")
-        except CustomAuthenticationError:
-            raise CustomAuthenticationError("Authentication Error")
-        except Exception as e:
-            raise e
+        except requests.exceptions.RequestException as e:
+            raise APIClientException(e)
+        # _post also throws an APIClientAuthenticationException or an APIClientException
+
+    def _raiseError(self, response, **kwargs):
+        "Raise a generic error based on the status code"
+        # dump only when debugging is enabled
+        self._dump_response(response, **kwargs)
+        raise APIClientException(
+            "API request failed with status code {response.status_code}"
+        )
 
     def _delete(self, endpoint, headers={}, params=None):
         headers["Authorization"] = f"Bearer {self.access_token}"
@@ -74,22 +88,13 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", params=params, headers=headers
             )
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
+            raise APIClientException(e)
 
-        if response.status_code == 200:
+        if response.status_code == OK:
             return response.json()
         else:
-            # Handle API error cases
-            callData = {
-                "endpoint": endpoint,
-                "headers": headers,
-                "params": params,
-            }
-            self._dump_response(response, callData)
-            raise Exception(
-                f"API request failed with status code {response.status_code}"
-            )
+            self._raiseError(response, endpoint=endpoint,
+                             headers=headers, params=params)
 
     def _request(self, endpoint, headers={}, params=None):
         headers["Authorization"] = f"Bearer {self.access_token}"
@@ -99,21 +104,13 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, params=params
             )
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
+            raise APIClientException(e)
 
-        if response.status_code == 200:
+        if response.status_code == OK:
             return response.json()
         else:
-            callData = {
-                "endpoint": endpoint,
-                "headers": headers,
-                "params": params,
-            }
-            self._dump_response(response, callData)
-            raise Exception(
-                f"API request failed with status code {response.status_code}"
-            )
+            self._raiseError(response, endpoint=endpoint,
+                             headers=headers, params=params)
 
     def _post(self, endpoint, headers={}, params=None, data=None, files=None):
         if endpoint != "authentication":
@@ -125,25 +122,15 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
-            return
+            raise APIClientException(e)
 
-        if response.status_code in [201, 200]:
+        if response.status_code in [CREATED, OK]:
             return response.json()
-        elif response.status_code == 401:
-            raise CustomAuthenticationError("Not Authenticated")
+        elif response.status_code == UNAUTHORIZED:
+            raise APIClientAuthenticationException("Not authenticated")
         else:
-            callData = {
-                "endpoint": endpoint,
-                "headers": headers,
-                "data": data,
-                "files": files,
-            }
-            self._dump_response(response, callData)
-            raise Exception(
-                f"API request failed with status code {response.status_code}"
-            )
+            self._raiseError(response, endpoint=endpoint, headers=headers,
+                             data=data, files=files)
 
     def _update(self, endpoint, headers={}, data=None, files=None):
         headers["Authorization"] = f"Bearer {self.access_token}"
@@ -154,32 +141,19 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
+            raise APIClientException(e)
 
-        if response.status_code in [201, 200]:
+        if response.status_code in [CREATED, OK]:
             return response.json()
         else:
-            callData = {
-                "endpoint": endpoint,
-                "headers": headers,
-                "data": data,
-                "files": files,
-            }
-            self._dump_response(response, callData)
-            raise Exception(
-                f"API request failed with status code {response.status_code}"
-            )
+            self._raiseError(response, endpoint=endpoint, headers=headers,
+                             data=data, files=files)
 
     def _download(self, url, filename):
         try:
             response = requests.get(url)
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
-            print(f"URL: {url}")
-            print(f"Filename: {filename}")
-            return None
+            raise APIClientException(e)
 
         if response.status_code == 200:
             # Save file to workspace directory under the user name not the unique name
@@ -187,31 +161,28 @@ class APIClient:
                 f.write(response.content)
             return True
         else:
-            # Handle API error cases
-            callData = {"url": url, "filename": filename}
-            self._dump_response(response, callData)
-            raise Exception(
-                f"API request failed with status code {response.status_code}"
-            )
+            self._raiseError(response, url=url, filename=filename)
 
-    def _dump_response(self, response, callData):
-        print("XXXXXX Call Data XXXXXX")
-        for key, value in callData.items():
-            print(key, value)
-        print("XXXXXXXXXXXXXXXXXXXXXXX")
+    def _dump_response(self, response, **kwargs):
+        # # make a dictionary out of the keyword arguments
+        # callData = {f"{k}": v for k, v in kwargs.items}
+        logger.debug("XXXXXX Call Data XXXXXX")
+        for key, value in kwargs.items():
+            logger.debug(f"{key} {value}")
+        logger.debug("XXXXXXXXXXXXXXXXXXXXXXX")
 
-        print(response)
-        print(f"Status code: {response.status_code}")
+        logger.debug(response)
+        logger.debug(f"Status code: {response.status_code}")
 
         # Access headers
-        print(f"Content-Type: {response.headers['Content-Type']}")
+        logger.debug(f"Content-Type: {response.headers['Content-Type']}")
 
         # Access response body as text
-        print(f"Response body (text): {response.text}")
+        logger.debug(f"Response body (text): {response.text}")
 
         if response.headers["Content-Type"] == "application/json":
             # Access response body as JSON
-            print(f"Response body (JSON): {response.json()}")
+            logger.debug(f"Response body (JSON): {response.json()}")
 
     @authRequired
     def get_base_url(self):
@@ -379,7 +350,7 @@ class APIClient:
 
     @authRequired
     def uploadFileToServer(self, uniqueName, filename):
-        print(filename)
+        logger.debug(f"upload: {filename}")
         # files to be uploaded need to have a unique name generated with uuid
         # (use str(uuid.uuid4()) ) : test.fcstd ->
         # c4481734-c18f-4b8c-8867-9694ae2a9f5a.fcstd

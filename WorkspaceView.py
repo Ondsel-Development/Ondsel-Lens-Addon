@@ -25,7 +25,7 @@ import FreeCADGui as Gui
 from DataModels import WorkspaceListModel
 from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
-from APIClient import APIClient, CustomAuthenticationError
+from APIClient import APIClient, APIClientAuthenticationException
 from Workspace import (
     WorkspaceModel,
     LocalWorkspaceModel,
@@ -1095,8 +1095,8 @@ class WorkspaceView(QtGui.QDockWidget):
                 try:
                     self.apiClient = APIClient(email, password, baseUrl, lensUrl)
                     self.apiClient._authenticate()
-                except CustomAuthenticationError as e:
-                    print("Handling authentication error:", str(e))
+                except APIClientAuthenticationException as e:
+                    logger.warn(str(e))
                     continue  # Present the login dialog again if authentication fails
                 # Check if the request was successful (201 status code)
                 if self.apiClient.access_token is not None:
@@ -1117,7 +1117,7 @@ class WorkspaceView(QtGui.QDockWidget):
                     # Set a timer to logout when token expires.
                     self.setTokenExpirationTimer(self.access_token)
                 else:
-                    print("Authentication failed")
+                    logger.warn("Authentication failed")
                 break
             else:
                 break  # Exit the login loop if the dialog is canceled
