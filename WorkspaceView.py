@@ -733,42 +733,6 @@ class WorkspaceView(QtGui.QDockWidget):
         fileName = self.currentWorkspaceModel.data(idx, WorkspaceModel.NameRole)
         fullFileName = f"{self.currentWorkspace['url']}/{fileName}"
 
-        """if self.currentWorkspace["type"] == "Local":
-            backupfilename = model.data(index, role=QtCore.Qt.UserRole)
-
-            # Process the user's choice
-            if choice == QMessageBox.Save:
-                # make sure the document is open and get a reference
-                doc = FreeCAD.open(fullFileName)
-
-                # create a temporary copy of the backup so it isn't lost by backup
-                # policy
-                temp_dir = tempfile.gettempdir()
-                temp_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
-                temp_file_path = temp_file.name
-                temp_file.close()
-
-                shutil.copy(backupfilename, temp_file_path)
-
-                # Save and close the original to create the new backup
-                doc.save()
-                FreeCAD.closeDocument(doc.Name)
-
-                # move the tempfile back to the original
-                try:
-                    shutil.move(temp_file_path, fullFileName)
-                except OSError as e:
-                    print(f"Error renaming file: {e}")
-                # reopen the original
-                doc = FreeCAD.open(fullFileName)
-            elif choice == QMessageBox.Discard:
-                try:
-                    shutil.move(backupfilename, fullFileName)
-                except OSError as e:
-                    print(f"Error renaming file: {e}")
-                doc = FreeCAD.open(fullFileName)
-                doc.restore()
-        elif self.currentWorkspace["type"] == "Ondsel":"""
         versionUniqueFileName = model.data(index, role=QtCore.Qt.UserRole)
 
         # Process the user's choice
