@@ -723,18 +723,25 @@ class WorkspaceView(QtGui.QDockWidget):
 
         return msg_box.exec_() == QMessageBox.Yes
 
-    def downloadFile(self, index):
+    def downloadFileIndex(self, index):
         wsm = self.currentWorkspaceModel
         file_item = wsm.files[index.row()]
-        self.downloadFileFileId(file_item)
+        self.downloadFileFileItem(file_item)
 
-    def downloadFileFileId(self, fileId):
+    def downloadFileForVersion(self, fileId):
         wsm = self.currentWorkspaceModel
         fileItem = wsm.getFileItemFileId(fileId)
         if not fileItem:
             wsm.refreshModel()
             return
+        else:
+            # we also pass on fileId to trigger a new refresh of the model to
+            # make sure we can differentiate the synchronization between the
+            # version before the version change and after the version change.
+            self.downloadFileFileItem(fileItem, fileId)
 
+    def downloadFileFileItem(self, fileItem, fileId=None):
+        wsm = self.currentWorkspaceModel
         if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
             msg = "The local copy is outdated compared to the active version."
             if not self.confirmDownload(msg):
@@ -750,10 +757,16 @@ class WorkspaceView(QtGui.QDockWidget):
                 wsm.refreshModel()
                 return
 
-        # in case a version change has been made, we should retrieve new data
-        # from the server to keep the new download "synced".
-        wsm.refreshModel()
-        fileItem = wsm.getFileItemFileId(fileId)
+        if fileId:
+            # in case a version change has been made, we should retrieve new
+            # data from the server to be able to keep the new download
+            # "synced" as well.
+            wsm.refreshModel()
+            fileItem = wsm.getFileItemFileId(fileId)
+        if fileItem.status == FileStatus.SYNCED:
+            logger.info("This file is already in sync")
+            wsm.refreshModel()
+            return
         wsm.downloadFile(fileItem)
         self.updateThumbnail(fileItem)
 
@@ -785,7 +798,9 @@ class WorkspaceView(QtGui.QDockWidget):
         # if choice == QMessageBox.Cancel:
         #     return
 
-        versionModel = self.form.versionsComboBox.model()
+        comboBox = self.form.versionsComboBox
+
+        versionModel = comboBox.model()
         indexVersion = versionModel.index(row, 0)
 
         versionUniqueFileName, versionId = versionModel.data(
@@ -794,11 +809,12 @@ class WorkspaceView(QtGui.QDockWidget):
 
         def trySetVersionActive():
             fileId = versionModel.getFileId()
-            versionModel.apiClient.setVersionActive(fileId, versionId)
+            if versionId != versionModel.currentVersionId:
+                versionModel.apiClient.setVersionActive(fileId, versionId)
             versionModel.refreshModel()
-            self.form.versionsComboBox.setCurrentIndex(versionModel.getCurrentIndex())
+            comboBox.setCurrentIndex(versionModel.getCurrentIndex())
 
-            self.downloadFileFileId(fileId)
+            self.downloadFileForVersion(fileId)
             self.restoreFile(fileId)
 
         self.handle(trySetVersionActive)
@@ -1001,7 +1017,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.openModelOnline()
             self.currentModelId = None
         elif action == downloadAction:
-            self.downloadFile(index)
+            self.downloadFileIndex(index)
         elif action == uploadAction:
 
             def tryUpload():

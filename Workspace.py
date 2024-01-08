@@ -589,8 +589,12 @@ class ServerWorkspaceModel(WorkspaceModel):
                 logger.debug(f"Upload untracked file {file_item.name}")
                 self.upload(file_item.name)
             elif file_item.status is FileStatus.SERVER_COPY_OUTDATED:
-                logger.debug(f"Upload outdated file {file_item.name}")
+                logger.debug(
+                    f"Upload a file {file_item.name} that is outdated on the server"
+                )
                 self.upload(file_item.name, file_item.serverFileDict["_id"])
+            elif file_item.status is FileStatus.SYNCED:
+                logger.info(f"File {file_item.name} is already in sync")
             else:
                 logger.error(f"Unknown file status: {file_item.status}")
         self.refreshModel()
