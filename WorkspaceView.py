@@ -757,6 +757,17 @@ class WorkspaceView(QtGui.QDockWidget):
         wsm.downloadFile(fileItem)
         self.updateThumbnail(fileItem)
 
+    def restoreFile(self, fileId):
+        wsm = self.currentWorkspaceModel
+        fileItem = wsm.getFileItemFileId(fileId)
+        fileName = fileItem.name
+        path = fileItem.path
+
+        # iterate over the files
+        for doc in FreeCAD.listDocuments().values():
+            if doc.FileName == Utils.joinPath(path, fileName):
+                doc.restore()
+
     def versionClicked(self, row):
         # message_box = QMessageBox()
         # message_box.setWindowTitle("Confirmation")
@@ -788,6 +799,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.versionsComboBox.setCurrentIndex(versionModel.getCurrentIndex())
 
             self.downloadFileFileId(fileId)
+            self.restoreFile(fileId)
 
         self.handle(trySetVersionActive)
 
