@@ -76,7 +76,8 @@ class APIClient:
         # dump only when debugging is enabled
         self._dump_response(response, **kwargs)
         raise APIClientException(
-            f"API request failed with status code {response.status_code}"
+            f"API request failed with status code {response.status_code}: "
+            + response.json()["message"]
         )
 
     def _delete(self, endpoint, headers={}, params=None):
@@ -188,7 +189,7 @@ class APIClient:
         # Access response body as text
         logger.debug(f"Response body (text): {response.text}")
 
-        if response.headers["Content-Type"] == "application/json":
+        if response.headers["Content-Type"].startswith("application/json"):
             # Access response body as JSON
             logger.debug(f"Response body (JSON): {response.json()}")
 
@@ -341,6 +342,23 @@ class APIClient:
             },
             "directory": directory,
             "workspace": workspace,
+        }
+
+        result = self._update(endpoint, headers=headers, data=json.dumps(payload))
+
+        return result
+
+    @authRequired
+    def setVersionActive(self, fileId, versionId):
+        logger.debug("setVersionActive")
+        endpoint = f"file/{fileId}"
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "shouldCheckoutToVersion": True,
+            "versionId": versionId,
         }
 
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))

@@ -196,31 +196,57 @@ class LocalVersionModel(VersionModel):
 
 
 class OndselVersionModel(VersionModel):
-    def __init__(self, model_id, apiClient, parent=None):
+    def __init__(self, model_id, apiClient, fileId, parent=None):
         super().__init__(parent)
         self.model_id = model_id
         self.apiClient = apiClient
+        # The version model belongs to a specific fileId
+        self.fileId = fileId
 
         self.refreshModel()
+
+    # def sortVersions(self, fileDict):
+    #     """Sort the versions"
+
+    #     The versions acquired from the API are reversed and the currentVersion
+    #     (the active one is set to be the top one.
+    #     """
+    #     currentVersionId = fileDict['currentVersionId']
+    #     versions = fileDict["versions"][::-1]
+    #     indexCurrentVersionId = [v["_id"] for v in versions].index(currentVersionId)
+    #     versions[indexCurrentVersionId], versions[0] = \
+    #         versions[0], versions[indexCurrentVersionId]
+    #     return versions
 
     def refreshModel(self):
         # raises an APIClientException
         self.clearModel()
         model = self.apiClient.getModel(self.model_id)
+        fileDict = model["file"]
 
         self.beginResetModel()
-        self.versions = model["file"]["versions"][::-1]
+        self.versions = fileDict["versions"][::-1]
+        self.currentVersionId = fileDict["currentVersionId"]
         self.endResetModel()
+
+    def getCurrentIndex(self):
+        return [v["_id"] for v in self.versions].index(self.currentVersionId)
+
+    def getFileId(self):
+        "Get the file id of the versions"
+        return self.fileId
 
     def data(self, index, role):
         row = index.row()
         version = self.versions[row]
 
         if role == Qt.DisplayRole:
-            return self.convertTime(version["createdAt"] // 1000)
+            return (self.convertTime(version["createdAt"] // 1000)) + (
+                " ✔️" if version["_id"] == self.currentVersionId else ""
+            )
 
-        # Additional role for accessing the unique filename
+        # Additional role for accessing the unique filename and the version Id
         if role == Qt.UserRole:
-            return version["uniqueFileName"]
+            return version["uniqueFileName"], version["_id"]
 
         return None

@@ -688,9 +688,10 @@ class WorkspaceView(QtGui.QDockWidget):
             self.logout()
 
     def fileListDoubleClicked(self, index):
-        # print("fileListDoubleClicked")
+        logger.debug("fileListDoubleClicked")
 
         def tryOpenFile():
+            logger.debug("tryOpenFile")
             self.currentWorkspaceModel.openFile(index)
             self.form.workspaceNameLabel.setText(
                 self.currentWorkspaceModel.getWorkspacePath()
@@ -709,60 +710,112 @@ class WorkspaceView(QtGui.QDockWidget):
             link_properties = dialog.getLinkProperties()
             self.handle(lambda: model.update_link(index, link_properties))
 
-    # TODO
-    def versionClicked(self, row):
-        message_box = QMessageBox()
-        message_box.setWindowTitle("Confirmation")
-        message_box.setText(
-            "You are reverting to a backup file.\nDo you want to save the current "
-            "version as new backup or discard the changes?"
+    def confirmDownload(self, msg):
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle("Confirmation")
+        msg_box.setText(
+            f"{msg} Downloading will override this local version.\n"
+            "Are you sure you want to proceed?"
         )
-        message_box.setStandardButtons(
-            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
-        )
+        msg_box.setIcon(QMessageBox.Warning)
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
 
-        # Show the dialog and retrieve the user's choice
-        choice = message_box.exec_()
+        return msg_box.exec_() == QMessageBox.Yes
 
-        if choice == QMessageBox.Cancel:
+    def downloadFile(self, index):
+        wsm = self.currentWorkspaceModel
+        file_item = wsm.files[index.row()]
+        self.downloadFileFileId(file_item)
+
+    def downloadFileFileId(self, fileId):
+        wsm = self.currentWorkspaceModel
+        fileItem = wsm.getFileItemFileId(fileId)
+        if not fileItem:
+            wsm.refreshModel()
             return
-        model = self.form.versionsComboBox.model()
-        index = model.index(row, 0)
 
-        idx = self.form.fileList.currentIndex()
-        fileName = self.currentWorkspaceModel.data(idx, WorkspaceModel.NameRole)
-        fullFileName = f"{self.currentWorkspace['url']}/{fileName}"
+        if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
+            msg = "The local copy is outdated compared to the active version."
+            if not self.confirmDownload(msg):
+                wsm.refreshModel()
+                return
+        elif fileItem.status == FileStatus.UNTRACKED:
+            # should not happen as the menu should not be enabled
+            logger.error("It is not possible to download an untracked file")
+            return
+        elif fileItem.status == FileStatus.SERVER_COPY_OUTDATED:
+            msg = "The local copy is newer than the active version."
+            if not self.confirmDownload(msg):
+                wsm.refreshModel()
+                return
 
-        versionUniqueFileName = model.data(index, role=QtCore.Qt.UserRole)
+        # in case a version change has been made, we should retrieve new data
+        # from the server to keep the new download "synced".
+        wsm.refreshModel()
+        fileItem = wsm.getFileItemFileId(fileId)
+        wsm.downloadFile(fileItem)
+        self.updateThumbnail(fileItem)
+
+    def versionClicked(self, row):
+        # message_box = QMessageBox()
+        # message_box.setWindowTitle("Confirmation")
+        # message_box.setText(
+        #     "You are reverting to a backup file.\nDo you want to save the current "
+        #     "version as new backup or discard the changes?"
+        # )
+        # message_box.setStandardButtons(
+        #     QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
+        # )
+
+        # # Show the dialog and retrieve the user's choice
+        # choice = message_box.exec_()
+
+        # if choice == QMessageBox.Cancel:
+        #     return
+
+        versionModel = self.form.versionsComboBox.model()
+        indexVersion = versionModel.index(row, 0)
+
+        versionUniqueFileName, versionId = versionModel.data(
+            indexVersion, role=QtCore.Qt.UserRole
+        )
+
+        def trySetVersionActive():
+            fileId = versionModel.getFileId()
+            versionModel.apiClient.setVersionActive(fileId, versionId)
+            versionModel.refreshModel()
+            self.form.versionsComboBox.setCurrentIndex(versionModel.getCurrentIndex())
+
+            self.downloadFileFileId(fileId)
+
+        self.handle(trySetVersionActive)
 
         # Process the user's choice
-        if choice == QMessageBox.Save:
-            # Save and upload the current version
-            doc = FreeCAD.open(fullFileName)
-            doc.save()
-            self.currentWorkspaceModel.uploadFile(idx)
-            FreeCAD.closeDocument(doc.Name)
+        # if choice == QMessageBox.Save:
+        #     # Save and upload the current version
+        #     doc = FreeCAD.open(fullFileName)
+        #     doc.save()
+        #     self.currentWorkspaceModel.uploadFile(idx)
+        #     FreeCAD.closeDocument(doc.Name)
 
-            # Download (and override) the required version from the server
-            model.API_Client.downloadFileFromServer(versionUniqueFileName, fullFileName)
+        #     # Download (and override) the required version from the server
+        #     model.API_Client.downloadFileFromServer(versionUniqueFileName,
+        #                                             fullFileName)
 
-            # re-open the file
-            doc = FreeCAD.open(fullFileName)
-        elif choice == QMessageBox.Discard:
-            # Download (and override) the required version from the server
-            model.API_Client.downloadFileFromServer(versionUniqueFileName, fullFileName)
+        #     # re-open the file
+        #     doc = FreeCAD.open(fullFileName)
+        # elif choice == QMessageBox.Discard:
+        #     # Download (and override) the required version from the server
+        #     model.API_Client.downloadFileFromServer(versionUniqueFileName,
+        #                                             fullFileName)
 
-            doc = FreeCAD.open(fullFileName)
-            doc.restore()
-        model.refreshModel()
+        #     doc = FreeCAD.open(fullFileName)
+        #     doc.restore()
+        # model.refreshModel()
 
-    def fileListClickedLoggedIn(self, file_item):
-        fileName = file_item.name
-        if "modelId" in file_item.serverFileDict:
-            # currentModelId is used for the server model and is necessary to
-            # open models online
-            self.currentModelId = file_item.serverFileDict["modelId"]
-
+    def updateThumbnail(self, fileItem):
+        fileName = fileItem.name
         self.form.thumbnail_label.show()
         path = self.currentWorkspaceModel.getFullPath()
         pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
@@ -772,19 +825,33 @@ class WorkspaceView(QtGui.QDockWidget):
                 pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
         self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
         self.form.thumbnail_label.setPixmap(pixmap)
+
+    def fileListClickedLoggedIn(self, file_item):
+        logger.debug("fileListClickedLoggedIn")
+        fileName = file_item.name
+        if "modelId" in file_item.serverFileDict:
+            # currentModelId is used for the server model and is necessary to
+            # open models online
+            self.currentModelId = file_item.serverFileDict["modelId"]
+        self.form.thumbnail_label.show()
+        self.updateThumbnail(file_item)
         self.form.fileNameLabel.setText(fileName)
+        self.form.fileNameLabel.show()
 
         version_model = None
         self.links_model = None
-        self.form.viewOnlineBtn.setVisible(False)
-        self.form.linkDetails.setVisible(False)
 
         self.form.fileDetails.setVisible(True)
         if self.currentModelId is not None:
             self.links_model = ShareLinkModel(self.currentModelId, self.apiClient)
             self.form.viewOnlineBtn.setVisible(True)
             self.form.linkDetails.setVisible(True)
-            version_model = OndselVersionModel(self.currentModelId, self.apiClient)
+            version_model = OndselVersionModel(
+                self.currentModelId, self.apiClient, file_item.serverFileDict["_id"]
+            )
+        else:
+            self.form.viewOnlineBtn.setVisible(False)
+            self.form.linkDetails.setVisible(False)
         self.form.linksView.setModel(self.links_model)
         self.setVersionListModel(version_model)
 
@@ -811,6 +878,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.setVersionListModel(None)
 
     def fileListClicked(self, index):
+        logger.debug("fileListClicked")
         file_item = self.currentWorkspaceModel.data(index)
         fileName = file_item.name
         self.currentModelId = None
@@ -843,7 +911,9 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.versionsComboBox.setVisible(False)
         else:
             self.form.versionsComboBox.setModel(model)
+            self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
             self.form.versionsComboBox.setVisible(True)
+            logger.debug("setVisible here?")
 
     # def showWorkspaceContextMenu(self, pos):
     #     index = self.form.workspaceListView.indexAt(pos)
@@ -919,13 +989,16 @@ class WorkspaceView(QtGui.QDockWidget):
             self.openModelOnline()
             self.currentModelId = None
         elif action == downloadAction:
-            self.currentWorkspaceModel.downloadFile(index)
+            self.downloadFile(index)
         elif action == uploadAction:
 
             def tryUpload():
                 self.currentWorkspaceModel.uploadFile(index)
                 if self.form.versionsComboBox.isVisible():
-                    self.form.versionsComboBox.model().refreshModel()
+                    model = self.form.versionsComboBox.model()
+                    model.refreshModel()
+                    self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
+                    logger.debug("versionComboBox setCurrentIndex")
 
             self.handle(tryUpload)
 

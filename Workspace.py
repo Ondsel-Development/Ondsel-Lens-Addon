@@ -199,7 +199,7 @@ class WorkspaceModel(QAbstractListModel):
 
     def getFileNames(self):
         """
-        Get the filenames of the current directory.
+        Get the filenames of the currentdirectory.
         """
         localDirs, localFiles = self.getLocalFiles()
         return [fi.name for fi in localDirs + localFiles]
@@ -401,6 +401,10 @@ class ServerWorkspaceModel(WorkspaceModel):
                 logger.debug(f"localCreated: {localFileItem.createdAt}")
                 serverFileItem.status = FileStatus.SERVER_COPY_OUTDATED
             elif serverDate > localDate:
+                logger.debug(f"serverDate updated: {serverDate}")
+                logger.debug(f"serverCreated: {serverFileItem.createdAt}")
+                logger.debug(f"localDate updated: {localDate}")
+                logger.debug(f"localCreated: {localFileItem.createdAt}")
                 serverFileItem.status = FileStatus.LOCAL_COPY_OUTDATED
             else:
                 serverFileItem.status = FileStatus.SYNCED
@@ -433,11 +437,15 @@ class ServerWorkspaceModel(WorkspaceModel):
         elif role == self.NameAndIsFolderRole:
             return file_item.name, file_item.is_folder
         elif role == self.IdRole:
-            if (
-                file_item.serverFileDict is not None
-                and "modelId" in file_item.serverFileDict
-            ):
-                return file_item.serverFileDict["modelId"]
+            # Commented out the code below.  It is confusing, and if at a later
+            # stage the modelId is required, it would bet better to create a
+            # role for that.
+            # if (
+            #     file_item.serverFileDict is not None
+            #     and "modelId" in file_item.serverFileDict
+            # ):
+            #     return file_item.serverFileDict["modelId"]
+            return file_item.serverFileDict["_id"]
         elif role == self.StatusRole:
             return file_item.status
         elif role == self.NameStatusAndIsFolderRole:
@@ -492,6 +500,7 @@ class ServerWorkspaceModel(WorkspaceModel):
             self.refreshModel()
         else:
             file_path = Utils.joinPath(self.getFullPath(), file_item.name)
+            logger.debug(f"file path: {file_path}")
             if not os.path.isfile(file_path):
                 # download the file
                 self.apiClient.downloadFileFromServer(
@@ -499,6 +508,7 @@ class ServerWorkspaceModel(WorkspaceModel):
                     file_path,
                 )
             if Utils.isOpenableByFreeCAD(file_path):
+                logger.debug(f"is openable file path: {file_path}")
                 FreeCAD.loadFile(file_path)
 
     def deleteFile(self, index):
@@ -514,12 +524,19 @@ class ServerWorkspaceModel(WorkspaceModel):
         # super().deleteFile(index)
         pass
 
-    def downloadFile(self, index):
-        # This will download the latest version.
+    def getFileItemFileId(self, fileId):
+        try:
+            indexFileId = [fi.serverFileDict["_id"] for fi in self.files].index(fileId)
+        except ValueError:
+            logger.error("Cannot find the correct fileId")
+            return None
+        return self.files[indexFileId]
+
+    def downloadFile(self, file_item):
+        # This will download the current (active) version.
         # Throws an APIClientException
 
         logger.info("Downloading file...")
-        file_item = self.files[index.row()]
         if file_item.is_folder:
             logger.warn("Download of folders not supported yet.")
         else:
