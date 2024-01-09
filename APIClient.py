@@ -267,10 +267,6 @@ class APIClient:
             # "createSystemGeneratedShareLink": False,
         }
 
-        from pprint import pprint
-
-        pprint(payload)
-        print(modelId)
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))
 
         return result
@@ -400,12 +396,10 @@ class APIClient:
     @authRequired
     def downloadFileFromServer(self, uniqueName, filename):
         endpoint = f"/upload/{uniqueName}"
-        print(filename)
 
         response = self._request(endpoint)
         directory = os.path.dirname(filename)
         os.makedirs(directory, exist_ok=True)
-        print(response)
 
         self._download(response["url"], filename)
 

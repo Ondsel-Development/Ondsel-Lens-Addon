@@ -536,7 +536,7 @@ class ServerWorkspaceModel(WorkspaceModel):
         # This will download the current (active) version.
         # Throws an APIClientException
 
-        logger.info("Downloading file...")
+        logger.info(f"Downloading file {file_item.name}")
         if file_item.is_folder:
             logger.warn("Download of folders not supported yet.")
         else:
@@ -563,8 +563,6 @@ class ServerWorkspaceModel(WorkspaceModel):
         return msg_box.exec_() == QMessageBox.Yes
 
     def uploadFile(self, index):
-        print("uploading file...")
-
         file_item = self.files[index.row()]
         if file_item.is_folder:
             print("Upload of folders not supported yet.")
@@ -622,6 +620,7 @@ class ServerWorkspaceModel(WorkspaceModel):
 
         # raises APIClientException
 
+        logger.info(f"Uploading file {fileName}")
         base, extension = os.path.splitext(fileName)
         uniqueName = f"{str(uuid.uuid4())}.fcstd"  # TODO replace .fcstd by {extension}
 
@@ -637,8 +636,9 @@ class ServerWorkspaceModel(WorkspaceModel):
             result = self.apiClient.updateFileObj(
                 fileId, fileUpdateDate, uniqueName, currentDir, workspace
             )
-            if extension.lower() in [".fcstd", ".obj"]:
-                self.apiClient.regenerateModelObj(result["modelId"], fileId)
+            # no longer needed
+            # if extension.lower() in [".fcstd", ".obj"]:
+            #     self.apiClient.regenerateModelObj(result["modelId"], fileId)
         else:
             result = self.apiClient.createFile(
                 fileName, fileUpdateDate, uniqueName, currentDir, workspace

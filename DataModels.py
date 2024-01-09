@@ -64,56 +64,42 @@ class WorkspaceListModel(QAbstractListModel):
         self.endResetModel()
         self.save()
 
-    """def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl,
-                     _id, organisation, rootDirectory):
-        for workspace in reversed(self.workspaces):
-            if workspace["name"] == workspaceName:
-                if workspaceType == "Ondsel" and workspace["type"] == "Local":
-                    workspace["type"] = "Ondsel"
-                    self.save()
-                return
+    # def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl,
+    #                  _id, organisation, rootDirectory):
+    #     for workspace in reversed(self.workspaces):
+    #         if workspace["name"] == workspaceName:
+    #             if workspaceType == "Ondsel" and workspace["type"] == "Local":
+    #                 workspace["type"] = "Ondsel"
+    #                 self.save()
+    #             return
 
-        self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
-        self.workspaces.append(
-            {
-                "name": workspaceName,
-                "description": workspaceDesc,
-                "type": workspaceType,
-                "url": workspaceUrl,
-                "_id": _id,
-                "organizationId": organisation,
-                "rootDirectory" : rootDirectory,
-                "currentDirectory" : rootDirectory
-            }
-        )
-        self.endInsertRows()
-        self.save()
+    #     self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
+    #     self.workspaces.append(
+    #         {
+    #             "name": workspaceName,
+    #             "description": workspaceDesc,
+    #             "type": workspaceType,
+    #             "url": workspaceUrl,
+    #             "_id": _id,
+    #             "organizationId": organisation,
+    #             "rootDirectory" : rootDirectory,
+    #             "currentDirectory" : rootDirectory
+    #         }
+    #     )
+    #     self.endInsertRows()
+    #     self.save()
 
-    def removeWorkspace(self, index):
-        if index.isValid() and 0 <= index.row() < len(self.workspaces):
-            self.beginRemoveRows(QtCore.QModelIndex(), index.row(), index.row())
-            del self.workspaces[index.row()]
-            self.endRemoveRows()
-            self.save()
+    # def removeWorkspace(self, index):
+    #     if index.isValid() and 0 <= index.row() < len(self.workspaces):
+    #         self.beginRemoveRows(QtCore.QModelIndex(), index.row(), index.row())
+    #         del self.workspaces[index.row()]
+    #         self.endRemoveRows()
+    #         self.save()
 
-    def removeOndselWorkspaces(self):
+    def removeWorkspaces(self):
         self.beginResetModel()
-
-        for workspace in reversed(self.workspaces):
-            if workspace["type"] == "Ondsel":
-                if p.GetBool("clearCache", False):
-                    # Delete the Ondsel local Folder
-                    try:
-                        shutil.rmtree(workspace["url"])
-                    except FileNotFoundError:
-                        print("Directory does not exist")
-
-                    self.workspaces.remove(workspace)
-                else:
-                    workspace["type"] = "Local"
-
+        self.workspaces = []
         self.endResetModel()
-        self.save()"""
 
     def load(self):
         self.workspaces = []

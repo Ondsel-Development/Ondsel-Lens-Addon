@@ -13,7 +13,7 @@ from PySide2.QtGui import QPixmap
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
 
-DEBUG_LEVEL = logging.DEBUG
+DEBUG_LEVEL = logging.INFO
 
 
 class FreeCADHandler(logging.Handler):
@@ -98,7 +98,10 @@ def getLogger(name):
     logger = logging.getLogger(name)
     logger.setLevel(DEBUG_LEVEL)
     handler = FreeCADHandler()
-    formatter = logging.Formatter("%(levelname)s: %(name)s:%(lineno)d %(message)s")
+    if DEBUG_LEVEL >= logging.INFO:
+        formatter = logging.Formatter("%(levelname)s: %(message)s")
+    else:
+        formatter = logging.Formatter("%(levelname)s: %(name)s:%(lineno)d %(message)s")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger

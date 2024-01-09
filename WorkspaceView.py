@@ -22,7 +22,7 @@ import FreeCAD
 import FreeCADGui as Gui
 
 
-from DataModels import WorkspaceListModel
+from DataModels import WorkspaceListModel, CACHE_PATH
 from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import APIClient, APIClientException, APIClientAuthenticationException
@@ -1252,13 +1252,20 @@ class WorkspaceView(QtGui.QDockWidget):
         p.SetString("loginData", "")
         self.access_token = None
         self.apiClient = None
+        self.user = None
 
         if self.currentWorkspaceModel:
             self.setWorkspaceModel()
 
-        # self.leaveWorkspace()
-
-        # self.workspacesModel.removeOndselWorkspaces()
+        if p.GetBool("clearCache", False):
+            shutil.rmtree(CACHE_PATH)
+            self.currentWorkspace = None
+            self.currentWorkspaceModel = None
+            self.form.fileList.setModel(None)
+            self.workspacesModel.removeWorkspaces()
+            self.switchView()
+            self.form.workspaceNameLabel.setText("")
+            self.form.fileDetails.setVisible(False)
 
     def timerTick(self):
         def tryRefresh():
