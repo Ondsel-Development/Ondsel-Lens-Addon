@@ -1629,12 +1629,19 @@ class SharingLinkEditDialog(QtGui.QDialog):
 
     def setLinkProperties(self):
         self.dialog.linkName.setText(self.linkProperties["description"])
+        self.dialog.canViewModelCheckBox.setChecked(
+            self.linkProperties["canViewModel"]
+        )
         self.dialog.canViewModelAttributesCheckBox.setChecked(
             self.linkProperties["canViewModelAttributes"]
         )
-        self.dialog.canUpdateModelCheckBox.setChecked(
+        self.dialog.canUpdateModelAttributesCheckBox.setChecked(
             self.linkProperties["canUpdateModel"]
         )
+        self.dialog.canDownloadOriginalCheckBox.setChecked(
+            self.linkProperties["canDownloadDefaultModel"]
+        )
+
         self.dialog.canExportFCStdCheckBox.setChecked(
             self.linkProperties["canExportFCStd"]
         )
@@ -1647,11 +1654,15 @@ class SharingLinkEditDialog(QtGui.QDialog):
     def getLinkProperties(self):
         self.linkProperties["description"] = self.dialog.linkName.text()
         self.linkProperties[
+            "canViewModel"
+        ] = self.dialog.canViewModelCheckBox.isChecked()
+        self.linkProperties[
             "canViewModelAttributes"
         ] = self.dialog.canViewModelAttributesCheckBox.isChecked()
         self.linkProperties[
             "canUpdateModel"
-        ] = self.dialog.canUpdateModelCheckBox.isChecked()
+        ] = self.dialog.canUpdateModelAttributesCheckBox.isChecked()
+
         self.linkProperties[
             "canExportFCStd"
         ] = self.dialog.canExportFCStdCheckBox.isChecked()

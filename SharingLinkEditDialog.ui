@@ -27,16 +27,30 @@
       <widget class="QLineEdit" name="linkName"/>
      </item>
      <item>
-      <widget class="QCheckBox" name="canViewModelAttributesCheckBox">
+      <widget class="QCheckBox" name="canViewModelCheckBox">
        <property name="text">
-        <string>Show model attributes</string>
+        <string>Can view model</string>
        </property>
       </widget>
      </item>
      <item>
-      <widget class="QCheckBox" name="canUpdateModelCheckBox">
+      <widget class="QCheckBox" name="canViewModelAttributesCheckBox">
        <property name="text">
-        <string>Allow updating the model</string>
+        <string>Can view model attributes</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="canUpdateModelAttributesCheckBox">
+       <property name="text">
+        <string>Can update model attributes</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="canDownloadOriginalCheckBox">
+       <property name="text">
+        <string>Can download original model</string>
        </property>
       </widget>
      </item>
