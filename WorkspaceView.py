@@ -53,6 +53,8 @@ from PySide.QtGui import (
 
 logger = Utils.getLogger(__name__)
 
+MAX_LENGTH_BASE_FILENAME = 30
+
 mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 modPath = os.path.dirname(__file__).replace("\\", "/")
@@ -111,7 +113,7 @@ class FileListDelegate(QStyledItemDelegate):
                 "back", QtGui.QIcon(":/icons/document-new.svg")
             )
         icon.paint(painter, icon_rect)
-        textToDisplay = fileName
+        textToDisplay = renderFileName(fileName)
         if status:
             textToDisplay += " (" + str(status) + ")"
 
@@ -120,6 +122,18 @@ class FileListDelegate(QStyledItemDelegate):
             textToDisplay, QtGui.Qt.ElideRight, option.rect.width()
         )
         painter.drawText(text_rect, QtCore.Qt.AlignLeft, elidedText)
+
+
+def renderFileName(fileName):
+    base, extension = os.path.splitext(fileName)
+    if len(base) > MAX_LENGTH_BASE_FILENAME:
+        nrEndingChars = 5
+        elipses = "..."
+        lengthElipses = len(elipses)
+        startElipses = MAX_LENGTH_BASE_FILENAME - nrEndingChars - lengthElipses
+        return base[:startElipses] + elipses + base[-nrEndingChars:] + extension
+    else:
+        return fileName
 
 
 class LinkListDelegate(QStyledItemDelegate):
@@ -894,7 +908,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.currentModelId = file_item.serverFileDict["modelId"]
         self.form.thumbnail_label.show()
         self.updateThumbnail(file_item)
-        self.form.fileNameLabel.setText(fileName)
+        self.form.fileNameLabel.setText(renderFileName(fileName))
         self.form.fileNameLabel.show()
 
         version_model = None
@@ -929,7 +943,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.thumbnail_label.show()
             self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
             self.form.thumbnail_label.setPixmap(pixmap)
-            self.form.fileNameLabel.setText(fileName)
+            self.form.fileNameLabel.setText(renderFileName(fileName))
             self.form.viewOnlineBtn.setVisible(False)
             self.form.linkDetails.setVisible(False)
             self.form.fileDetails.setVisible(True)
@@ -1208,7 +1222,7 @@ class WorkspaceView(QtGui.QDockWidget):
             QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
         )
         if result == QtGui.QMessageBox.Yes:
-            self.handle(model.delete_link(linkId))
+            self.handle(lambda: model.delete_link(linkId))
 
     def addShareLink(self):
         dialog = SharingLinkEditDialog(None, self)
@@ -1629,9 +1643,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
 
     def setLinkProperties(self):
         self.dialog.linkName.setText(self.linkProperties["description"])
-        self.dialog.canViewModelCheckBox.setChecked(
-            self.linkProperties["canViewModel"]
-        )
+        self.dialog.canViewModelCheckBox.setChecked(self.linkProperties["canViewModel"])
         self.dialog.canViewModelAttributesCheckBox.setChecked(
             self.linkProperties["canViewModelAttributes"]
         )
