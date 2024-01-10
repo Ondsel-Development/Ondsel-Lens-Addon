@@ -401,7 +401,7 @@ class APIClient:
         directory = os.path.dirname(filename)
         os.makedirs(directory, exist_ok=True)
 
-        self._download(response["url"], filename)
+        return self._download(response["url"], filename)
 
     # Shared Model Functions
 

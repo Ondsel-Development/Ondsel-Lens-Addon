@@ -11,11 +11,29 @@ import os
 import xml.etree.ElementTree as ET
 import zipfile
 
+import Utils
+
+logger = Utils.getLogger(__name__)
+
 
 class VersionModel(QAbstractListModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.versions = []
+
+    @staticmethod
+    def getVersionDateTime(version):
+        """
+        Return the updated and created date given a server version
+
+        The updatedDate may not be available in which case the createdDate is
+        used.
+        """
+        createdDate = version["createdAt"]
+        hasFileUpdatedAt = "fileUpdatedAt" in version["additionalData"]
+        logger.debug(f"has fileUpdatedAt? {hasFileUpdatedAt}")
+        updatedDate = version["additionalData"].get("fileUpdatedAt", createdDate)
+        return updatedDate, createdDate
 
     def refreshModel(self):
         pass  # Implemented in subclasses
@@ -196,14 +214,17 @@ class LocalVersionModel(VersionModel):
 
 
 class OndselVersionModel(VersionModel):
-    def __init__(self, model_id, apiClient, fileId, parent=None):
+    def __init__(self, model_id, apiClient, fileItem, parent=None):
         super().__init__(parent)
         self.model_id = model_id
         self.apiClient = apiClient
         # The version model belongs to a specific fileId
-        self.fileId = fileId
+        self.fileItem = fileItem
 
-        self.refreshModel()
+        # the version that is on disk
+        self.onDiskVersionId = None
+
+        self.refreshModel(fileItem)
 
     # def sortVersions(self, fileDict):
     #     """Sort the versions"
@@ -218,7 +239,25 @@ class OndselVersionModel(VersionModel):
     #         versions[0], versions[indexCurrentVersionId]
     #     return versions
 
-    def refreshModel(self):
+    def getOnDiskVersionId(self, fileItem):
+        """Retrieve the id of a version of a file if it is on disk.
+
+        This code checks whether a file on disk is a specific version by
+        checking the updated times.  If a file on disk is indeed a specific
+        version on the server we return the versionId, otherwise None.
+        """
+        path = fileItem.getPath()
+        logger.debug(f"path: {path}")
+        logger.debug(f"fileItem: {fileItem}")
+        if os.path.isfile(path):
+            updatedAtDisk = Utils.getFileUpdatedAt(path)
+            for version in self.versions:
+                updatedAt, createdAt = VersionModel.getVersionDateTime(version)
+                if updatedAt == updatedAtDisk or createdAt == updatedAtDisk:
+                    return version["_id"]
+        return None
+
+    def refreshModel(self, fileItem):
         # raises an APIClientException
         self.clearModel()
         model = self.apiClient.getModel(self.model_id)
@@ -226,15 +265,36 @@ class OndselVersionModel(VersionModel):
 
         self.beginResetModel()
         self.versions = fileDict["versions"][::-1]
+
+        # The version that is active on the server
         self.currentVersionId = fileDict["currentVersionId"]
+
+        self.onDiskVersionId = self.getOnDiskVersionId(fileItem)
         self.endResetModel()
 
+    def getCurrentVersionId(self):
+        """Get the current version.
+
+        In this context, the current version is the one on disk and if there is
+        no file on disk, it is the active version on the server.
+        """
+        versionId = self.currentVersionId
+        if self.onDiskVersionId:
+            versionId = self.onDiskVersionId
+        return versionId
+
     def getCurrentIndex(self):
-        return [v["_id"] for v in self.versions].index(self.currentVersionId)
+        """Get the index of the current version.
+
+        In this context, the current version is the one on disk and if there is
+        no file on disk, it is the active version on the server.
+        """
+        versionId = self.getCurrentVersionId()
+        return [v["_id"] for v in self.versions].index(versionId)
 
     def getFileId(self):
         "Get the file id of the versions"
-        return self.fileId
+        return self.fileItem.serverFileDict["_id"]
 
     def data(self, index, role):
         row = index.row()
@@ -247,6 +307,6 @@ class OndselVersionModel(VersionModel):
 
         # Additional role for accessing the unique filename and the version Id
         if role == Qt.UserRole:
-            return version["uniqueFileName"], version["_id"]
+            return version
 
         return None

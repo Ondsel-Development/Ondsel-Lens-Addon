@@ -23,6 +23,8 @@ from inspect import cleandoc
 
 from DataModels import CACHE_PATH
 
+from VersionModel import VersionModel
+
 logger = Utils.getLogger(__name__)
 
 # class WorkspaceModelFactory:
@@ -141,7 +143,7 @@ class WorkspaceModel(QAbstractListModel):
                     file_item = FileItem(
                         basename,
                         extension.lower(),
-                        file_path,
+                        self.getFullPath(),
                         False,
                         [basename],
                         basename,
@@ -326,7 +328,7 @@ class ServerWorkspaceModel(WorkspaceModel):
         for serverFileDict in serverFileDicts:
             currentVersion = serverFileDict["currentVersion"]
 
-            updatedDate, createdDate = self.getServerDates(currentVersion)
+            updatedDate, createdDate = VersionModel.getVersionDateTime(currentVersion)
             custFileName = serverFileDict["custFileName"]
             _, extension = os.path.splitext(custFileName)
             file_item = FileItem(
@@ -532,20 +534,22 @@ class ServerWorkspaceModel(WorkspaceModel):
             return None
         return self.files[indexFileId]
 
-    def downloadFile(self, file_item):
+    def downloadFile(self, fileItem):
         # This will download the current (active) version.
         # Throws an APIClientException
+        currentVersion = fileItem.serverFileDict["currentVersion"]
+        self.downloadVersion(fileItem, currentVersion)
 
-        logger.info(f"Downloading file {file_item.name}")
-        if file_item.is_folder:
+    def downloadVersion(self, fileItem, version):
+        # This will download a specific version
+        # Throws an APIClientException
+        if fileItem.is_folder:
             logger.warn("Download of folders not supported yet.")
         else:
-            file_path = Utils.joinPath(self.getFullPath(), file_item.name)
-            currentVersion = file_item.serverFileDict["currentVersion"]
-            self.apiClient.downloadFileFromServer(
-                currentVersion["uniqueFileName"], file_path
-            )
-            updatedAt, createdAt = self.getServerDates(currentVersion)
+            logger.info(f"Downloading file {fileItem.name}")
+            file_path = fileItem.getPath()
+            self.apiClient.downloadFileFromServer(version["uniqueFileName"], file_path)
+            updatedAt, createdAt = VersionModel.getVersionDateTime(version)
             Utils.setFileModificationTimes(file_path, updatedAt, createdAt)
         self.refreshModel()
 
@@ -699,6 +703,9 @@ class FileItem:
         self.updatedAt = updatedAt
         self.status = status
         self.serverFileDict = serverFileDict
+
+    def getPath(self):
+        return Utils.joinPath(self.path, self.name)
 
     def dump(self):
         print(

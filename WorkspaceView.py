@@ -26,9 +26,12 @@ from DataModels import WorkspaceListModel, CACHE_PATH
 from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import (
-    APIClient, APIClientException, APIClientAuthenticationException,
-    APIClientConnectionError, APIClientRequestException
-    )
+    APIClient,
+    APIClientException,
+    APIClientAuthenticationException,
+    APIClientConnectionError,
+    APIClientRequestException,
+)
 from Workspace import (
     WorkspaceModel,
     LocalWorkspaceModel,
@@ -738,6 +741,27 @@ class WorkspaceView(QtGui.QDockWidget):
         file_item = wsm.files[index.row()]
         self.downloadFileFileItem(file_item)
 
+    def downloadVersion(self, fileItem, version):
+        wsm = self.currentWorkspaceModel
+        # TODO: are these messages relevant if it is a version that is not the
+        # active one?
+        if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
+            msg = "The local copy is outdated compared to the active version."
+            if not self.confirmDownload(msg):
+                wsm.refreshModel()
+                return False
+        elif fileItem.status == FileStatus.UNTRACKED:
+            # should not happen as the menu should not be enabled
+            logger.error("It is not possible to download an untracked file")
+            return False
+        elif fileItem.status == FileStatus.SERVER_COPY_OUTDATED:
+            msg = "The local copy is newer than the active version."
+            if not self.confirmDownload(msg):
+                wsm.refreshModel()
+                return False
+
+        return wsm.downloadVersion(fileItem, version)
+
     def downloadFileForVersion(self, fileId):
         wsm = self.currentWorkspaceModel
         fileItem = wsm.getFileItemFileId(fileId)
@@ -780,15 +804,10 @@ class WorkspaceView(QtGui.QDockWidget):
         wsm.downloadFile(fileItem)
         self.updateThumbnail(fileItem)
 
-    def restoreFile(self, fileId):
-        wsm = self.currentWorkspaceModel
-        fileItem = wsm.getFileItemFileId(fileId)
-        fileName = fileItem.name
-        path = fileItem.path
-
+    def restoreFile(self, fileItem):
         # iterate over the files
         for doc in FreeCAD.listDocuments().values():
-            if doc.FileName == Utils.joinPath(path, fileName):
+            if doc.FileName == fileItem.getPath():
                 doc.restore()
 
     def versionClicked(self, row):
@@ -813,21 +832,23 @@ class WorkspaceView(QtGui.QDockWidget):
         versionModel = comboBox.model()
         indexVersion = versionModel.index(row, 0)
 
-        versionUniqueFileName, versionId = versionModel.data(
-            indexVersion, role=QtCore.Qt.UserRole
-        )
+        version = versionModel.data(indexVersion, role=QtCore.Qt.UserRole)
+        versionId = version["_id"]
+        wsm = self.currentWorkspaceModel
 
-        def trySetVersionActive():
-            fileId = versionModel.getFileId()
-            if versionId != versionModel.currentVersionId:
-                versionModel.apiClient.setVersionActive(fileId, versionId)
-            versionModel.refreshModel()
-            comboBox.setCurrentIndex(versionModel.getCurrentIndex())
+        fileItem = versionModel.fileItem
 
-            self.downloadFileForVersion(fileId)
-            self.restoreFile(fileId)
+        def trySetVersion():
+            if versionId == versionModel.onDiskVersionId:
+                logger.info("This version has already been downloaded")
+            else:
+                if self.downloadVersion(fileItem, version):
+                    newFileItem = wsm.getFileItemFileId(fileItem["_id"])
+                    versionModel.refreshModel(newFileItem)
+                    comboBox.setCurrentIndex(versionModel.getCurrentIndex())
+                    self.restoreFile(newFileItem)
 
-        self.handle(trySetVersionActive)
+        self.handle(trySetVersion)
 
         # Process the user's choice
         # if choice == QMessageBox.Save:
@@ -885,7 +906,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.viewOnlineBtn.setVisible(True)
             self.form.linkDetails.setVisible(True)
             version_model = OndselVersionModel(
-                self.currentModelId, self.apiClient, file_item.serverFileDict["_id"]
+                self.currentModelId, self.apiClient, file_item
             )
         else:
             self.form.viewOnlineBtn.setVisible(False)
