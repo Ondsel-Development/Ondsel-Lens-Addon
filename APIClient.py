@@ -19,6 +19,10 @@ class APIClientConnectionError(APIClientException):
     pass
 
 
+class APIClientRequestException(APIClientException):
+    pass
+
+
 OK = requests.codes.ok
 CREATED = requests.codes.created
 UNAUTHORIZED = requests.codes.unauthorized
@@ -63,19 +67,15 @@ class APIClient:
         }
 
         headers = {"Content-Type": "application/json"}
-        try:
-            data = self._post(endpoint, headers=headers, data=json.dumps(payload))
-            self.access_token = data["accessToken"]
-            self.user = data["user"]
-        except requests.exceptions.RequestException as e:
-            raise APIClientException(e)
-        # _post also throws an APIClientAuthenticationException or an APIClientException
+        data = self._post(endpoint, headers=headers, data=json.dumps(payload))
+        self.access_token = data["accessToken"]
+        self.user = data["user"]
 
-    def _raiseError(self, response, **kwargs):
-        "Raise a generic error based on the status code"
-        # dump only when debugging is enabled
+    def _raiseException(self, response, **kwargs):
+        "Raise a generic exception based on the status code"
+        # dumps only when debugging is enabled
         self._dump_response(response, **kwargs)
-        raise APIClientException(
+        raise APIClientRequestException(
             f"API request failed with status code {response.status_code}: "
             + response.json()["message"]
         )
@@ -89,12 +89,12 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", params=params, headers=headers
             )
         except requests.exceptions.RequestException as e:
-            raise APIClientException(e)
+            raise APIClientConnectionError(e)
 
         if response.status_code == OK:
             return response.json()
         else:
-            self._raiseError(
+            self._raiseException(
                 response, endpoint=endpoint, headers=headers, params=params
             )
 
@@ -106,12 +106,12 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, params=params
             )
         except requests.exceptions.RequestException as e:
-            raise APIClientException(e)
+            raise APIClientConnectionError(e)
 
         if response.status_code == OK:
             return response.json()
         else:
-            self._raiseError(
+            self._raiseException(
                 response, endpoint=endpoint, headers=headers, params=params
             )
 
@@ -125,7 +125,7 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
         except requests.exceptions.RequestException as e:
-            raise APIClientException(e)
+            raise APIClientConnectionError(e)
 
         # only _post makes a distinction between the general error and
         # unauthorized because _authenticate makes use of post and unauthorized
@@ -136,7 +136,7 @@ class APIClient:
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
         else:
-            self._raiseError(
+            self._raiseException(
                 response, endpoint=endpoint, headers=headers, data=data, files=files
             )
 
@@ -149,12 +149,12 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
         except requests.exceptions.RequestException as e:
-            raise APIClientException(e)
+            raise APIClientConnectionError(e)
 
         if response.status_code in [CREATED, OK]:
             return response.json()
         else:
-            self._raiseError(
+            self._raiseException(
                 response, endpoint=endpoint, headers=headers, data=data, files=files
             )
 
@@ -170,7 +170,7 @@ class APIClient:
                 f.write(response.content)
             return True
         else:
-            self._raiseError(response, url=url, filename=filename)
+            self._raiseException(response, url=url, filename=filename)
 
     def _dump_response(self, response, **kwargs):
         # # make a dictionary out of the keyword arguments

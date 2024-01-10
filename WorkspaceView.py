@@ -25,7 +25,10 @@ import FreeCADGui as Gui
 from DataModels import WorkspaceListModel, CACHE_PATH
 from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
-from APIClient import APIClient, APIClientException, APIClientAuthenticationException
+from APIClient import (
+    APIClient, APIClientException, APIClientAuthenticationException,
+    APIClientConnectionError, APIClientRequestException
+    )
 from Workspace import (
     WorkspaceModel,
     LocalWorkspaceModel,
@@ -682,9 +685,16 @@ class WorkspaceView(QtGui.QDockWidget):
         """
         try:
             func()
-        except APIClientException as e:
+        except APIClientConnectionError as e:
             logger.warn(e)
-            self.user = None
+            logger.warn("Logging out")
+            self.logout()
+        except APIClientRequestException as e:
+            logger.warn(e)
+        except APIClientException as e:
+            logger.error("Uncaught exception:")
+            logger.error(e)
+            logger.warn("Logging out")
             self.logout()
 
     def fileListDoubleClicked(self, index):
@@ -1185,7 +1195,9 @@ class WorkspaceView(QtGui.QDockWidget):
         if dialog.exec_() == QtGui.QDialog.Accepted:
             link_properties = dialog.getLinkProperties()
 
-            self.handle(self.form.linksView.model().add_new_link(link_properties))
+            self.handle(
+                lambda: self.form.linksView.model().add_new_link(link_properties)
+            )
 
     def openModelOnline(self):
         url = ondselUrl
@@ -1256,6 +1268,8 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if self.currentWorkspaceModel:
             self.setWorkspaceModel()
+
+        self.hideFileDetails()
 
         if p.GetBool("clearCache", False):
             shutil.rmtree(CACHE_PATH)
