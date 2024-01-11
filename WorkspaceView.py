@@ -768,10 +768,12 @@ class WorkspaceView(QtGui.QDockWidget):
         file_item = wsm.files[index.row()]
         self.downloadFileFileItem(file_item)
 
-    def downloadVersion(self, fileItem, version):
+    def downloadVersionConfirm(self, fileItem, version):
+        """Download a version after asking confirmation.
+
+        Refreshes the workspace model in any case.
+        """
         wsm = self.currentWorkspaceModel
-        # TODO: are these messages relevant if it is a version that is not the
-        # active one?
         if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
             msg = "The local copy is outdated compared to the active version."
             if not self.confirmDownload(msg):
@@ -789,19 +791,26 @@ class WorkspaceView(QtGui.QDockWidget):
 
         return wsm.downloadVersion(fileItem, version)
 
-    def downloadFileForVersion(self, fileId):
-        wsm = self.currentWorkspaceModel
-        fileItem = wsm.getFileItemFileId(fileId)
-        if not fileItem:
-            wsm.refreshModel()
-            return
-        else:
-            # we also pass on fileId to trigger a new refresh of the model to
-            # make sure we can differentiate the synchronization between the
-            # version before the version change and after the version change.
-            self.downloadFileFileItem(fileItem, fileId)
+    def downloadVersion(self, fileItem, version):
+        """Download a version.
 
-    def downloadFileFileItem(self, fileItem, fileId=None):
+        Refreshes the workspace model in any case.
+        """
+        comboBox = self.form.versionsComboBox
+        versionModel = comboBox.model()
+        wsm = self.currentWorkspaceModel
+
+        # if the current file is already a version, then simply download
+        if versionModel.getOnDiskVersionId(fileItem):
+            return wsm.downloadVersion(fileItem, version)
+        else:
+            return self.downloadVersionConfirm(fileItem, version)
+
+    def downloadFileFileItem(self, fileItem):
+        """Download a file based on a fileItem.
+
+        Refreshes the wsm in any case.
+        """
         wsm = self.currentWorkspaceModel
         if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
             msg = "The local copy is outdated compared to the active version."
@@ -817,14 +826,7 @@ class WorkspaceView(QtGui.QDockWidget):
             if not self.confirmDownload(msg):
                 wsm.refreshModel()
                 return
-
-        if fileId:
-            # in case a version change has been made, we should retrieve new
-            # data from the server to be able to keep the new download
-            # "synced" as well.
-            wsm.refreshModel()
-            fileItem = wsm.getFileItemFileId(fileId)
-        if fileItem.status == FileStatus.SYNCED:
+        elif fileItem.status == FileStatus.SYNCED:
             logger.info("This file is already in sync")
             wsm.refreshModel()
             return
@@ -838,22 +840,6 @@ class WorkspaceView(QtGui.QDockWidget):
                 doc.restore()
 
     def versionClicked(self, row):
-        # message_box = QMessageBox()
-        # message_box.setWindowTitle("Confirmation")
-        # message_box.setText(
-        #     "You are reverting to a backup file.\nDo you want to save the current "
-        #     "version as new backup or discard the changes?"
-        # )
-        # message_box.setStandardButtons(
-        #     QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
-        # )
-
-        # # Show the dialog and retrieve the user's choice
-        # choice = message_box.exec_()
-
-        # if choice == QMessageBox.Cancel:
-        #     return
-
         comboBox = self.form.versionsComboBox
 
         versionModel = comboBox.model()
@@ -865,43 +851,26 @@ class WorkspaceView(QtGui.QDockWidget):
 
         fileItem = versionModel.fileItem
 
+        def refreshUI():
+            # assumes that wsm has refreshed
+            newFileItem = wsm.getFileItemFileId(fileItem.serverFileDict["_id"])
+            versionModel.refreshModel(newFileItem)
+            comboBox.setCurrentIndex(versionModel.getCurrentIndex())
+            self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
+            return newFileItem
+
         def trySetVersion():
             if versionId == versionModel.onDiskVersionId:
                 logger.info("This version has already been downloaded")
             else:
+                # the download will refresh the wsm, so refresh the UI
                 if self.downloadVersion(fileItem, version):
-                    # after download, the models with files are refreshed, so get a
-                    # fresh fileItem
-                    newFileItem = wsm.getFileItemFileId(fileItem.serverFileDict["_id"])
-                    versionModel.refreshModel(newFileItem)
-                    comboBox.setCurrentIndex(versionModel.getCurrentIndex())
-                    self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
-                    self.restoreFile(newFileItem)
+                    self.restoreFile(refreshUI())
+                    self.updateThumbnail(fileItem)
+                else:
+                    refreshUI()
 
         self.handle(trySetVersion)
-
-        # Process the user's choice
-        # if choice == QMessageBox.Save:
-        #     # Save and upload the current version
-        #     doc = FreeCAD.open(fullFileName)
-        #     doc.save()
-        #     self.currentWorkspaceModel.uploadFile(idx)
-        #     FreeCAD.closeDocument(doc.Name)
-
-        #     # Download (and override) the required version from the server
-        #     model.API_Client.downloadFileFromServer(versionUniqueFileName,
-        #                                             fullFileName)
-
-        #     # re-open the file
-        #     doc = FreeCAD.open(fullFileName)
-        # elif choice == QMessageBox.Discard:
-        #     # Download (and override) the required version from the server
-        #     model.API_Client.downloadFileFromServer(versionUniqueFileName,
-        #                                             fullFileName)
-
-        #     doc = FreeCAD.open(fullFileName)
-        #     doc.restore()
-        # model.refreshModel()
 
     def updateThumbnail(self, fileItem):
         fileName = fileItem.name
