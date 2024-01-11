@@ -6,10 +6,7 @@ from PySide.QtCore import (
     QFileSystemWatcher,
     QThread,
 )
-from PySide.QtGui import (
-    QPixmap,
-    QMessageBox,
-)
+from PySide.QtGui import QPixmap
 import Utils
 import os
 import FreeCAD
@@ -553,54 +550,6 @@ class ServerWorkspaceModel(WorkspaceModel):
             Utils.setFileModificationTimes(file_path, updatedAt, createdAt)
         self.refreshModel()
 
-    def confirmUpload(self):
-        msg_box = QMessageBox()
-        msg_box.setWindowTitle("Confirmation")
-        msg_box.setText(
-            "The server version is newer than your local copy. Uploading will "
-            "override the server version.\nAre you sure you want to proceed?"
-        )
-        msg_box.setIcon(QMessageBox.Warning)
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.No)
-
-        return msg_box.exec_() == QMessageBox.Yes
-
-    def uploadFile(self, index):
-        file_item = self.files[index.row()]
-        if file_item.is_folder:
-            print("Upload of folders not supported yet.")
-        else:
-            # TODO: in a shared setting refreshing is dangerous, suppose
-            # another user pushes a file, then the index does not point to the
-            # correct file any longer.
-            # First we refresh to make sure the file status have not changed.
-            # self.refreshModel()
-
-            # Check if the file is not newer on the server first.
-            if file_item.status == FileStatus.LOCAL_COPY_OUTDATED:
-                if not self.confirmUpload():
-                    return
-                else:
-                    logger.debug(
-                        f"Upload a file {file_item.name} while "
-                        "local copy is outdated"
-                    )
-                    self.upload(file_item.name, file_item.serverFileDict["_id"])
-            elif file_item.status is FileStatus.UNTRACKED:
-                logger.debug(f"Upload untracked file {file_item.name}")
-                self.upload(file_item.name)
-            elif file_item.status is FileStatus.SERVER_COPY_OUTDATED:
-                logger.debug(
-                    f"Upload a file {file_item.name} that is outdated on the server"
-                )
-                self.upload(file_item.name, file_item.serverFileDict["_id"])
-            elif file_item.status is FileStatus.SYNCED:
-                logger.info(f"File {file_item.name} is already in sync")
-            else:
-                logger.error(f"Unknown file status: {file_item.status}")
-        self.refreshModel()
-
     def uploadUntrackedFiles(self):
         # This function upload untracked files automatically to Server.
         # It is called in refreshModel (and not only into addCurrentFile and addFiles)
@@ -618,7 +567,9 @@ class ServerWorkspaceModel(WorkspaceModel):
         if refreshRequired:
             self.refreshModel(False)
 
-    def upload(self, fileName, fileId=None):
+    def upload(
+        self, fileName, fileId=None, message="Update from the Ondsel Lens addon"
+    ):
         # unique file name is always generated even if file is already on the
         # server under another uniqueFileName.  fileId is only used for updates
 
@@ -638,7 +589,7 @@ class ServerWorkspaceModel(WorkspaceModel):
 
         if fileId:
             result = self.apiClient.updateFileObj(
-                fileId, fileUpdateDate, uniqueName, currentDir, workspace
+                fileId, fileUpdateDate, uniqueName, currentDir, workspace, message
             )
             # no longer needed
             # if extension.lower() in [".fcstd", ".obj"]:

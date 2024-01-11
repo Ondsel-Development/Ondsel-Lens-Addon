@@ -519,6 +519,10 @@ class WorkspaceView(QtGui.QDockWidget):
 
         # self.guestMenu.addAction(self.newWorkspaceAction)
 
+    # ####
+    # Authentication
+    # ####
+
     def isLoggedIn(self):
         return self.access_token is not None and self.apiClient is not None
 
@@ -737,18 +741,26 @@ class WorkspaceView(QtGui.QDockWidget):
             link_properties = dialog.getLinkProperties()
             self.handle(lambda: model.update_link(index, link_properties))
 
-    def confirmDownload(self, msg):
+    # ####
+    # Downloading files
+    # ####
+
+    def confirmFileTransfer(self, message, transferMessage):
         msg_box = QMessageBox()
         msg_box.setWindowTitle("Confirmation")
         msg_box.setText(
-            f"{msg} Downloading will override this local version.\n"
-            "Are you sure you want to proceed?"
+            f"{message} {transferMessage}\nAre you sure you want to proceed?"
         )
         msg_box.setIcon(QMessageBox.Warning)
         msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
         msg_box.setDefaultButton(QMessageBox.No)
 
         return msg_box.exec_() == QMessageBox.Yes
+
+    def confirmDownload(self, message):
+        return self.confirmFileTransfer(
+            message, "Downloading will override this local version."
+        )
 
     def downloadFileIndex(self, index):
         wsm = self.currentWorkspaceModel
@@ -1064,16 +1076,92 @@ class WorkspaceView(QtGui.QDockWidget):
         elif action == downloadAction:
             self.downloadFileIndex(index)
         elif action == uploadAction:
+            self.upload(index, file_item)
 
-            def tryUpload():
-                self.currentWorkspaceModel.uploadFile(index)
-                if self.form.versionsComboBox.isVisible():
-                    model = self.form.versionsComboBox.model()
-                    model.refreshModel()
-                    self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
-                    logger.debug("versionComboBox setCurrentIndex")
+    # ####
+    # Uploading files (initial commit or updating a version
+    # ####
 
-            self.handle(tryUpload)
+    def uploadFile(
+        self,
+        fileItem,
+        fileName,
+        fileId=None,
+        message="Update from the Ondsel Lens addon",
+    ):
+        """Upload a file via the workspace model.
+
+        Interacts with the API.
+        """
+
+        def tryUpload():
+            wsm = self.currentWorkspaceModel
+            if fileId:
+                # updating an existing version
+                wsm.upload(fileName, fileId, message)
+            else:
+                # initial commit
+                wsm.upload(fileName)
+            wsm.refreshModel()
+            if self.form.versionsComboBox.isVisible():
+                model = self.form.versionsComboBox.model()
+                model.refreshModel(fileItem)
+                self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
+                logger.debug("versionComboBox setCurrentIndex")
+
+        self.handle(tryUpload)
+
+    def enterCommitMessage(self):
+        dialog = EnterCommitMessageDialog()
+        if dialog.exec_() == QtGui.QDialog.Accepted:
+            return dialog.getCommitMessage()
+        else:
+            return None
+
+    def uploadWithCommitMessage(self, fileItem, debugMessage):
+        commitMessage = self.enterCommitMessage()
+        if commitMessage:
+            logger.debug(f"Upload a file {fileItem.name} {debugMessage}")
+            self.uploadFile(
+                fileItem, fileItem.name, fileItem.serverFileDict["_id"], commitMessage
+            )
+
+    def confirmUpload(self, message):
+        return self.confirmFileTransfer(
+            message, "Uploading will override the server version."
+        )
+
+    def upload(self, index, fileItem):
+        """Upload a file.
+
+        First perform various checks / ask confirmation.
+        """
+        if fileItem.is_folder:
+            logger.info("Upload of folders not supported.")
+        else:
+            # TODO: in a shared setting refreshing is dangerous, suppose
+            # another user pushes a file, then the index does not point to the
+            # correct file any longer.
+            # First we refresh to make sure the file status have not changed.
+            # self.refreshModel()
+
+            # Check if the file is not newer on the server first.
+            if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
+                msg = "The local copy is outdated compared to the active version."
+                if not self.confirmUpload(msg):
+                    return
+                else:
+                    self.uploadWithCommitMessage(fileItem, "with local copy outdated")
+            elif fileItem.status is FileStatus.UNTRACKED:
+                logger.debug(f"Upload untracked file {fileItem.name}")
+                # Initial commit
+                self.upload(fileItem, fileItem.name)
+            elif fileItem.status is FileStatus.SERVER_COPY_OUTDATED:
+                self.uploadWithCommitMessage(fileItem, "that is outdated on the server")
+            elif fileItem.status is FileStatus.SYNCED:
+                logger.info(f"File {fileItem.name} is already in sync")
+            else:
+                logger.error(f"Unknown file status: {fileItem.status}")
 
     def showFileContextMenuDir(self, pos, index):
         menu = QtGui.QMenu()
@@ -1689,6 +1777,51 @@ class SharingLinkEditDialog(QtGui.QDialog):
         ] = self.dialog.canExportOBJCheckBox.isChecked()
 
         return self.linkProperties
+
+
+class EnterCommitMessageDialog(QtGui.QDialog):
+    MAX_LENGTH_COMMIT_MESSAGE = 50
+
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Commit Message")
+
+        self.label = QtGui.QLabel("Please provide a commit message:")
+        self.commit_message_input = QtGui.QLineEdit()
+        self.commit_message_input.setMaxLength(
+            EnterCommitMessageDialog.MAX_LENGTH_COMMIT_MESSAGE
+        )
+
+        self.upload_button = QtGui.QPushButton("Upload")
+        self.upload_button.clicked.connect(self.accept)
+
+        self.cancel_button = QtGui.QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.reject)
+
+        self.upload_button.setEnabled(False)
+
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(self.commit_message_input)
+
+        buttons_layout = QtGui.QHBoxLayout()
+        buttons_layout.addWidget(self.upload_button)
+        buttons_layout.addWidget(self.cancel_button)
+
+        layout.addLayout(buttons_layout)
+
+        self.setLayout(layout)
+
+        # Connect textChanged signals to enable/disable the create button
+        self.commit_message_input.textChanged.connect(self.check_commit_message)
+
+    def check_commit_message(self):
+        commit_message = self.commit_message_input.text()
+        enabled = len(commit_message) > 0
+        self.upload_button.setEnabled(enabled)
+
+    def getCommitMessage(self):
+        return self.commit_message_input.text()
 
 
 class CreateDirDialog(QtGui.QDialog):

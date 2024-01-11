@@ -308,6 +308,7 @@ class APIClient:
             "shouldCommitNewVersion": True,
             "version": {
                 "uniqueFileName": uniqueName,
+                # "message": "Initial commit from the Ondsel Lens addon",
                 "message": "Initial commit",
                 "fileUpdatedAt": fileUpdatedAt,
             },
@@ -321,7 +322,7 @@ class APIClient:
 
     @authRequired
     def updateFileObj(
-        self, fileId, fileUpdatedAt, uniqueFileName, directory, workspace
+        self, fileId, fileUpdatedAt, uniqueFileName, directory, workspace, message
     ):
         logger.debug(f"updatingFileObj {fileId} in dir {directory}")
         endpoint = f"file/{fileId}"
@@ -334,7 +335,7 @@ class APIClient:
             "version": {
                 "uniqueFileName": uniqueFileName,
                 "fileUpdatedAt": fileUpdatedAt,
-                "message": "Update from the Ondsel Lens addon",
+                "message": message,
             },
             "directory": directory,
             "workspace": workspace,
