@@ -421,8 +421,11 @@ class ServerWorkspaceModel(WorkspaceModel):
         self.files = self.sortFiles(dirs, files)
         self.endResetModel()
 
-        if firstCall:
-            self.uploadUntrackedFiles()
+        # This needs to be disabled unless we maintain our own file administration.
+        # If a file is deleted on the server, the addon will automatically add it to
+        # the server again by means of this call.
+        # if firstCall:
+        #     self.uploadUntrackedFiles()
 
     def data(self, index, role=Qt.DisplayRole):
         if not index.isValid():
@@ -510,18 +513,18 @@ class ServerWorkspaceModel(WorkspaceModel):
                 logger.debug(f"is openable file path: {file_path}")
                 FreeCAD.loadFile(file_path)
 
+    def deleteFileLocally(self, index):
+        super().deleteFile(index)
+        self.refreshModel()
+
     def deleteFile(self, index):
-        # TODO: awaiting further instructions
-        # file_item = self.files[index.row()]
-        # if (
-        #     file_item.serverFileDict is not None
-        #     and "modelId" in file_item.serverFileDict
-        # ):
-        #     self.apiClient.deleteModel(file_item.serverFileDict["modelId"])
-        # else:
-        #     self.apiClient.deleteFile(file_item.serverFileDict["_id"])
-        # super().deleteFile(index)
-        pass
+        """Delete a file from the server.
+
+        This function assumes that the files have been removed locally.
+        """
+        file_item = self.files[index.row()]
+        self.apiClient.deleteFile(file_item.serverFileDict["_id"])
+        self.refreshModel()
 
     def getFileItemFileId(self, fileId):
         try:

@@ -1036,6 +1036,56 @@ class WorkspaceView(QtGui.QDockWidget):
     #         if action == addAction:
     #             self.newWorkspaceBtnClicked()
 
+    # ####
+    # File deletion
+    # ####
+
+    def confirmDelete(self, fileName, where, additionalInfo=""):
+        return QtGui.QMessageBox.question(
+            self.form.fileList,
+            "Delete File",
+            "Are you sure you want to delete file "
+            f"<b>{fileName}</b> from {where}?{additionalInfo}",
+            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+        )
+
+    def confirmDeleteLens(self, fileName):
+        additionalInfo = """<br><br>Deleting this file also deletes:
+        <ul>
+          <li>All file revisions</li>
+          <li>Any 3D models of the file (current or past)</li>
+          <li>All share links to any of the file's revisions</li>
+        </ul>
+        """
+        return self.confirmDelete(fileName, "Lens", additionalInfo)
+
+    def confirmDeleteLocally(self, fileName):
+        return self.confirmDelete(fileName, "the local file system")
+
+    def deleteFileLoggedIn(self, fileItem, index):
+        fileName = fileItem.name
+        if fileItem.status == FileStatus.SERVER_ONLY:
+            if self.confirmDeleteLens(fileName) == QtGui.QMessageBox.Yes:
+                self.currentWorkspaceModel.deleteFile(index)
+        elif fileItem.status in [
+            FileStatus.UNTRACKED,
+            FileStatus.LOCAL_COPY_OUTDATED,
+            FileStatus.SERVER_COPY_OUTDATED,
+            FileStatus.SYNCED,
+        ]:
+            if self.confirmDeleteLocally(fileName) == QtGui.QMessageBox.Yes:
+                self.currentWorkspaceModel.deleteFileLocally(index)
+
+    def deleteFileLoggedOut(self, fileItem, index):
+        if self.confirmDeleteLocally(fileItem.name) == QtGui.QMessageBox.Yes:
+            self.currentWorkspaceModel.deleteFile(index)
+
+    def deleteFile(self, fileItem, index):
+        if self.isLoggedIn():
+            self.deleteFileLoggedIn(fileItem, index)
+        else:
+            self.deleteFileLoggedOut(fileItem, index)
+
     def showFileContextMenuFile(self, file_item, pos, index):
         menu = QtGui.QMenu()
         openOnlineAction = menu.addAction("View in Lens")
@@ -1050,8 +1100,6 @@ class WorkspaceView(QtGui.QDockWidget):
                 downloadAction.setEnabled(False)
             if file_item.ext not in [".fcstd", ".obj"]:
                 openOnlineAction.setEnabled(False)
-            # disable delete
-            deleteAction.setEnabled(False)
         else:
             uploadAction.setEnabled(False)
             downloadAction.setEnabled(False)
@@ -1060,14 +1108,7 @@ class WorkspaceView(QtGui.QDockWidget):
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
 
         if action == deleteAction:
-            result = QtGui.QMessageBox.question(
-                self.form.fileList,
-                "Delete File",
-                "Are you sure you want to delete this file?",
-                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-            )
-            if result == QtGui.QMessageBox.Yes:
-                self.currentWorkspaceModel.deleteFile(index)
+            self.deleteFile(file_item, index)
         if action == openOnlineAction:
             self.currentModelId = file_item.serverFileDict["modelId"]
             self.openModelOnline()

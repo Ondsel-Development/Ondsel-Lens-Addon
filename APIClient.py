@@ -363,8 +363,8 @@ class APIClient:
         return result
 
     @authRequired
-    def deleteFile(self, _id):
-        endpoint = f"/file/{_id}"
+    def deleteFile(self, fileId):
+        endpoint = f"file/{fileId}"
 
         result = self._delete(endpoint)
         return result
