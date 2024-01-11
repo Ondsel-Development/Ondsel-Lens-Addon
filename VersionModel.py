@@ -245,8 +245,6 @@ class OndselVersionModel(VersionModel):
         version on the server we return the versionId, otherwise None.
         """
         path = fileItem.getPath()
-        logger.debug(f"path: {path}")
-        logger.debug(f"fileItem: {fileItem}")
         if os.path.isfile(path):
             updatedAtDisk = Utils.getFileUpdatedAt(path)
             for version in self.versions:

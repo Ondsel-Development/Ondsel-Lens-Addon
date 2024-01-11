@@ -700,30 +700,35 @@ class WorkspaceView(QtGui.QDockWidget):
             self.handle(tryOpenParent)
 
     def handle(self, func):
-        """Handle a function that raises an APICLientException
+        """Handle a function that raises an APICLientException.
 
-        The function will issue a warning and it will log out the user, making
-        it still possible to use the addon offline.
+        Issue warning/errors and possibly log out the user, making
+        it still possible to use the addon.
+
+        Returns true if the user is logged out
         """
         try:
             func()
+            return False
         except APIClientConnectionError as e:
             logger.warn(e)
             logger.warn("Logging out")
             self.logout()
+            return True
         except APIClientRequestException as e:
             logger.warn(e)
+            return False
         except APIClientException as e:
             logger.error("Uncaught exception:")
             logger.error(e)
             logger.warn("Logging out")
             self.logout()
+            return True
 
     def fileListDoubleClicked(self, index):
         logger.debug("fileListDoubleClicked")
 
         def tryOpenFile():
-            logger.debug("tryOpenFile")
             self.currentWorkspaceModel.openFile(index)
             self.form.workspaceNameLabel.setText(
                 self.currentWorkspaceModel.getWorkspacePath()
@@ -885,7 +890,6 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.thumbnail_label.setPixmap(pixmap)
 
     def fileListClickedLoggedIn(self, file_item):
-        logger.debug("fileListClickedLoggedIn")
         fileName = file_item.name
         if "modelId" in file_item.serverFileDict:
             # currentModelId is used for the server model and is necessary to
@@ -900,9 +904,16 @@ class WorkspaceView(QtGui.QDockWidget):
         self.links_model = None
 
         self.form.fileDetails.setVisible(True)
-        self.form.viewOnlineBtn.setVisible(False)
-        self.form.linkDetails.setVisible(False)
-        self.form.makeActiveBtn.setVisible(False)
+
+        # It seems an idea to have the values below as default to then set them when
+        # initializing the models succeeds.  However, this leads to a jumping file list,
+        # so the nested function below is a better option, using it wherever we need to
+        # turn it off.
+        def hideDetails():
+            self.form.viewOnlineBtn.setVisible(False)
+            self.form.linkDetails.setVisible(False)
+            self.form.makeActiveBtn.setVisible(False)
+
         if self.currentModelId is not None:
 
             def tryInitModels():
@@ -915,7 +926,12 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.form.linkDetails.setVisible(True)
                 self.form.makeActiveBtn.setVisible(version_model.canBeMadeActive())
 
-            self.handle(tryInitModels)
+            if self.handle(tryInitModels):
+                # logged out
+                hideDetails()
+        else:
+            hideDetails()
+
         self.form.linksView.setModel(self.links_model)
         self.setVersionListModel(version_model)
 
@@ -936,6 +952,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
             self.form.thumbnail_label.setPixmap(pixmap)
             self.form.fileNameLabel.setText(renderFileName(fileName))
+            self.form.fileNameLabel.show()
             self.form.viewOnlineBtn.setVisible(False)
             self.form.makeActiveBtn.setVisible(False)
             self.form.linkDetails.setVisible(False)
@@ -944,9 +961,11 @@ class WorkspaceView(QtGui.QDockWidget):
             self.setVersionListModel(None)
 
     def fileListClicked(self, index):
-        logger.debug("fileListClicked")
+        # This function is also executed once in case of a double click. It is best to
+        # do as little modifications to the state as possible.
         file_item = self.currentWorkspaceModel.data(index)
         fileName = file_item.name
+        logger.debug(f"fileListClicked on {fileName}")
         self.currentModelId = None
         if Utils.isOpenableByFreeCAD(fileName):
             if self.isLoggedIn():
@@ -979,7 +998,6 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.versionsComboBox.setModel(model)
             self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
             self.form.versionsComboBox.setVisible(True)
-            logger.debug("setVisible here?")
 
     # def showWorkspaceContextMenu(self, pos):
     #     index = self.form.workspaceListView.indexAt(pos)
