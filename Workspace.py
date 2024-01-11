@@ -394,16 +394,16 @@ class ServerWorkspaceModel(WorkspaceModel):
             serverDate = serverFileItem.updatedAt
             localDate = localFileItem.updatedAt
             if serverDate < localDate:
-                logger.debug(f"serverDate updated: {serverDate}")
-                logger.debug(f"serverCreated: {serverFileItem.createdAt}")
-                logger.debug(f"localDate updated: {localDate}")
-                logger.debug(f"localCreated: {localFileItem.createdAt}")
+                # logger.debug(f"serverDate updated: {serverDate}")
+                # logger.debug(f"serverCreated: {serverFileItem.createdAt}")
+                # logger.debug(f"localDate updated: {localDate}")
+                # logger.debug(f"localCreated: {localFileItem.createdAt}")
                 serverFileItem.status = FileStatus.SERVER_COPY_OUTDATED
             elif serverDate > localDate:
-                logger.debug(f"serverDate updated: {serverDate}")
-                logger.debug(f"serverCreated: {serverFileItem.createdAt}")
-                logger.debug(f"localDate updated: {localDate}")
-                logger.debug(f"localCreated: {localFileItem.createdAt}")
+                # logger.debug(f"serverDate updated: {serverDate}")
+                # logger.debug(f"serverCreated: {serverFileItem.createdAt}")
+                # logger.debug(f"localDate updated: {localDate}")
+                # logger.debug(f"localCreated: {localFileItem.createdAt}")
                 serverFileItem.status = FileStatus.LOCAL_COPY_OUTDATED
             else:
                 serverFileItem.status = FileStatus.SYNCED
@@ -542,13 +542,16 @@ class ServerWorkspaceModel(WorkspaceModel):
         # Throws an APIClientException
         if fileItem.is_folder:
             logger.warn("Download of folders not supported yet.")
+            self.refreshModel()
+            return False
         else:
             logger.info(f"Downloading file {fileItem.name}")
             file_path = fileItem.getPath()
             self.apiClient.downloadFileFromServer(version["uniqueFileName"], file_path)
             updatedAt, createdAt = VersionModel.getVersionDateTime(version)
             Utils.setFileModificationTimes(file_path, updatedAt, createdAt)
-        self.refreshModel()
+            self.refreshModel()
+            return True
 
     def uploadUntrackedFiles(self):
         # This function upload untracked files automatically to Server.

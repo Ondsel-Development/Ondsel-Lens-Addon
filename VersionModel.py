@@ -30,8 +30,6 @@ class VersionModel(QAbstractListModel):
         used.
         """
         createdDate = version["createdAt"]
-        hasFileUpdatedAt = "fileUpdatedAt" in version["additionalData"]
-        logger.debug(f"has fileUpdatedAt? {hasFileUpdatedAt}")
         updatedDate = version["additionalData"].get("fileUpdatedAt", createdDate)
         return updatedDate, createdDate
 
@@ -271,6 +269,13 @@ class OndselVersionModel(VersionModel):
 
         self.onDiskVersionId = self.getOnDiskVersionId(fileItem)
         self.endResetModel()
+
+    def canBeMadeActive(self):
+        """Whether the version on disk can be made active"""
+        return (
+            self.onDiskVersionId is not None
+            and self.onDiskVersionId != self.currentVersionId
+        )
 
     def getCurrentVersionId(self):
         """Get the current version.

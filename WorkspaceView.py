@@ -396,6 +396,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.addFileBtn.setMenu(addFileMenu)
 
         self.form.viewOnlineBtn.clicked.connect(self.openModelOnline)
+        self.form.makeActiveBtn.clicked.connect(self.makeActive)
 
         self.form.fileDetails.setVisible(False)
 
@@ -869,9 +870,12 @@ class WorkspaceView(QtGui.QDockWidget):
                 logger.info("This version has already been downloaded")
             else:
                 if self.downloadVersion(fileItem, version):
-                    newFileItem = wsm.getFileItemFileId(fileItem["_id"])
+                    # after download, the models with files are refreshed, so get a
+                    # fresh fileItem
+                    newFileItem = wsm.getFileItemFileId(fileItem.serverFileDict["_id"])
                     versionModel.refreshModel(newFileItem)
                     comboBox.setCurrentIndex(versionModel.getCurrentIndex())
+                    self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
                     self.restoreFile(newFileItem)
 
         self.handle(trySetVersion)
@@ -927,16 +931,22 @@ class WorkspaceView(QtGui.QDockWidget):
         self.links_model = None
 
         self.form.fileDetails.setVisible(True)
+        self.form.viewOnlineBtn.setVisible(False)
+        self.form.linkDetails.setVisible(False)
+        self.form.makeActiveBtn.setVisible(False)
         if self.currentModelId is not None:
-            self.links_model = ShareLinkModel(self.currentModelId, self.apiClient)
-            self.form.viewOnlineBtn.setVisible(True)
-            self.form.linkDetails.setVisible(True)
-            version_model = OndselVersionModel(
-                self.currentModelId, self.apiClient, file_item
-            )
-        else:
-            self.form.viewOnlineBtn.setVisible(False)
-            self.form.linkDetails.setVisible(False)
+
+            def tryInitModels():
+                self.links_model = ShareLinkModel(self.currentModelId, self.apiClient)
+                nonlocal version_model
+                version_model = OndselVersionModel(
+                    self.currentModelId, self.apiClient, file_item
+                )
+                self.form.viewOnlineBtn.setVisible(True)
+                self.form.linkDetails.setVisible(True)
+                self.form.makeActiveBtn.setVisible(version_model.canBeMadeActive())
+
+            self.handle(tryInitModels)
         self.form.linksView.setModel(self.links_model)
         self.setVersionListModel(version_model)
 
@@ -945,6 +955,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.thumbnail_label.hide()
         self.form.fileNameLabel.hide()
         self.form.viewOnlineBtn.setVisible(False)
+        self.form.makeActiveBtn.setVisible(False)
         self.form.linkDetails.setVisible(False)
         self.form.fileDetails.setVisible(False)
 
@@ -957,6 +968,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.thumbnail_label.setPixmap(pixmap)
             self.form.fileNameLabel.setText(renderFileName(fileName))
             self.form.viewOnlineBtn.setVisible(False)
+            self.form.makeActiveBtn.setVisible(False)
             self.form.linkDetails.setVisible(False)
             self.form.fileDetails.setVisible(True)
             self.form.linksView.setModel(None)
@@ -1328,6 +1340,25 @@ class WorkspaceView(QtGui.QDockWidget):
         if self.currentModelId is not None:
             url = f"{lensUrl}model/{self.currentModelId}"
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+
+    def makeActive(self):
+        comboBox = self.form.versionsComboBox
+        versionModel = comboBox.model()
+        fileItem = versionModel.fileItem
+        fileId = fileItem.serverFileDict["_id"]
+        versionId = versionModel.getCurrentVersionId()
+
+        def trySetVersion():
+            self.apiClient.setVersionActive(fileId, versionId)
+            # refresh the models
+            wsm = self.currentWorkspaceModel
+            wsm.refreshModel()
+            newFileItem = wsm.getFileItemFileId(fileItem.serverFileDict["_id"])
+            versionModel.refreshModel(newFileItem)
+            comboBox.setCurrentIndex(versionModel.getCurrentIndex())
+            self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
+
+        self.handle(trySetVersion)
 
     def openPreferences(self):
         logger.debug("Preferences clicked")
