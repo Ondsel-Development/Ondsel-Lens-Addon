@@ -890,6 +890,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.thumbnail_label.setPixmap(pixmap)
 
     def fileListClickedLoggedIn(self, file_item):
+        logger.debug("fileListClickedLoggedOut")
         fileName = file_item.name
         if "modelId" in file_item.serverFileDict:
             # currentModelId is used for the server model and is necessary to
@@ -945,6 +946,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.fileDetails.setVisible(False)
 
     def fileListClickedLoggedOut(self, fileName):
+        logger.debug("fileListClickedLoggedOut")
         path = self.currentWorkspaceModel.getFullPath()
         pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
         if pixmap:
@@ -1195,7 +1197,7 @@ class WorkspaceView(QtGui.QDockWidget):
             elif fileItem.status is FileStatus.UNTRACKED:
                 logger.debug(f"Upload untracked file {fileItem.name}")
                 # Initial commit
-                self.upload(fileItem, fileItem.name)
+                self.uploadFile(fileItem, fileItem.name)
             elif fileItem.status is FileStatus.SERVER_COPY_OUTDATED:
                 self.uploadWithCommitMessage(fileItem, "that is outdated on the server")
             elif fileItem.status is FileStatus.SYNCED:

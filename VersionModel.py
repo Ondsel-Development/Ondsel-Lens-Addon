@@ -261,6 +261,9 @@ class OndselVersionModel(VersionModel):
 
         self.beginResetModel()
         self.versions = fileDict["versions"][::-1]
+        self.namesUsers = {
+            user["_id"]: user["name"] for user in fileDict["relatedUserDetails"]
+        }
 
         # The version that is active on the server
         self.currentVersionId = fileDict["currentVersionId"]
@@ -307,9 +310,15 @@ class OndselVersionModel(VersionModel):
             return (self.convertTime(version["createdAt"] // 1000)) + (
                 " ✔️" if version["_id"] == self.currentVersionId else ""
             )
-
-        # Additional role for accessing the unique filename and the version Id
-        if role == Qt.UserRole:
+        elif role == Qt.ToolTipRole:
+            nameUser = self.namesUsers.get(version["userId"])
+            if nameUser:
+                nameUser = f" - {nameUser}"
+            else:
+                nameUser = ""
+            return f"{version['message']}{nameUser}"
+        elif role == Qt.UserRole:
+            # Additional role for accessing the unique filename and the version Id
             return version
 
         return None

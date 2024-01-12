@@ -169,9 +169,6 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <property name="toolTip">
-             <string>You can revert to an older version of the file</string>
-            </property>
            </widget>
           </item>
           <item>

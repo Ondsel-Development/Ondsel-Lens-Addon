@@ -244,7 +244,7 @@ class APIClient:
 
         payload = {
             "fileId": fileId,
-            "shouldStartObjGeneration": False,
+            "shouldStartObjGeneration": True,
             "createSystemGeneratedShareLink": False,
         }
 
