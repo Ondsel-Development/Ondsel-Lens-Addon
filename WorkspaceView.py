@@ -480,7 +480,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.userMenu = QMenu(self.form.userBtn)
         userActions = QActionGroup(self.userMenu)
 
-        a = QAction("Ondsel Account", userActions)
+        a = QAction("Visit Ondsel Lens", userActions)
         a.triggered.connect(self.ondselAccount)
         self.userMenu.addAction(a)
 
@@ -892,7 +892,7 @@ class WorkspaceView(QtGui.QDockWidget):
     def fileListClickedLoggedIn(self, file_item):
         logger.debug("fileListClickedLoggedOut")
         fileName = file_item.name
-        if "modelId" in file_item.serverFileDict:
+        if file_item.serverFileDict and "modelId" in file_item.serverFileDict:
             # currentModelId is used for the server model and is necessary to
             # open models online
             self.currentModelId = file_item.serverFileDict["modelId"]

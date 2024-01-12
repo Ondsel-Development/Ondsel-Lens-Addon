@@ -527,12 +527,11 @@ class ServerWorkspaceModel(WorkspaceModel):
         self.refreshModel()
 
     def getFileItemFileId(self, fileId):
-        try:
-            indexFileId = [fi.serverFileDict["_id"] for fi in self.files].index(fileId)
-        except ValueError:
-            logger.error("Cannot find the correct fileId")
-            return None
-        return self.files[indexFileId]
+        for fi in self.files:
+            if fi.serverFileDict and fi.serverFileDict["_id"] == fileId:
+                return fi
+        logger.error("Cannot find the correct fileId")
+        return None
 
     def downloadFile(self, fileItem):
         # This will download the current (active) version.
