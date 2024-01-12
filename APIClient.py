@@ -542,7 +542,7 @@ class APIClient:
         return result
 
     @authRequired
-    def createDirectory(self, name, parentDirId, workspace):
+    def createDirectory(self, name, idParentDir, nameParentDir, workspace):
         print("Creating the directory...")
         endpoint = "directories"
 
@@ -553,21 +553,13 @@ class APIClient:
         payload = {
             "name": name,
             "workspace": workspace,
+            "parentDirectory": {
+                "_id": idParentDir,
+                "name": nameParentDir,
+            },
         }
 
-        result = self._post(endpoint, headers=headers, data=json.dumps(payload))
-        dirId = result["_id"]
-
-        payload = {
-            "shouldAddDirectoriesToDirectory": True,
-            "directoryIds": [dirId],
-        }
-
-        result = self._update(
-            f"{endpoint}/{parentDirId}", headers=headers, data=json.dumps(payload)
-        )
-
-        return dirId
+        return self._post(endpoint, headers=headers, data=json.dumps(payload))
 
     @authRequired
     def updateDirectory(self, directoryData):

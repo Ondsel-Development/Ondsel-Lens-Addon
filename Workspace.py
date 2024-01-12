@@ -630,7 +630,9 @@ class ServerWorkspaceModel(WorkspaceModel):
         # raises an APIClientException
         currentDir = self.currentDirectory[-1]
         workspace = self.summarizeWorkspace()
-        result = self.apiClient.createDirectory(dir, currentDir["_id"], workspace)
+        result = self.apiClient.createDirectory(
+            dir, currentDir["_id"], currentDir["name"], workspace
+        )
 
         return result
 
