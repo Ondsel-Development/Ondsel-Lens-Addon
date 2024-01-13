@@ -191,7 +191,11 @@ class WorkspaceModel(QAbstractListModel):
         pathDir = Utils.joinPath(self.getFullPath(), dirName)
         if os.path.isdir(pathDir):
             files = os.listdir(pathDir)
-            return not files
+            return not files or (
+                len(files) == 1
+                and files[0] == ".thumbnails"
+                and os.path.isdir(Utils.joinPath(pathDir, files[0]))
+            )
         elif os.path.isfile(pathDir):
             raise ValueError(f"{dirName} is not a directory but a file")
         else:

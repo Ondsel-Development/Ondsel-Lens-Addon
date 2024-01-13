@@ -1094,7 +1094,7 @@ class WorkspaceView(QtGui.QDockWidget):
         fileName = fileItem.name
         if fileItem.status == FileStatus.SERVER_ONLY:
             if self.confirmDeleteLens(fileName) == QtGui.QMessageBox.Yes:
-                self.currentWorkspaceModel.deleteFile(index)
+                self.handle(lambda: self.currentWorkspaceModel.deleteFile(index))
         elif fileItem.status in [
             FileStatus.UNTRACKED,
             FileStatus.LOCAL_COPY_OUTDATED,
