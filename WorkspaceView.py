@@ -1039,6 +1039,32 @@ class WorkspaceView(QtGui.QDockWidget):
     #             self.newWorkspaceBtnClicked()
 
     # ####
+    # Directory deletion
+    # ####
+
+    def deleteEmptyDir(self, fileItem, index):
+        # throws an APICLientException
+        result = QtGui.QMessageBox.question(
+            self.form.fileList,
+            "Delete Directory",
+            f"Are you sure you want to delete directory <b>{fileItem.name}</b>?",
+            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+        )
+        if result == QtGui.QMessageBox.Yes:
+            self.currentWorkspaceModel.deleteDirectory(index)
+
+    def deleteDirectory(self, fileItem, index):
+        wsm = self.currentWorkspaceModel
+
+        def tryDelete():
+            if wsm.isEmptyDirectory(index):
+                self.deleteEmptyDir(fileItem, index)
+            else:
+                logger.warn(f"Directory {fileItem.name} is not empty")
+
+        self.handle(tryDelete)
+
+    # ####
     # File deletion
     # ####
 
@@ -1205,22 +1231,13 @@ class WorkspaceView(QtGui.QDockWidget):
             else:
                 logger.error(f"Unknown file status: {fileItem.status}")
 
-    def showFileContextMenuDir(self, pos, index):
+    def showFileContextMenuDir(self, fileItem, pos, index):
         menu = QtGui.QMenu()
         deleteAction = menu.addAction("Delete Directory")
-        if self.isLoggedIn():
-            deleteAction.setEnabled(False)
 
         action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
         if action == deleteAction:
-            result = QtGui.QMessageBox.question(
-                self.form.fileList,
-                "Delete Directory",
-                "Are you sure you want to delete this directory?",
-                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-            )
-            if result == QtGui.QMessageBox.Yes:
-                self.handle(lambda: self.currentWorkspaceModel.deleteFile(index))
+            self.deleteDirectory(fileItem, index)
 
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
@@ -1229,7 +1246,7 @@ class WorkspaceView(QtGui.QDockWidget):
             return
 
         if file_item.is_folder:
-            self.showFileContextMenuDir(pos, index)
+            self.showFileContextMenuDir(file_item, pos, index)
         else:
             self.showFileContextMenuFile(file_item, pos, index)
 

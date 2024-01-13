@@ -35,6 +35,9 @@ logger = Utils.getLogger(__name__)
 #            return None
 
 
+NO_REFRESH = False
+
+
 class FileStatus(Enum):
     SERVER_ONLY = auto()
     SERVER_COPY_OUTDATED = auto()
@@ -183,15 +186,47 @@ class WorkspaceModel(QAbstractListModel):
             self.StatusRole: b"statusRole",
         }
 
-    def deleteFile(self, index):
+    def isEmptyDirectory(self, index):
+        dirName = self.data(index, WorkspaceModel.NameRole)
+        pathDir = Utils.joinPath(self.getFullPath(), dirName)
+        if os.path.isdir(pathDir):
+            files = os.listdir(pathDir)
+            return not files
+        elif os.path.isfile(pathDir):
+            raise ValueError(f"{dirName} is not a directory but a file")
+        else:
+            # The file may be represented only on the server in which case it
+            # is empty from the filesystem perspective.
+            logger.debug(f"Dir {dirName} is not present locally")
+            return True
+
+    def _delete(self, index, deleteFunc, checkFunc, kind, refresh):
+        # do not call refreshModel() as it may be part of a call from a subclass
         fileName = self.data(index, WorkspaceModel.NameRole)
 
         fileName = Utils.joinPath(self.getFullPath(), fileName)
-        if os.path.isfile(fileName):
-            os.remove(fileName)
-        elif os.path.isdir(fileName):
-            shutil.rmtree(fileName)
-        self.refreshModel()
+        if os.path.exists(fileName):
+            if checkFunc(fileName):
+                deleteFunc(fileName)
+            else:
+                logger.error(f"{fileName} is not a {kind}")
+        else:
+            # apparently it was only represented on the server
+            logger.debug(f"{fileName} is not present locally")
+        if refresh:
+            self.refreshModel()
+
+    def deleteDirectory(self, index, refresh=True):
+        """Delete a directory given an index."""
+        self._delete(index, shutil.rmtree, os.path.isdir, "directory", refresh)
+
+    def deleteFile(self, index, refresh=True):
+        """Delete a file given an index.
+
+        The method should not call refreshModel() as it may be combined with a
+        method from a subclass.
+        """
+        self._delete(index, os.remove, os.path.isfile, "file", refresh)
 
     def sortFiles(self, dirs, files, key=lambda fileItem: fileItem.name):
         return sorted(dirs, key=key) + sorted(files, key=key)
@@ -513,9 +548,40 @@ class ServerWorkspaceModel(WorkspaceModel):
                 logger.debug(f"is openable file path: {file_path}")
                 FreeCAD.loadFile(file_path)
 
-    def deleteFileLocally(self, index):
-        super().deleteFile(index)
+    def _isEmptyDirectoryOnServer(self, index):
+        # throws an APIClientException
+        fileItem = self.files[index.row()]
+        if fileItem.serverFileDict and "_id" in fileItem.serverFileDict:
+            dirDict = self.apiClient.getDirectory(fileItem.serverFileDict["_id"])
+            return (not dirDict["files"]) and (not dirDict["directories"])
+        else:
+            # It may be the case that the file is only represented locally in
+            # which case it is empty from the server perspective
+            logger.debug(f"Dir {fileItem.name} is not present on the server")
+            return True
+
+    def isEmptyDirectory(self, index):
+        # throws an APIClientException
+        return super().isEmptyDirectory(index) and self._isEmptyDirectoryOnServer(index)
+
+    def deleteDirectory(self, index):
+        """Delete a directory on the server and on the local filesystem.
+
+        It assumes that the directory is empty.  It should not call
+        refreshModel because it is combined with a call to super().
+        """
+        super().deleteDirectory(index, NO_REFRESH)
+        fileItem = self.files[index.row()]
+        if fileItem.serverFileDict and "_id" in fileItem.serverFileDict:
+            logger.debug(f"doing an API delete on {fileItem.name}")
+            self.apiClient.deleteDirectory(fileItem.serverFileDict["_id"])
+        else:
+            logger.debug(f"Dir {fileItem.name} is not on the server.")
         self.refreshModel()
+
+    def deleteFileLocally(self, index):
+        """Delete a file on the local filesystem."""
+        super().deleteFile(index)
 
     def deleteFile(self, index):
         """Delete a file from the server.
