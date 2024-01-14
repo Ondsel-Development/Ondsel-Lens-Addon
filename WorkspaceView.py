@@ -725,11 +725,30 @@ class WorkspaceView(QtGui.QDockWidget):
             self.logout()
             return True
 
+    def openFile(self, index):
+        """Open a file
+
+        throws an APIClientException
+        """
+        wsm = self.currentWorkspaceModel
+        fileItem = wsm.data(index)
+        if fileItem.is_folder:
+            wsm.openDirectory(index)
+        else:
+            file_path = Utils.joinPath(wsm.getFullPath(), fileItem.name)
+            if not os.path.isfile(file_path) and self.isLoggedIn():
+                wsm.downloadFile(fileItem)
+                # wsm has refreshed
+            if Utils.isOpenableByFreeCAD(file_path):
+                logger.debug(f"Opening file: {file_path}")
+                if not self.restoreFile(fileItem):
+                    FreeCAD.loadFile(file_path)
+
     def fileListDoubleClicked(self, index):
         logger.debug("fileListDoubleClicked")
 
         def tryOpenFile():
-            self.currentWorkspaceModel.openFile(index)
+            self.openFile(index)
             self.form.workspaceNameLabel.setText(
                 self.currentWorkspaceModel.getWorkspacePath()
             )
@@ -843,6 +862,8 @@ class WorkspaceView(QtGui.QDockWidget):
         for doc in FreeCAD.listDocuments().values():
             if doc.FileName == fileItem.getPath():
                 doc.restore()
+                return True
+        return False
 
     def versionClicked(self, row):
         comboBox = self.form.versionsComboBox
@@ -890,7 +911,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.thumbnail_label.setPixmap(pixmap)
 
     def fileListClickedLoggedIn(self, file_item):
-        logger.debug("fileListClickedLoggedOut")
+        logger.debug("fileListClickedLoggedIn")
         fileName = file_item.name
         if file_item.serverFileDict and "modelId" in file_item.serverFileDict:
             # currentModelId is used for the server model and is necessary to

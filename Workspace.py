@@ -9,7 +9,6 @@ from PySide.QtCore import (
 from PySide.QtGui import QPixmap
 import Utils
 import os
-import FreeCAD
 import shutil
 import uuid
 import requests
@@ -295,15 +294,13 @@ class LocalWorkspaceModel(WorkspaceModel):
         self.subPath = os.path.dirname(self.subPath)
         self.refreshModel()
 
-    def openFile(self, index):
+    def openDirectory(self, index):
         file_item = self.files[index.row()]
         if file_item.is_folder:
             self.subPath = Utils.joinPath(self.subPath, file_item.name)
             self.refreshModel()
         else:
-            file_path = Utils.joinPath(self.getFullPath(), file_item.name)
-            if Utils.isOpenableByFreeCAD(file_path):
-                FreeCAD.loadFile(file_path)
+            logger.error(f"{file_item.name} is not a directory")
 
 
 class ServerWorkspaceModel(WorkspaceModel):
@@ -522,35 +519,17 @@ class ServerWorkspaceModel(WorkspaceModel):
                     pass  # no thumbnail online.
         return None
 
-    def openFile(self, index):
-        """Open a file
-
-        throws an APIClientException
-        """
-        file_item = self.files[index.row()]
-        if file_item.is_folder:
-            self.subPath = Utils.joinPath(self.subPath, file_item.name)
-            # push the directory to the stack
-            if file_item.serverFileDict.get("_id"):
-                # the server knows about this directory
-                self.currentDirectory.append(file_item.serverFileDict)
-            else:
-                # the server needs to know about this directory
-                id = self.createDir(file_item.name)
-                self.currentDirectory.append({"_id": id, "name": file_item.name})
-            self.refreshModel()
+    def openDirectory(self, file_item):
+        self.subPath = Utils.joinPath(self.subPath, file_item.name)
+        # push the directory to the stack
+        if file_item.serverFileDict.get("_id"):
+            # the server knows about this directory
+            self.currentDirectory.append(file_item.serverFileDict)
         else:
-            file_path = Utils.joinPath(self.getFullPath(), file_item.name)
-            logger.debug(f"file path: {file_path}")
-            if not os.path.isfile(file_path):
-                # download the file
-                self.apiClient.downloadFileFromServer(
-                    file_item.serverFileDict["currentVersion"]["uniqueFileName"],
-                    file_path,
-                )
-            if Utils.isOpenableByFreeCAD(file_path):
-                logger.debug(f"is openable file path: {file_path}")
-                FreeCAD.loadFile(file_path)
+            # the server needs to know about this directory
+            id = self.createDir(file_item.name)
+            self.currentDirectory.append({"_id": id, "name": file_item.name})
+        self.refreshModel()
 
     def _isEmptyDirectoryOnServer(self, index):
         # throws an APIClientException
@@ -593,6 +572,11 @@ class ServerWorkspaceModel(WorkspaceModel):
         This function assumes that the files have been removed locally.
         """
         file_item = self.files[index.row()]
+
+        id = file_item.serverFileDict["_id"]
+        modelId = file_item.serverFileDict["modelId"]
+        logger.debug(f"Doing a delete on file {id} with modelId {modelId}")
+
         self.apiClient.deleteFile(file_item.serverFileDict["_id"])
         self.refreshModel()
 
