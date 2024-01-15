@@ -1519,6 +1519,10 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.handle(tryRefresh)
 
+# ####
+# Adding files and directories
+# ####
+
     def addCurrentFile(self):
         # Save current file on the server.
         doc = FreeCAD.ActiveDocument
@@ -1530,13 +1534,16 @@ class WorkspaceView(QtGui.QDockWidget):
                 "You don't have any FreeCAD file opened now.",
             )
             return
+        wsm = self.currentWorkspaceModel
         # Get the default name of the file from the document
         default_name = doc.Label + ".FCStd"
-        default_path = self.currentWorkspaceModel.getFullPath()
+        default_path = wsm.getFullPath()
         default_file_path = Utils.joinPath(default_path, default_name)
 
         doc.FileName = default_file_path
         Gui.SendMsgToActiveView("SaveAs")
+
+        fileName = os.path.basename(doc.FileName)
 
         # Open a dialog box for the user to select a file location and name
         # file_name, _ = QtGui.QFileDialog.getSaveFileName(
@@ -1550,7 +1557,13 @@ class WorkspaceView(QtGui.QDockWidget):
         #     # Save the file
         #     FreeCAD.Console.PrintMessage(f"Saving document to file: {file_name}\n")
         #     doc.saveAs(file_name)
-        self.handle(self.currentWorkspaceModel.refreshModel)
+
+        def tryUpload():
+            if self.isLoggedIn():
+                wsm.upload(fileName)
+            wsm.refreshModel()
+
+        self.handle(tryUpload)
         self.switchView()
 
     def addSelectedFiles(self):
@@ -1562,13 +1575,12 @@ class WorkspaceView(QtGui.QDockWidget):
             "All Files (*);;Text Files (*.txt)",
         )
 
+        wsm = self.currentWorkspaceModel
+
         # copy selected files to destination folder
         for fileUrl in selectedFiles:
             fileName = os.path.basename(fileUrl)
-
-            destFileUrl = Utils.joinPath(
-                self.currentWorkspaceModel.getFullPath(), fileName
-            )
+            destFileUrl = Utils.joinPath(wsm.getFullPath(), fileName)
 
             try:
                 shutil.copy(fileUrl, destFileUrl)
@@ -1576,7 +1588,20 @@ class WorkspaceView(QtGui.QDockWidget):
                 QtGui.QMessageBox.warning(
                     None, "Error", "Failed to copy file " + fileName
                 )
-        self.handle(self.currentWorkspaceModel.refreshModel)
+
+        # after copying try the upload
+        def tryUpload():
+            if self.isLoggedIn():
+                for fileUrl in selectedFiles:
+                    fileName = os.path.basename(fileUrl)
+                    destFileUrl = Utils.joinPath(wsm.getFullPath(), fileName)
+                    if os.path.isfile(destFileUrl):
+                        wsm.upload(fileName)
+                    else:
+                        logger.warning(f"Failed to upload {fileName}")
+            wsm.refreshModel()
+
+        self.handle(tryUpload)
         self.switchView()
 
     def addDir(self):
