@@ -858,7 +858,8 @@ class WorkspaceView(QtGui.QDockWidget):
             wsm.refreshModel()
             return
         wsm.downloadFile(fileItem)
-        self.updateThumbnail(fileItem)
+        if Utils.isOpenableByFreeCAD(fileItem.getPath()):
+            self.updateThumbnail(fileItem)
 
     def restoreFile(self, fileItem):
         # iterate over the files
@@ -991,7 +992,7 @@ class WorkspaceView(QtGui.QDockWidget):
         file_item = self.currentWorkspaceModel.data(index)
         fileName = file_item.name
         # self.currentModelId = None
-        if Utils.isOpenableByFreeCAD(fileName):
+        if Utils.isOpenableByFreeCAD(file_item.getPath()):
             if self.isLoggedIn():
                 self.fileListClickedLoggedIn(file_item)
             else:
