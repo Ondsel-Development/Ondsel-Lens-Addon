@@ -100,9 +100,9 @@
    <item>
     <layout class="QHBoxLayout">
      <item>
-      <widget class="QPushButton" name="cancelBtn">
+      <widget class="QPushButton" name="okBtn">
        <property name="text">
-        <string>Cancel</string>
+        <string>Ok</string>
        </property>
       </widget>
      </item>
@@ -126,9 +126,9 @@
       </spacer>
      </item>
      <item>
-      <widget class="QPushButton" name="okBtn">
+      <widget class="QPushButton" name="cancelBtn">
        <property name="text">
-        <string>Ok</string>
+        <string>Cancel</string>
        </property>
       </widget>
      </item>
