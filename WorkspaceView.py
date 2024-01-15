@@ -54,6 +54,8 @@ from PySide.QtGui import (
 logger = Utils.getLogger(__name__)
 
 MAX_LENGTH_BASE_FILENAME = 30
+MAX_LENGTH_WORKSPACE_NAME = 33
+ELLIPSES = "..."
 
 mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
@@ -127,11 +129,10 @@ class FileListDelegate(QStyledItemDelegate):
 def renderFileName(fileName):
     base, extension = os.path.splitext(fileName)
     if len(base) > MAX_LENGTH_BASE_FILENAME:
-        nrEndingChars = 5
-        elipses = "..."
-        lengthElipses = len(elipses)
-        startElipses = MAX_LENGTH_BASE_FILENAME - nrEndingChars - lengthElipses
-        return base[:startElipses] + elipses + base[-nrEndingChars:] + extension
+        lengthSuffix = 5
+        lengthEllipses = len(ELLIPSES)
+        lengthPrefix = MAX_LENGTH_BASE_FILENAME - lengthSuffix - lengthEllipses
+        return base[:lengthPrefix] + ELLIPSES + base[-lengthSuffix:] + extension
     else:
         return fileName
 
@@ -643,9 +644,7 @@ class WorkspaceView(QtGui.QDockWidget):
         # else:
         #     self.currentWorkspaceModel = LocalWorkspaceModel(self.currentWorkspace)
 
-        self.form.workspaceNameLabel.setText(
-            self.currentWorkspaceModel.getWorkspacePath()
-        )
+        self.setWorkspaceNameLabel()
 
         self.form.fileList.setModel(self.currentWorkspaceModel)
         # self.synchronizeAction.triggered.connect(
@@ -692,9 +691,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
             def tryOpenParent():
                 self.currentWorkspaceModel.openParentFolder()
-                self.form.workspaceNameLabel.setText(
-                    self.currentWorkspaceModel.getWorkspacePath()
-                )
+                self.setWorkspaceNameLabel()
                 self.hideFileDetails()
 
             self.handle(tryOpenParent)
@@ -744,19 +741,25 @@ class WorkspaceView(QtGui.QDockWidget):
                 if not self.restoreFile(fileItem):
                     FreeCAD.loadFile(file_path)
 
-    def fileListDoubleClicked(self, index):
-        logger.debug("fileListDoubleClicked")
+    def setWorkspaceNameLabel(self):
+        wsm = self.currentWorkspaceModel
+        workspacePath = wsm.getWorkspacePath()
+        if len(workspacePath) > MAX_LENGTH_WORKSPACE_NAME:
+            lengthPrefix = (MAX_LENGTH_WORKSPACE_NAME - len(ELLIPSES)) // 2
+            lengthSuffix = lengthPrefix
+            workspacePath = (
+                workspacePath[:lengthPrefix] + ELLIPSES + workspacePath[-lengthSuffix:]
+            )
+        self.form.workspaceNameLabel.setText(workspacePath)
 
+    def fileListDoubleClicked(self, index):
         def tryOpenFile():
             self.openFile(index)
-            self.form.workspaceNameLabel.setText(
-                self.currentWorkspaceModel.getWorkspacePath()
-            )
+            self.setWorkspaceNameLabel()
 
         self.handle(tryOpenFile)
 
     def linksListDoubleClicked(self, index):
-        # print("linksListDoubleClicked")
         model = self.form.linksView.model()
         linkData = model.data(index, ShareLinkModel.EditLinkRole)
 
@@ -911,7 +914,6 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.thumbnail_label.setPixmap(pixmap)
 
     def fileListClickedLoggedIn(self, file_item):
-        logger.debug("fileListClickedLoggedIn")
         fileName = file_item.name
         if file_item.serverFileDict and "modelId" in file_item.serverFileDict:
             # currentModelId is used for the server model and is necessary to
@@ -967,7 +969,6 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.fileDetails.setVisible(False)
 
     def fileListClickedLoggedOut(self, fileName):
-        logger.debug("fileListClickedLoggedOut")
         path = self.currentWorkspaceModel.getFullPath()
         pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
         if pixmap:
@@ -988,7 +989,6 @@ class WorkspaceView(QtGui.QDockWidget):
         # do as little modifications to the state as possible.
         file_item = self.currentWorkspaceModel.data(index)
         fileName = file_item.name
-        logger.debug(f"fileListClicked on {fileName}")
         self.currentModelId = None
         if Utils.isOpenableByFreeCAD(fileName):
             if self.isLoggedIn():

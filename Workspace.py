@@ -519,7 +519,8 @@ class ServerWorkspaceModel(WorkspaceModel):
                     pass  # no thumbnail online.
         return None
 
-    def openDirectory(self, file_item):
+    def openDirectory(self, index):
+        file_item = self.files[index.row()]
         self.subPath = Utils.joinPath(self.subPath, file_item.name)
         # push the directory to the stack
         if file_item.serverFileDict.get("_id"):
