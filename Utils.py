@@ -13,7 +13,7 @@ from PySide2.QtGui import QPixmap
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
 
-DEBUG_LEVEL = logging.DEBUG
+DEBUG_LEVEL = logging.INFO
 
 
 class FreeCADHandler(logging.Handler):
