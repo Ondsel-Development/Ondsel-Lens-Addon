@@ -235,7 +235,7 @@ class APIClient:
 
     @authRequired
     def createModel(self, fileId):
-        print("Creating the model...")
+        logger.debug("Creating the model...")
         endpoint = "models"
 
         headers = {
@@ -254,7 +254,7 @@ class APIClient:
 
     @authRequired
     def regenerateModelObj(self, modelId, fileId):
-        print("Regenerating the model OBJ... ")
+        logger.debug("Regenerating the model OBJ... ")
         endpoint = f"models/{modelId}"
 
         headers = {
@@ -484,7 +484,7 @@ class APIClient:
 
     @authRequired
     def createWorkspace(self, name, description, organizationId):
-        print("Creating the workspace...")
+        logger.debug("Creating the workspace...")
         endpoint = "workspaces"
 
         headers = {
@@ -543,7 +543,7 @@ class APIClient:
 
     @authRequired
     def createDirectory(self, name, idParentDir, nameParentDir, workspace):
-        print("Creating the directory...")
+        logger.debug("Creating the directory...")
         endpoint = "directories"
 
         headers = {

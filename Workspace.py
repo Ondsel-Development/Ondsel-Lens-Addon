@@ -385,11 +385,11 @@ class ServerWorkspaceModel(WorkspaceModel):
         # O(n^2) can be made more efficient with sorting and parallel iteration
         # for now it suffices
         for localFile in localFiles:
-            # print(f'serverFile: {localFile.name}')
+            # logger.debug(f'serverFile: {localFile.name}')
             for serverFile in serverFiles:
-                # print(f'localFile: {serverFile.name}')
+                # logger.debug(f'localFile: {serverFile.name}')
                 if serverFile.name == localFile.name:
-                    # print(f'found {serverFile.name} locally')
+                    # logger.debug(f'found {serverFile.name} locally')
                     funcUpdateFound(serverFile, localFile)
                     break
             else:  # the server does not have this file

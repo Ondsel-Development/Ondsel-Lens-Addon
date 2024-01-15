@@ -319,7 +319,7 @@ class WorkspaceListDelegate(QStyledItemDelegate):
     #         # Check if the click was within the button rect
     #         if button_rect.contains(event.pos()):
     #             # Handle button click here
-    #             print("Button clicked for item:", index.row())
+    #             logger.debug("Button clicked for item:", index.row())
     #             return True  # Event was handled
     #     return super(WorkspaceListDelegate, self).editorEvent(event, model,
     #                                                           option, index)
@@ -629,7 +629,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
         # Create a workspace model and set it to the list
         # if self.apiClient is None and self.access_token is None:
-        #     print("You need to login first")
+        #     logger.debug("You need to login first")
         #     self.loginBtnClicked()
         #     self.enterWorkspace(index)
         #     return
@@ -1587,7 +1587,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
     # def newWorkspaceBtnClicked(self):
     #     if self.apiClient is None and self.access_token is None:
-    #         print("You need to login first")
+    #         logger.debug("You need to login first")
     #         self.loginBtnClicked()
     #         return
     #     if self.apiClient is None and self.access_token is not None:
