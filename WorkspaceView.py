@@ -1519,9 +1519,9 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.handle(tryRefresh)
 
-# ####
-# Adding files and directories
-# ####
+    # ####
+    # Adding files and directories
+    # ####
 
     def addCurrentFile(self):
         # Save current file on the server.
