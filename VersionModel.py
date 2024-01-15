@@ -16,6 +16,9 @@ import Utils
 logger = Utils.getLogger(__name__)
 
 
+CONVERT_TO_LOCAL_TZ = True
+
+
 class VersionModel(QAbstractListModel):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -45,7 +48,7 @@ class VersionModel(QAbstractListModel):
     def data(self, index, role):
         pass  # Implemented in subclasses
 
-    def convertTime(self, time):
+    def convertTime(self, time, convertToLocalTZ=False):
         """
         This converts a time string to the user's local timezone using tzlocal
         and outputs it in a friendly format
@@ -60,15 +63,16 @@ class VersionModel(QAbstractListModel):
             else:
                 time_obj = datetime.datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
 
-            # Convert the time to the user's local timezone
-            local_time_obj = time_obj.replace(tzinfo=datetime.timezone.utc).astimezone(
-                user_timezone
-            )
+            if convertToLocalTZ:
+                # Convert the time to the user's local timezone
+                time_obj = time_obj.replace(tzinfo=datetime.timezone.utc).astimezone(
+                    user_timezone
+                )
 
             # Format the local time as a friendly string
-            local_time_str = local_time_obj.strftime("%Y-%m-%d %H:%M:%S")
+            time_str = time_obj.strftime("%Y-%m-%d %H:%M:%S")
 
-            return local_time_str
+            return time_str
         except ValueError:
             # Handle invalid time string format
             return "Invalid time format"
@@ -146,7 +150,9 @@ class LocalVersionModel(VersionModel):
                 program_version = root.get("ProgramVersion")
 
                 # Add the values to the result dictionary
-                result["CreationDate"] = self.convertTime(lastModifiedDate)
+                result["CreationDate"] = self.convertTime(
+                    lastModifiedDate, CONVERT_TO_LOCAL_TZ
+                )
                 result["ProgramVersion"] = program_version
 
         return result
