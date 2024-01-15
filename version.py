@@ -1,6 +1,10 @@
 import re
 from datetime import datetime
 
+import Utils
+
+logger = Utils.getLogger(__name__)
+
 
 def increment_version(version):
     version_parts = version.split(".")
@@ -12,7 +16,10 @@ def increment_version(version):
                 sequence_number += 1
             else:
                 sequence_number = 1
-            new_version = f"{today.year:04d}.{today.month:02d}.{today.day:02d}.{sequence_number:02d}"
+            new_version = (
+                f"{today.year:04d}.{today.month:02d}.{today.day:02d}"
+                f".{sequence_number:02d}"
+            )
             return new_version, f"{today.year}-{today.month:02d}-{today.day:02d}"
         except ValueError:
             pass
@@ -49,7 +56,7 @@ if __name__ == "__main__":
 
     if new_version != current_version:
         update_version_in_file(package_xml_file, new_version, new_date)
-        print(f"Version updated from {current_version} to {new_version}")
-        print(f"Date updated to {new_date}")
+        logger.info(f"Version updated from {current_version} to {new_version}")
+        logger.info(f"Date updated to {new_date}")
     else:
-        print("Version remains unchanged. No update needed.")
+        logger.info("Version remains unchanged. No update needed.")

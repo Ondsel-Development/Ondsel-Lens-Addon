@@ -17,7 +17,7 @@
    </sizepolicy>
   </property>
   <property name="windowTitle">
-   <string>Workspaces view</string>
+   <string>Ondsel Lens</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -32,7 +32,7 @@
          </sizepolicy>
         </property>
         <property name="toolTip">
-         <string>Workspace View Controls</string>
+         <string>Ondsel Lens Controls</string>
         </property>
         <property name="text">
          <string/>
@@ -104,10 +104,10 @@
          <bool>true</bool>
         </property>
         <property name="toolTip">
-         <string>Add files to your workspace</string>
+         <string>Add files or directories to your workspace</string>
         </property>
         <property name="text">
-         <string>Add files</string>
+         <string>Add</string>
         </property>
        </widget>
       </item>
@@ -169,9 +169,6 @@
               <verstretch>0</verstretch>
              </sizepolicy>
             </property>
-            <property name="toolTip">
-             <string>You can revert to an older version of the file</string>
-            </property>
            </widget>
           </item>
           <item>
@@ -183,6 +180,13 @@
               </property>
               <property name="text">
                <string>View in Lens</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="makeActiveBtn">
+              <property name="text">
+               <string>Make active</string>
               </property>
              </widget>
             </item>

@@ -8,9 +8,27 @@ import os
 import FreeCAD
 import zipfile
 import math
+import logging
 from PySide2.QtGui import QPixmap
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
+
+DEBUG_LEVEL = logging.INFO
+
+
+class FreeCADHandler(logging.Handler):
+    def __init__(self):
+        logging.Handler.__init__(self)
+
+    def emit(self, record):
+        msg = self.format(record) + "\n"
+        c = FreeCAD.Console
+        if record.levelno >= logging.ERROR:
+            c.PrintError(msg)
+        elif record.levelno >= logging.WARNING:
+            c.PrintWarning(msg)
+        else:
+            c.PrintMessage(msg)
 
 
 def joinPath(first, second):
@@ -51,13 +69,39 @@ def extract_thumbnail(file_path):
             # Handle the case where the thumbnail file doesn't exist
             return None
     else:
-        # If file doesn't exist then the file is on the server only. We could fetch the server thumbnail.
+        # If file doesn't exist then the file is on the server only. We could fetch the
+        # server thumbnail.
         return None
 
 
 def getFileUpdatedAt(file_path):
+    "Returns the modified time in milliseconds"
     return math.floor(os.path.getmtime(file_path) * 1000)
 
 
-def getFileCreateddAt(file_path):
+def getFileCreatedAt(file_path):
+    "Returns the created time in milliseconds"
     return math.floor(os.path.getctime(file_path) * 1000)
+
+
+def setFileModificationTimes(file_path, updatedAt, createdAt):
+    """
+    Set the modified and created time for a file
+
+    The parameters createdAt and updatedAt are in milliseconds,
+    whereas os.utime expects a float in seconds
+    """
+    os.utime(file_path, (createdAt / 1000.0, updatedAt / 1000.0))
+
+
+def getLogger(name):
+    logger = logging.getLogger(name)
+    logger.setLevel(DEBUG_LEVEL)
+    handler = FreeCADHandler()
+    if DEBUG_LEVEL >= logging.INFO:
+        formatter = logging.Formatter("%(levelname)s: %(message)s")
+    else:
+        formatter = logging.Formatter("%(levelname)s: %(name)s:%(lineno)d %(message)s")
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    return logger

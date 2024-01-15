@@ -11,11 +11,30 @@ import os
 import xml.etree.ElementTree as ET
 import zipfile
 
+import Utils
+
+logger = Utils.getLogger(__name__)
+
+
+CONVERT_TO_LOCAL_TZ = True
+
 
 class VersionModel(QAbstractListModel):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.versions = []
+
+    @staticmethod
+    def getVersionDateTime(version):
+        """
+        Return the updated and created date given a server version
+
+        The updatedDate may not be available in which case the createdDate is
+        used.
+        """
+        createdDate = version["createdAt"]
+        updatedDate = version["additionalData"].get("fileUpdatedAt", createdDate)
+        return updatedDate, createdDate
 
     def refreshModel(self):
         pass  # Implemented in subclasses
@@ -29,7 +48,7 @@ class VersionModel(QAbstractListModel):
     def data(self, index, role):
         pass  # Implemented in subclasses
 
-    def convertTime(self, time):
+    def convertTime(self, time, convertToLocalTZ=False):
         """
         This converts a time string to the user's local timezone using tzlocal
         and outputs it in a friendly format
@@ -44,15 +63,16 @@ class VersionModel(QAbstractListModel):
             else:
                 time_obj = datetime.datetime.strptime(time, "%Y-%m-%dT%H:%M:%SZ")
 
-            # Convert the time to the user's local timezone
-            local_time_obj = time_obj.replace(tzinfo=datetime.timezone.utc).astimezone(
-                user_timezone
-            )
+            if convertToLocalTZ:
+                # Convert the time to the user's local timezone
+                time_obj = time_obj.replace(tzinfo=datetime.timezone.utc).astimezone(
+                    user_timezone
+                )
 
             # Format the local time as a friendly string
-            local_time_str = local_time_obj.strftime("%Y-%m-%d %H:%M:%S")
+            time_str = time_obj.strftime("%Y-%m-%d %H:%M:%S")
 
-            return local_time_str
+            return time_str
         except ValueError:
             # Handle invalid time string format
             return "Invalid time format"
@@ -130,7 +150,9 @@ class LocalVersionModel(VersionModel):
                 program_version = root.get("ProgramVersion")
 
                 # Add the values to the result dictionary
-                result["CreationDate"] = self.convertTime(lastModifiedDate)
+                result["CreationDate"] = self.convertTime(
+                    lastModifiedDate, CONVERT_TO_LOCAL_TZ
+                )
                 result["ProgramVersion"] = program_version
 
         return result
@@ -196,30 +218,113 @@ class LocalVersionModel(VersionModel):
 
 
 class OndselVersionModel(VersionModel):
-    def __init__(self, model_id, API_Client, parent=None):
+    def __init__(self, model_id, apiClient, fileItem, parent=None):
         super().__init__(parent)
         self.model_id = model_id
-        self.API_Client = API_Client
+        self.apiClient = apiClient
+        # The version model belongs to a specific fileId
+        self.fileItem = fileItem
 
-        self.refreshModel()
+        # the version that is on disk
+        self.onDiskVersionId = None
 
-    def refreshModel(self):
+        self.refreshModel(fileItem)
+
+    # def sortVersions(self, fileDict):
+    #     """Sort the versions"
+
+    #     The versions acquired from the API are reversed and the currentVersion
+    #     (the active one is set to be the top one.
+    #     """
+    #     currentVersionId = fileDict['currentVersionId']
+    #     versions = fileDict["versions"][::-1]
+    #     indexCurrentVersionId = [v["_id"] for v in versions].index(currentVersionId)
+    #     versions[indexCurrentVersionId], versions[0] = \
+    #         versions[0], versions[indexCurrentVersionId]
+    #     return versions
+
+    def getOnDiskVersionId(self, fileItem):
+        """Retrieve the id of a version of a file if it is on disk.
+
+        This code checks whether a file on disk is a specific version by
+        checking the updated times.  If a file on disk is indeed a specific
+        version on the server we return the versionId, otherwise None.
+        """
+        path = fileItem.getPath()
+        if os.path.isfile(path):
+            updatedAtDisk = Utils.getFileUpdatedAt(path)
+            for version in self.versions:
+                updatedAt, createdAt = VersionModel.getVersionDateTime(version)
+                if updatedAt == updatedAtDisk or createdAt == updatedAtDisk:
+                    return version["_id"]
+        return None
+
+    def refreshModel(self, fileItem):
+        # raises an APIClientException
         self.clearModel()
-        model = self.API_Client.getModel(self.model_id)
+        model = self.apiClient.getModel(self.model_id)
+        fileDict = model["file"]
 
         self.beginResetModel()
-        self.versions = model["file"]["versions"][::-1]
+        self.versions = fileDict["versions"][::-1]
+        self.namesUsers = {
+            user["_id"]: user["name"] for user in fileDict["relatedUserDetails"]
+        }
+
+        # The version that is active on the server
+        self.currentVersionId = fileDict["currentVersionId"]
+
+        self.onDiskVersionId = self.getOnDiskVersionId(fileItem)
         self.endResetModel()
+
+    def canBeMadeActive(self):
+        """Whether the version on disk can be made active"""
+        return (
+            self.onDiskVersionId is not None
+            and self.onDiskVersionId != self.currentVersionId
+        )
+
+    def getCurrentVersionId(self):
+        """Get the current version.
+
+        In this context, the current version is the one on disk and if there is
+        no file on disk, it is the active version on the server.
+        """
+        versionId = self.currentVersionId
+        if self.onDiskVersionId:
+            versionId = self.onDiskVersionId
+        return versionId
+
+    def getCurrentIndex(self):
+        """Get the index of the current version.
+
+        In this context, the current version is the one on disk and if there is
+        no file on disk, it is the active version on the server.
+        """
+        versionId = self.getCurrentVersionId()
+        return [v["_id"] for v in self.versions].index(versionId)
+
+    def getFileId(self):
+        "Get the file id of the versions"
+        return self.fileItem.serverFileDict["_id"]
 
     def data(self, index, role):
         row = index.row()
         version = self.versions[row]
 
         if role == Qt.DisplayRole:
-            return self.convertTime(version["createdAt"] // 1000)
-
-        # Additional role for accessing the unique filename
-        if role == Qt.UserRole:
-            return version["uniqueFileName"]
+            return (self.convertTime(version["createdAt"] // 1000)) + (
+                " ✔️" if version["_id"] == self.currentVersionId else ""
+            )
+        elif role == Qt.ToolTipRole:
+            nameUser = self.namesUsers.get(version["userId"])
+            if nameUser:
+                nameUser = f" - {nameUser}"
+            else:
+                nameUser = ""
+            return f"{version['message']}{nameUser}"
+        elif role == Qt.UserRole:
+            # Additional role for accessing the unique filename and the version Id
+            return version
 
         return None

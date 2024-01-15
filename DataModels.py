@@ -4,14 +4,14 @@
 # *                                                                     *
 # ***********************************************************************
 
-from PySide.QtCore import Qt, QAbstractTableModel, QAbstractListModel, QModelIndex
-from PySide import QtCore
+
+from PySide.QtCore import Qt, QAbstractListModel, QModelIndex
 import os
 import json
-import shutil
 import FreeCAD
+from pathlib import Path
 
-cachePath = FreeCAD.getUserCachePath()
+CACHE_PATH = FreeCAD.getUserCachePath() + "Ondsel-Lens/"
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 
 
@@ -28,13 +28,26 @@ class WorkspaceListModel(QAbstractListModel):
     ]
     """
 
-    def __init__(self, parent=None, filename=None):
+    def __init__(self, **kwargs):
+        parent = kwargs.get("parent", None)
         super(WorkspaceListModel, self).__init__(parent)
-        self.workspaceListFile = (
-            f"{cachePath}/workspaceList.json" if filename is None else filename
-        )
 
-        self.load()
+        self.workspaceView = kwargs["WorkspaceView"]
+
+        self.workspaceListFile = f"{CACHE_PATH}/workspaceList.json"
+
+        self.refreshModel()
+
+    def refreshModel(self):
+        # raises an APIClientException
+        self.beginResetModel()
+        if self.workspaceView.isLoggedIn():
+            self.workspaces = self.workspaceView.apiClient.getWorkspaces()
+
+            self.save()
+        else:
+            self.load()
+        self.endResetModel()
 
     def rowCount(self, parent=QModelIndex()):
         return len(self.workspaces)
@@ -51,51 +64,42 @@ class WorkspaceListModel(QAbstractListModel):
         self.endResetModel()
         self.save()
 
-    def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl):
-        for workspace in reversed(self.workspaces):
-            if workspace["name"] == workspaceName:
-                if workspaceType == "Ondsel" and workspace["type"] == "Local":
-                    workspace["type"] = "Ondsel"
-                    self.save()
-                return
+    # def addWorkspace(self, workspaceName, workspaceDesc, workspaceType, workspaceUrl,
+    #                  _id, organisation, rootDirectory):
+    #     for workspace in reversed(self.workspaces):
+    #         if workspace["name"] == workspaceName:
+    #             if workspaceType == "Ondsel" and workspace["type"] == "Local":
+    #                 workspace["type"] = "Ondsel"
+    #                 self.save()
+    #             return
 
-        self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
-        self.workspaces.append(
-            {
-                "name": workspaceName,
-                "description": workspaceDesc,
-                "type": workspaceType,
-                "url": workspaceUrl,
-            }
-        )
-        self.endInsertRows()
-        self.save()
+    #     self.beginInsertRows(QtCore.QModelIndex(), self.rowCount(), self.rowCount())
+    #     self.workspaces.append(
+    #         {
+    #             "name": workspaceName,
+    #             "description": workspaceDesc,
+    #             "type": workspaceType,
+    #             "url": workspaceUrl,
+    #             "_id": _id,
+    #             "organizationId": organisation,
+    #             "rootDirectory" : rootDirectory,
+    #             "currentDirectory" : rootDirectory
+    #         }
+    #     )
+    #     self.endInsertRows()
+    #     self.save()
 
-    def removeWorkspace(self, index):
-        if index.isValid() and 0 <= index.row() < len(self.workspaces):
-            self.beginRemoveRows(QtCore.QModelIndex(), index.row(), index.row())
-            del self.workspaces[index.row()]
-            self.endRemoveRows()
-            self.save()
+    # def removeWorkspace(self, index):
+    #     if index.isValid() and 0 <= index.row() < len(self.workspaces):
+    #         self.beginRemoveRows(QtCore.QModelIndex(), index.row(), index.row())
+    #         del self.workspaces[index.row()]
+    #         self.endRemoveRows()
+    #         self.save()
 
-    def removeOndselWorkspaces(self):
+    def removeWorkspaces(self):
         self.beginResetModel()
-
-        for workspace in reversed(self.workspaces):
-            if workspace["type"] == "Ondsel":
-                if p.GetBool("clearCache", False):
-                    # Delete the Ondsel local Folder
-                    try:
-                        shutil.rmtree(workspace["url"])
-                    except FileNotFoundError:
-                        print("Directory does not exist")
-
-                    self.workspaces.remove(workspace)
-                else:
-                    workspace["type"] = "Local"
-
+        self.workspaces = []
         self.endResetModel()
-        self.save()
 
     def load(self):
         self.workspaces = []
@@ -107,6 +111,8 @@ class WorkspaceListModel(QAbstractListModel):
                 self.workspaces = json.loads(dataStr)
 
     def save(self):
+        dirname = os.path.dirname(self.workspaceListFile)
+        Path(dirname).mkdir(parents=True, exist_ok=True)
         with open(self.workspaceListFile, "w") as file:
             file.write(json.dumps(self.workspaces))
 
@@ -126,7 +132,8 @@ class WorkspaceListModel(QAbstractListModel):
 
 # Unused
 class FilesData:
-    """This class contains all the data of the workspaces and their files under the structure of a dictionary :
+    """This class contains all the data of the workspaces and their files under the
+    structure of a dictionary :
     [
         {
             "Name" : "myWorkspace",

@@ -3,3 +3,7 @@ Add notification string for available updates.
 
 # 2023.10.31.01
 Cosmetic improvements.  Remove deprecated local WS.
+
+# 2024.01.15.01
+Large update allowing multiple workspaces per user from different
+organizations.

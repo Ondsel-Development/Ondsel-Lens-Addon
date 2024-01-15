@@ -8,27 +8,39 @@ import Utils
 
 from PySide import QtCore, QtGui
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 import json
 import shutil
-import tempfile
 import re
 import requests
+
+from inspect import cleandoc
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError
 import FreeCAD
 import FreeCADGui as Gui
 
-from DataModels import WorkspaceListModel
-from VersionModel import LocalVersionModel, OndselVersionModel
+
+from DataModels import WorkspaceListModel, CACHE_PATH
+from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
-from APIClient import APIClient, CustomAuthenticationError
-from WorkSpace import WorkSpaceModel, WorkSpaceModelFactory
+from APIClient import (
+    APIClient,
+    APIClientException,
+    APIClientAuthenticationException,
+    APIClientConnectionError,
+    APIClientRequestException,
+)
+from Workspace import (
+    WorkspaceModel,
+    LocalWorkspaceModel,
+    ServerWorkspaceModel,
+    FileStatus,
+)
 
 from PySide.QtGui import (
     QStyledItemDelegate,
-    QCheckBox,
     QStyle,
     QMessageBox,
     QApplication,
@@ -39,11 +51,16 @@ from PySide.QtGui import (
     QPixmap,
 )
 
+logger = Utils.getLogger(__name__)
+
+MAX_LENGTH_BASE_FILENAME = 30
+MAX_LENGTH_WORKSPACE_NAME = 33
+ELLIPSES = "..."
+
 mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 modPath = os.path.dirname(__file__).replace("\\", "/")
 iconsPath = f"{modPath}/Resources/icons/"
-cachePath = FreeCAD.getUserCachePath()
 
 # Test server
 # baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
@@ -56,15 +73,19 @@ remote_changelog_url = (
     "https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/changeLog.md"
 )
 
-remote_package_url = "https://raw.githubusercontent.com/Ondsel-Development/Ondsel-Lens/master/package.xml"
+remote_package_url = (
+    "https://raw.githubusercontent.com/Ondsel-Development/"
+    "Ondsel-Lens/master/package.xml"
+)
 local_package_path = f"{modPath}/package.xml"
 
-# try:
-#     import config
-#     baseUrl = config.base_url
-#     lensUrl = config.lens_url
-# except ImportError:
-#     pass
+try:
+    import config
+
+    baseUrl = config.base_url
+    lensUrl = config.lens_url
+except ImportError:
+    pass
 
 
 # Simple delegate drawing an icon and text
@@ -75,7 +96,7 @@ class FileListDelegate(QStyledItemDelegate):
             return
 
         fileName, status, isFolder = index.data(
-            WorkSpaceModel.NameStatusAndIsFolderRole
+            WorkspaceModel.NameStatusAndIsFolderRole
         )
 
         if option.state & QStyle.State_Selected:
@@ -94,15 +115,26 @@ class FileListDelegate(QStyledItemDelegate):
                 "back", QtGui.QIcon(":/icons/document-new.svg")
             )
         icon.paint(painter, icon_rect)
-        textToDisplay = fileName
-        if status != "":
-            textToDisplay += " (" + status + ")"
+        textToDisplay = renderFileName(fileName)
+        if status:
+            textToDisplay += " (" + str(status) + ")"
 
         fontMetrics = painter.fontMetrics()
         elidedText = fontMetrics.elidedText(
             textToDisplay, QtGui.Qt.ElideRight, option.rect.width()
         )
         painter.drawText(text_rect, QtCore.Qt.AlignLeft, elidedText)
+
+
+def renderFileName(fileName):
+    base, extension = os.path.splitext(fileName)
+    if len(base) > MAX_LENGTH_BASE_FILENAME:
+        lengthSuffix = 5
+        lengthEllipses = len(ELLIPSES)
+        lengthPrefix = MAX_LENGTH_BASE_FILENAME - lengthSuffix - lengthEllipses
+        return base[:lengthPrefix] + ELLIPSES + base[-lengthSuffix:] + extension
+    else:
+        return fileName
 
 
 class LinkListDelegate(QStyledItemDelegate):
@@ -177,6 +209,18 @@ class LinkListDelegate(QStyledItemDelegate):
 
 
 class WorkspaceListDelegate(QStyledItemDelegate):
+    def getOrganizationText(self, workspaceData):
+        organizationData = workspaceData.get("organization")
+        if organizationData:
+            organizationName = organizationData.get("name")
+            if organizationName:
+                return f"({organizationName})"
+            else:
+                logger.debug("No 'name' in organization'")
+        else:
+            logger.debug("No 'organization' in workspaceData")
+        return ""
+
     def paint(self, painter, option, index):
         # Get the data for the current index
         workspaceData = index.data(QtCore.Qt.DisplayRole)
@@ -208,8 +252,9 @@ class WorkspaceListDelegate(QStyledItemDelegate):
         # Calculate the width of the name text
         name_width = painter.fontMetrics().boundingRect(workspaceData["name"]).width()
 
-        # Draw the type in parentheses
-        type_text = f"({workspaceData['type']})"
+        # Draw the organization in parentheses TODO : name and not the id.
+
+        type_text = self.getOrganizationText(workspaceData)
         type_rect = QtCore.QRect(
             option.rect.left() + 20 + name_width + 5,
             option.rect.top(),
@@ -274,15 +319,16 @@ class WorkspaceListDelegate(QStyledItemDelegate):
     #         # Check if the click was within the button rect
     #         if button_rect.contains(event.pos()):
     #             # Handle button click here
-    #             print("Button clicked for item:", index.row())
+    #             logger.debug("Button clicked for item:", index.row())
     #             return True  # Event was handled
-    #     return super(WorkspaceListDelegate, self).editorEvent(event, model, option, index)
+    #     return super(WorkspaceListDelegate, self).editorEvent(event, model,
+    #                                                           option, index)
 
 
 class WorkspaceView(QtGui.QDockWidget):
     currentWorkspace = None
     username = "none"
-    access_token = ""
+    access_token = None
     apiClient = None
     user = None
 
@@ -291,7 +337,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.setObjectName("workspaceView")
         self.form = Gui.PySideUic.loadUi(f"{modPath}/WorkspaceView.ui")
         self.setWidget(self.form)
-        self.setWindowTitle("Workspace View")
+        self.setWindowTitle("Ondsel Lens")
 
         self.createOndselButtonMenus()
 
@@ -303,15 +349,16 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.form.buttonBack.clicked.connect(self.backClicked)
 
-        self.workspacesModel = WorkspaceListModel()
+        self.workspacesModel = WorkspaceListModel(WorkspaceView=self)
         self.workspacesDelegate = WorkspaceListDelegate(self)
         self.form.workspaceListView.setModel(self.workspacesModel)
         self.form.workspaceListView.setItemDelegate(self.workspacesDelegate)
         self.form.workspaceListView.doubleClicked.connect(self.enterWorkspace)
         self.form.workspaceListView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        self.form.workspaceListView.customContextMenuRequested.connect(
-            self.showWorkspaceContextMenu
-        )
+        # Disable this, prefer to do this in the dashboard
+        # self.form.workspaceListView.customContextMenuRequested.connect(
+        #     self.showWorkspaceContextMenu
+        # )
         self.workspacesModel.rowsInserted.connect(self.switchView)
         self.workspacesModel.rowsRemoved.connect(self.switchView)
 
@@ -342,29 +389,38 @@ class WorkspaceView(QtGui.QDockWidget):
         addFileAction.triggered.connect(self.addCurrentFile)
         addFileMenu.addAction(addFileAction)
         addFileAction2 = QtGui.QAction("Select files...", self.form.addFileBtn)
-        addFileAction2.triggered.connect(self.addFileBtnClicked)
+        addFileAction2.triggered.connect(self.addSelectedFiles)
         addFileMenu.addAction(addFileAction2)
+        addFileAction3 = QtGui.QAction("Add a directory", self.form.addFileBtn)
+        addFileAction3.triggered.connect(self.addDir)
+        addFileMenu.addAction(addFileAction3)
         self.form.addFileBtn.setMenu(addFileMenu)
 
         self.form.viewOnlineBtn.clicked.connect(self.openModelOnline)
+        self.form.makeActiveBtn.clicked.connect(self.makeActive)
 
         self.form.fileDetails.setVisible(False)
 
-        explainText = """
+        explainText = cleandoc(
+            """
+            <h1 style="text-align:center; font-weight:bold;">Welcome</h1>
 
-<h1 style="text-align:center; font-weight:bold;">Welcome</h1>
+            <p>You're not currently logged in to the Ondsel service. Use the button
+               above to log in or create an account. When you log in, this space will
+               show your workspaces.
+            </p>
 
-<p>You're not currently logged in to the Ondsel service. Use the button above to login in or create an account. When you log in, this space will show your workspaces.</p>
+            <p>You can enter the workspaces by double-clicking them.</p>
 
-<p>You can enter the workspaces by double-clicking them.</p>
-
-<p>Each workspace is a collection of files. Think of it like a project.</p>
-
-        """
+            <p>Each workspace is a collection of files. Think of it like a project.</p>
+            """
+        )
 
         self.form.txtExplain.setHtml(explainText)
         self.form.txtExplain.setReadOnly(True)
         self.form.txtExplain.hide()
+
+        self.currentWorkspaceModel = None
 
         # Check if user is already logged in.
         loginDataStr = p.GetString("loginData", "")
@@ -374,32 +430,44 @@ class WorkspaceView(QtGui.QDockWidget):
             # self.access_token = self.generate_expired_token()
 
             if self.isTokenExpired(self.access_token):
-                user = None
+                self.user = None
                 self.logout()
             else:
-                user = loginData["user"]
-                self.setUIForLogin(True, user)
+                self.user = loginData["user"]
+                self.setUILoggedIn(True, self.user)
+
+                if self.apiClient is None:
+                    self.apiClient = APIClient(
+                        "", "", baseUrl, lensUrl, self.access_token, self.user
+                    )
 
                 # Set a timer to logout when token expires.
+                # we know that the token is not expired
                 self.setTokenExpirationTimer(self.access_token)
         else:
-            user = None
-            self.setUIForLogin(False)
+            self.user = None
+            self.setUILoggedIn(False)
         self.switchView()
 
-        # Set a timer to check regularly the server
-        self.timer = QtCore.QTimer()
-        self.timer.timeout.connect(self.timerTick)
-        self.timer.setInterval(60000)
-        self.timer.start()
+        def tryRefresh():
+            self.workspacesModel.refreshModel()
 
-        self.check_for_update()
+            # Set a timer to check regularly the server
+            self.timer = QtCore.QTimer()
+            self.timer.timeout.connect(self.timerTick)
+            self.timer.setInterval(60000)
+            self.timer.start()
+
+            self.check_for_update()
+
+        self.handle(tryRefresh)
 
         # linksView.setModel(self.linksModel)
 
     # def generate_expired_token(self):
     #     # generate an expired token for testing
-    #     expiration_time = datetime.now() - timedelta(minutes=5)  # Set expiration time to 5 minutes ago
+    #     # Set expiration time to 5 minutes ago
+    #     expiration_time = datetime.now() - timedelta(minutes=5)
     #     payload = {
     #         "exp": expiration_time.timestamp(),
     #         # Add other claims as needed
@@ -413,16 +481,17 @@ class WorkspaceView(QtGui.QDockWidget):
         self.userMenu = QMenu(self.form.userBtn)
         userActions = QActionGroup(self.userMenu)
 
-        a = QAction("Ondsel Account", userActions)
+        a = QAction("Visit Ondsel Lens", userActions)
         a.triggered.connect(self.ondselAccount)
         self.userMenu.addAction(a)
 
-        self.synchronizeAction = QAction("Synchronize", userActions)
-        self.synchronizeAction.setVisible(False)
-        self.userMenu.addAction(self.synchronizeAction)
+        # self.synchronizeAction = QAction("Synchronize", userActions)
+        # self.synchronizeAction.setVisible(False)
+        # self.userMenu.addAction(self.synchronizeAction)
 
-        self.newWorkspaceAction = QAction("Add new workspace", userActions)
-        self.newWorkspaceAction.triggered.connect(self.newWorkspaceBtnClicked)
+        # Prefer to do this in the dashboard
+        # self.newWorkspaceAction = QAction("Add new workspace", userActions)
+        # self.newWorkspaceAction.triggered.connect(self.newWorkspaceBtnClicked)
         # self.userMenu.addAction(self.newWorkspaceAction)
 
         # Preferences
@@ -452,23 +521,41 @@ class WorkspaceView(QtGui.QDockWidget):
 
         # self.guestMenu.addAction(self.newWorkspaceAction)
 
+    # ####
+    # Authentication
+    # ####
+
+    def isLoggedIn(self):
+        return self.access_token is not None and self.apiClient is not None
+
     def isTokenExpired(self, token):
-        expiration_time = self.getTokenExpirationTime(token)
+        try:
+            expiration_time = self.getTokenExpirationTime(token)
+        except ExpiredSignatureError:
+            return True
         current_time = datetime.now()
         return current_time > expiration_time
 
     def setTokenExpirationTimer(self, token):
-        expiration_time = self.getTokenExpirationTime(token)
-        current_time = datetime.now()
+        # Should be called when there is no risk for an expired signature
+        # However, the code still handles the error gracefully.
+        try:
+            expiration_time = self.getTokenExpirationTime(token)
+            current_time = datetime.now()
 
-        time_difference = expiration_time - current_time
-        interval_milliseconds = max(0, time_difference.total_seconds() * 1000)
+            time_difference = expiration_time - current_time
+            interval_milliseconds = max(0, time_difference.total_seconds() * 1000)
 
-        # Create a QTimer that triggers only once when the token is expired
-        self.token_timer = QtCore.QTimer()
-        self.token_timer.setSingleShot(True)
-        self.token_timer.timeout.connect(self.token_expired_handler)
-        self.token_timer.start(interval_milliseconds)
+            # Create a QTimer that triggers only once when the token is expired
+            self.token_timer = QtCore.QTimer()
+            self.token_timer.setSingleShot(True)
+            self.token_timer.timeout.connect(self.token_expired_handler)
+            self.token_timer.start(interval_milliseconds)
+        except ExpiredSignatureError as e:
+            # unexpected
+            self.logout()
+            self.setUILoggedIn(False)
+            logger.error(e)
 
     def token_expired_handler(self):
         QMessageBox.information(
@@ -477,84 +564,106 @@ class WorkspaceView(QtGui.QDockWidget):
             "Your authentication token has expired, you have been logged out.",
         )
 
-        user = None
+        self.user = None
         self.logout()
 
     def getTokenExpirationTime(self, token):
+        """Get a token expiration time.
+
+        Should be called only when we assume that the token is not expired.
+
+        Otherwise we log out and raise the exception again.  In case another
+        exception happens, we do the same.
+        """
+
         try:
             decoded_token = jwt.decode(
                 token,
                 audience="lens.ondsel.com",
                 options={"verify_signature": False, "verify_aud": False},
             )
-        except ExpiredSignatureError:
+        except ExpiredSignatureError as e:
+            raise e
+        except Exception as e:
             self.logout()
 
-            self.setUIForLogin(False)
-            return False
-        except Exception as e:
-            print(e)
+            self.setUILoggedIn(False)
+            logger.error(e)
             raise e
         return datetime.fromtimestamp(decoded_token["exp"])
 
-    def setUIForLogin(self, state, user=None):
+    def setUILoggedIn(self, loggedIn, user=None):
         """Toggle the visibility of UI elements based on if user is logged in"""
 
-        if state:
+        if loggedIn:
             userBtnText = ""
-            if "lastName" in user:
-                userBtnText = user["lastName"] + " "
-            if "firstName" in user:
-                userBtnText = userBtnText + user["firstName"]
+            if "name" in user:
+                userBtnText = user["name"]
 
             self.form.userBtn.setText(userBtnText)
             self.form.userBtn.setIcon(self.ondselIcon)
             self.form.userBtn.setMenu(self.userMenu)
         else:
-            self.form.userBtn.setText("Local Only")
+            self.form.userBtn.setText("Local")
             self.form.userBtn.setIcon(self.ondselIconOff)
             self.form.userBtn.setMenu(self.guestMenu)
 
     def enterWorkspace(self, index):
         self.currentWorkspace = self.workspacesModel.data(index)
+        self.setWorkspaceModel()
+
+    def setWorkspaceModel(self):
+        if self.isLoggedIn():
+            # not necessary to set the path because we will start with the list
+            # of workspaces.
+            self.currentWorkspaceModel = ServerWorkspaceModel(
+                self.currentWorkspace, apiClient=self.apiClient
+            )
+        else:
+            subPath = ""
+            if hasattr(self, "currentWorkspaceModel") and self.currentWorkspaceModel:
+                subPath = self.currentWorkspaceModel.subPath
+            self.currentWorkspaceModel = LocalWorkspaceModel(
+                self.currentWorkspace, subPath=subPath
+            )
 
         # Create a workspace model and set it to the list
-        if self.currentWorkspace["type"] == "Ondsel":
-            if self.apiClient is None and self.access_token is None:
-                print("You need to login first")
-                self.loginBtnClicked()
-                self.enterWorkspace(index)
-                return
-            if self.apiClient is None and self.access_token is not None:
-                self.apiClient = APIClient(
-                    "", "", baseUrl, lensUrl, self.access_token, self.user
-                )
-        self.currentWorkspaceModel = WorkSpaceModelFactory.createWorkspace(
-            self.currentWorkspace, API_Client=self.apiClient
-        )
+        # if self.apiClient is None and self.access_token is None:
+        #     logger.debug("You need to login first")
+        #     self.loginBtnClicked()
+        #     self.enterWorkspace(index)
+        #     return
+        # if self.apiClient is None and self.access_token is not None:
+        #     self.apiClient = APIClient(
+        #         "", "", baseUrl, lensUrl, self.access_token, self.user
+        #     )
 
-        self.form.workspaceNameLabel.setText(
-            self.currentWorkspaceModel.getWorkspacePath()
-        )
+        #     self.currentWorkspaceModel = ServerWorkspaceModel(
+        #         self.currentWorkspace, API_Client=self.apiClient
+        #     )
+        # else:
+        #     self.currentWorkspaceModel = LocalWorkspaceModel(self.currentWorkspace)
+
+        self.setWorkspaceNameLabel()
 
         self.form.fileList.setModel(self.currentWorkspaceModel)
-        self.synchronizeAction.setVisible(self.currentWorkspace["type"] == "Ondsel")
-        self.synchronizeAction.triggered.connect(
-            self.currentWorkspaceModel.refreshModel
-        )
-        self.newWorkspaceAction.setVisible(False)
+        # self.synchronizeAction.triggered.connect(
+        #     self.currentWorkspaceModel.refreshModel
+        # )
+        # self.newWorkspaceAction.setVisible(False)
 
         self.switchView()
 
     def leaveWorkspace(self):
         if self.currentWorkspace is None:
             return
-        self.newWorkspaceAction.setVisible(True)
-        self.synchronizeAction.setVisible(False)
-        self.synchronizeAction.triggered.disconnect()
+        # self.newWorkspaceAction.setVisible(True)
+        # self.synchronizeAction.setVisible(False)
+        # self.synchronizeAction.triggered.disconnect()
         self.currentWorkspace = None
         self.currentWorkspaceModel = None
         self.form.fileList.setModel(None)
+        self.handle(self.workspacesModel.refreshModel)
         self.switchView()
         self.form.workspaceNameLabel.setText("")
         self.form.fileDetails.setVisible(False)
@@ -579,22 +688,78 @@ class WorkspaceView(QtGui.QDockWidget):
         if subPath == "":
             self.leaveWorkspace()
         else:
-            self.currentWorkspaceModel.openParentFolder()
-            self.form.workspaceNameLabel.setText(
-                self.currentWorkspaceModel.getWorkspacePath()
+
+            def tryOpenParent():
+                self.currentWorkspaceModel.openParentFolder()
+                self.setWorkspaceNameLabel()
+                self.hideFileDetails()
+
+            self.handle(tryOpenParent)
+
+    def handle(self, func):
+        """Handle a function that raises an APICLientException.
+
+        Issue warning/errors and possibly log out the user, making
+        it still possible to use the addon.
+
+        Returns true if the user is logged out
+        """
+        try:
+            func()
+            return False
+        except APIClientConnectionError as e:
+            logger.warn(e)
+            logger.warn("Logging out")
+            self.logout()
+            return True
+        except APIClientRequestException as e:
+            logger.warn(e)
+            return False
+        except APIClientException as e:
+            logger.error("Uncaught exception:")
+            logger.error(e)
+            logger.warn("Logging out")
+            self.logout()
+            return True
+
+    def openFile(self, index):
+        """Open a file
+
+        throws an APIClientException
+        """
+        wsm = self.currentWorkspaceModel
+        fileItem = wsm.data(index)
+        if fileItem.is_folder:
+            wsm.openDirectory(index)
+        else:
+            file_path = Utils.joinPath(wsm.getFullPath(), fileItem.name)
+            if not os.path.isfile(file_path) and self.isLoggedIn():
+                wsm.downloadFile(fileItem)
+                # wsm has refreshed
+            if Utils.isOpenableByFreeCAD(file_path):
+                logger.debug(f"Opening file: {file_path}")
+                if not self.restoreFile(fileItem):
+                    FreeCAD.loadFile(file_path)
+
+    def setWorkspaceNameLabel(self):
+        wsm = self.currentWorkspaceModel
+        workspacePath = wsm.getWorkspacePath()
+        if len(workspacePath) > MAX_LENGTH_WORKSPACE_NAME:
+            lengthPrefix = (MAX_LENGTH_WORKSPACE_NAME - len(ELLIPSES)) // 2
+            lengthSuffix = lengthPrefix
+            workspacePath = (
+                workspacePath[:lengthPrefix] + ELLIPSES + workspacePath[-lengthSuffix:]
             )
+        self.form.workspaceNameLabel.setText(workspacePath)
 
     def fileListDoubleClicked(self, index):
-        # print("fileListDoubleClicked")
+        def tryOpenFile():
+            self.openFile(index)
+            self.setWorkspaceNameLabel()
 
-        self.currentWorkspaceModel.openFile(index)
-
-        self.form.workspaceNameLabel.setText(
-            self.currentWorkspaceModel.getWorkspacePath()
-        )
+        self.handle(tryOpenFile)
 
     def linksListDoubleClicked(self, index):
-        # print("linksListDoubleClicked")
         model = self.form.linksView.model()
         linkData = model.data(index, ShareLinkModel.EditLinkRole)
 
@@ -602,141 +767,238 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if dialog.exec_() == QtGui.QDialog.Accepted:
             link_properties = dialog.getLinkProperties()
-            model.update_link(index, link_properties)
+            self.handle(lambda: model.update_link(index, link_properties))
+
+    # ####
+    # Downloading files
+    # ####
+
+    def confirmFileTransfer(self, message, transferMessage):
+        msg_box = QMessageBox()
+        msg_box.setWindowTitle("Confirmation")
+        msg_box.setText(
+            f"{message} {transferMessage}\nAre you sure you want to proceed?"
+        )
+        msg_box.setIcon(QMessageBox.Warning)
+        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
+        msg_box.setDefaultButton(QMessageBox.No)
+
+        return msg_box.exec_() == QMessageBox.Yes
+
+    def confirmDownload(self, message):
+        return self.confirmFileTransfer(
+            message, "Downloading will override this local version."
+        )
+
+    def downloadFileIndex(self, index):
+        wsm = self.currentWorkspaceModel
+        file_item = wsm.files[index.row()]
+        self.downloadFileFileItem(file_item)
+
+    def downloadVersionConfirm(self, fileItem, version):
+        """Download a version after asking confirmation.
+
+        Refreshes the workspace model in any case.
+        """
+        wsm = self.currentWorkspaceModel
+        if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
+            msg = "The local copy is outdated compared to the active version."
+            if not self.confirmDownload(msg):
+                wsm.refreshModel()
+                return False
+        elif fileItem.status == FileStatus.UNTRACKED:
+            # should not happen as the menu should not be enabled
+            logger.error("It is not possible to download an untracked file")
+            return False
+        elif fileItem.status == FileStatus.SERVER_COPY_OUTDATED:
+            msg = "The local copy is newer than the active version."
+            if not self.confirmDownload(msg):
+                wsm.refreshModel()
+                return False
+
+        return wsm.downloadVersion(fileItem, version)
+
+    def downloadVersion(self, fileItem, version):
+        """Download a version.
+
+        Refreshes the workspace model in any case.
+        """
+        comboBox = self.form.versionsComboBox
+        versionModel = comboBox.model()
+        wsm = self.currentWorkspaceModel
+
+        # if the current file is already a version, then simply download
+        if versionModel.getOnDiskVersionId(fileItem):
+            return wsm.downloadVersion(fileItem, version)
+        else:
+            return self.downloadVersionConfirm(fileItem, version)
+
+    def downloadFileFileItem(self, fileItem):
+        """Download a file based on a fileItem.
+
+        Refreshes the wsm in any case.
+        """
+        wsm = self.currentWorkspaceModel
+        if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
+            msg = "The local copy is outdated compared to the active version."
+            if not self.confirmDownload(msg):
+                wsm.refreshModel()
+                return
+        elif fileItem.status == FileStatus.UNTRACKED:
+            # should not happen as the menu should not be enabled
+            logger.error("It is not possible to download an untracked file")
+            return
+        elif fileItem.status == FileStatus.SERVER_COPY_OUTDATED:
+            msg = "The local copy is newer than the active version."
+            if not self.confirmDownload(msg):
+                wsm.refreshModel()
+                return
+        elif fileItem.status == FileStatus.SYNCED:
+            logger.info("This file is already in sync")
+            wsm.refreshModel()
+            return
+        wsm.downloadFile(fileItem)
+        if Utils.isOpenableByFreeCAD(fileItem.getPath()):
+            self.updateThumbnail(fileItem)
+
+    def restoreFile(self, fileItem):
+        # iterate over the files
+        for doc in FreeCAD.listDocuments().values():
+            if doc.FileName == fileItem.getPath():
+                doc.restore()
+                return True
+        return False
 
     def versionClicked(self, row):
-        message_box = QMessageBox()
-        message_box.setWindowTitle("Confirmation")
-        message_box.setText(
-            "You are reverting to a backup file.\nDo you want to save the current version as new backup or discard the changes?",
-        )
-        message_box.setStandardButtons(
-            QMessageBox.Save | QMessageBox.Discard | QMessageBox.Cancel
-        )
+        comboBox = self.form.versionsComboBox
 
-        # Show the dialog and retrieve the user's choice
-        choice = message_box.exec_()
+        versionModel = comboBox.model()
+        indexVersion = versionModel.index(row, 0)
 
-        if choice == QMessageBox.Cancel:
-            return
-        model = self.form.versionsComboBox.model()
-        index = model.index(row, 0)
+        version = versionModel.data(indexVersion, role=QtCore.Qt.UserRole)
+        versionId = version["_id"]
+        wsm = self.currentWorkspaceModel
 
-        idx = self.form.fileList.currentIndex()
-        fileName = self.currentWorkspaceModel.data(idx, WorkSpaceModel.NameRole)
-        fullFileName = f"{self.currentWorkspace['url']}/{fileName}"
+        fileItem = versionModel.fileItem
 
-        if self.currentWorkspace["type"] == "Local":
-            backupfilename = model.data(index, role=QtCore.Qt.UserRole)
+        def refreshUI():
+            # assumes that wsm has refreshed
+            newFileItem = wsm.getFileItemFileId(fileItem.serverFileDict["_id"])
+            versionModel.refreshModel(newFileItem)
+            comboBox.setCurrentIndex(versionModel.getCurrentIndex())
+            self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
+            return newFileItem
 
-            # Process the user's choice
-            if choice == QMessageBox.Save:
-                # make sure the document is open and get a reference
-                doc = FreeCAD.open(fullFileName)
+        def trySetVersion():
+            if versionId == versionModel.onDiskVersionId:
+                logger.info("This version has already been downloaded")
+            else:
+                # the download will refresh the wsm, so refresh the UI
+                if self.downloadVersion(fileItem, version):
+                    self.restoreFile(refreshUI())
+                    self.updateThumbnail(fileItem)
+                else:
+                    refreshUI()
 
-                # create a temporary copy of the backup so it isn't lost by backup policy
-                temp_dir = tempfile.gettempdir()
-                temp_file = tempfile.NamedTemporaryFile(dir=temp_dir, delete=False)
-                temp_file_path = temp_file.name
-                temp_file.close()
+        self.handle(trySetVersion)
 
-                shutil.copy(backupfilename, temp_file_path)
-
-                # Save and close the original to create the new backup
-                doc.save()
-                FreeCAD.closeDocument(doc.Name)
-
-                # move the tempfile back to the original
-                try:
-                    shutil.move(temp_file_path, fullFileName)
-                except OSError as e:
-                    print(f"Error renaming file: {e}")
-                # reopen the original
-                doc = FreeCAD.open(fullFileName)
-            elif choice == QMessageBox.Discard:
-                try:
-                    shutil.move(backupfilename, fullFileName)
-                except OSError as e:
-                    print(f"Error renaming file: {e}")
-                doc = FreeCAD.open(fullFileName)
-                doc.restore()
-        elif self.currentWorkspace["type"] == "Ondsel":
-            versionUniqueFileName = model.data(index, role=QtCore.Qt.UserRole)
-
-            # Process the user's choice
-            if choice == QMessageBox.Save:
-                # Save and upload the current version
-                doc = FreeCAD.open(fullFileName)
-                doc.save()
-                self.currentWorkspaceModel.uploadFile(idx)
-                FreeCAD.closeDocument(doc.Name)
-
-                # Download (and override) the required version from the server
-                model.API_Client.downloadFileFromServer(
-                    versionUniqueFileName, fullFileName
-                )
-
-                # re-open the file
-                doc = FreeCAD.open(fullFileName)
-            elif choice == QMessageBox.Discard:
-                # Download (and override) the required version from the server
-                model.API_Client.downloadFileFromServer(
-                    versionUniqueFileName, fullFileName
-                )
-
-                doc = FreeCAD.open(fullFileName)
-                doc.restore()
-            model.refreshModel()
-
-    def fileListClicked(self, index):
-        file_item = self.currentWorkspaceModel.data(index)
-        self.currentModelId = None
-        if "modelId" in file_item.serverFileDict:
-            self.currentModelId = file_item.serverFileDict["modelId"]
-        self.currentFileName = file_item.name
-
-        if file_item.is_folder:
-            self.form.thumbnail_label.hide()
-        else:
-            self.form.thumbnail_label.show()
-            path = self.currentWorkspaceModel.getFullPath()
-            pixmap = Utils.extract_thumbnail(f"{path}/{self.currentFileName}")
-            if pixmap == None:
-                if self.currentWorkspace["type"] == "Ondsel":
-                    pixmap = self.getServerThumbnail(
-                        self.currentFileName, path, self.currentModelId
-                    )
-                if pixmap == None:
+    def updateThumbnail(self, fileItem):
+        fileName = fileItem.name
+        self.form.thumbnail_label.show()
+        path = self.currentWorkspaceModel.getFullPath()
+        pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
+        if pixmap is None:
+            modelId = fileItem.getModelId()
+            if modelId:
+                pixmap = self.getServerThumbnail(fileName, path, modelId)
+                if pixmap is None:
                     pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
-            self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
-            self.form.thumbnail_label.setPixmap(pixmap)
-        self.form.fileNameLabel.setText(self.currentFileName)
+        self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
+        self.form.thumbnail_label.setPixmap(pixmap)
+
+    def fileListClickedLoggedIn(self, file_item):
+        fileName = file_item.name
+        modelId = file_item.getModelId()
+        # if file_item.serverFileDict and "modelId" in file_item.serverFileDict:
+        #     # currentModelId is used for the server model and is necessary to
+        #     # open models online
+        #     self.currentModelId = file_item.serverFileDict["modelId"]
+        self.form.thumbnail_label.show()
+        self.updateThumbnail(file_item)
+        self.form.fileNameLabel.setText(renderFileName(fileName))
+        self.form.fileNameLabel.show()
 
         version_model = None
         self.links_model = None
-        self.form.viewOnlineBtn.setVisible(False)
-        self.form.linkDetails.setVisible(False)
 
-        if file_item.is_folder:
-            pass
-        elif self.currentWorkspace["type"] == "Local":
-            fullFileName = (
-                f"{self.currentWorkspaceModel.getFullPath()}/{self.currentFileName}"
-            )
-            self.form.fileDetails.setVisible(True)
+        self.form.fileDetails.setVisible(True)
 
-            version_model = LocalVersionModel(fullFileName)
-        elif self.currentWorkspace["type"] == "Ondsel":
-            self.form.fileDetails.setVisible(True)
-            if self.currentModelId is not None:
-                self.links_model = ShareLinkModel(self.currentModelId, self.apiClient)
+        # It seems an idea to have the values below as default to then set them when
+        # initializing the models succeeds.  However, this leads to a jumping file list,
+        # so the nested function below is a better option, using it wherever we need to
+        # turn it off.
+        def hideDetails():
+            self.form.viewOnlineBtn.setVisible(False)
+            self.form.linkDetails.setVisible(False)
+            self.form.makeActiveBtn.setVisible(False)
+
+        if modelId is not None:
+
+            def tryInitModels():
+                self.links_model = ShareLinkModel(modelId, self.apiClient)
+                nonlocal version_model
+                version_model = OndselVersionModel(modelId, self.apiClient, file_item)
                 self.form.viewOnlineBtn.setVisible(True)
                 self.form.linkDetails.setVisible(True)
-                version_model = OndselVersionModel(self.currentModelId, self.apiClient)
+                self.form.makeActiveBtn.setVisible(version_model.canBeMadeActive())
+
+            if self.handle(tryInitModels):
+                # logged out
+                hideDetails()
         else:
-            self.form.fileDetails.setVisible(False)
+            hideDetails()
+
         self.form.linksView.setModel(self.links_model)
         self.setVersionListModel(version_model)
+
+    def hideFileDetails(self):
+        """Hide all the links/thumbnails/etc"""
+        self.form.thumbnail_label.hide()
+        self.form.fileNameLabel.hide()
+        self.form.viewOnlineBtn.setVisible(False)
+        self.form.makeActiveBtn.setVisible(False)
+        self.form.linkDetails.setVisible(False)
+        self.form.fileDetails.setVisible(False)
+
+    def fileListClickedLoggedOut(self, fileName):
+        path = self.currentWorkspaceModel.getFullPath()
+        pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
+        if pixmap:
+            self.form.thumbnail_label.show()
+            self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
+            self.form.thumbnail_label.setPixmap(pixmap)
+            self.form.fileNameLabel.setText(renderFileName(fileName))
+            self.form.fileNameLabel.show()
+            self.form.viewOnlineBtn.setVisible(False)
+            self.form.makeActiveBtn.setVisible(False)
+            self.form.linkDetails.setVisible(False)
+            self.form.fileDetails.setVisible(True)
+            self.form.linksView.setModel(None)
+            self.setVersionListModel(None)
+
+    def fileListClicked(self, index):
+        # This function is also executed once in case of a double click. It is best to
+        # do as little modifications to the state as possible.
+        file_item = self.currentWorkspaceModel.data(index)
+        fileName = file_item.name
+        # self.currentModelId = None
+        if Utils.isOpenableByFreeCAD(file_item.getPath()):
+            if self.isLoggedIn():
+                self.fileListClickedLoggedIn(file_item)
+            else:
+                self.fileListClickedLoggedOut(fileName)
+        else:
+            self.hideFileDetails()
 
     def getServerThumbnail(self, fileName, path, fileId):
         # check if we have stored the thumbnail locally already.
@@ -747,46 +1009,256 @@ class WorkspaceView(QtGui.QDockWidget):
             pixmap = QPixmap(localThumbPath)
         else:
             pixmap = self.currentWorkspaceModel.getServerThumbnail(fileId)
-            if pixmap != None:
+            if pixmap is not None:
                 pixmap.save(localThumbPath, "PNG")
         return pixmap
 
     def setVersionListModel(self, model):
-        if model == None:
+        if model is None:
             self.form.versionsComboBox.clear()
             emptyModel = QtCore.QStringListModel()
             self.form.versionsComboBox.setModel(emptyModel)
             self.form.versionsComboBox.setVisible(False)
         else:
             self.form.versionsComboBox.setModel(model)
+            self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
             self.form.versionsComboBox.setVisible(True)
 
-    def showWorkspaceContextMenu(self, pos):
-        index = self.form.workspaceListView.indexAt(pos)
+    # def showWorkspaceContextMenu(self, pos):
+    #     index = self.form.workspaceListView.indexAt(pos)
 
-        if index.isValid():
-            menu = QtGui.QMenu()
+    #     if index.isValid():
+    #         menu = QtGui.QMenu()
 
-            deleteAction = menu.addAction("Delete")
-            action = menu.exec_(self.form.workspaceListView.viewport().mapToGlobal(pos))
+    #         deleteAction = menu.addAction("Delete")
+    #         deleteAction.setEnabled(self.apiClient is not None)
 
-            if action == deleteAction:
-                result = QtGui.QMessageBox.question(
-                    self,
-                    "Delete Workspace",
-                    "Are you sure you want to delete this workspace?",
-                    QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-                )
-                if result == QtGui.QMessageBox.Yes:
-                    self.workspacesModel.removeWorkspace(index)
+    #         action = menu.exec_(
+    #             self.form.workspaceListView.viewport().mapToGlobal(pos)
+    #         )
+
+    #         if action == deleteAction:
+    #             result = QtGui.QMessageBox.question(
+    #                 self,
+    #                 "Delete Workspace",
+    #                 "Are you sure you want to delete this workspace?",
+    #                 QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+    #             )
+    #             if result == QtGui.QMessageBox.Yes:
+    #                 self.apiClient.deleteWorkspace(
+    #                     self.workspacesModel.data(index)["_id"]
+    #                 )
+    #                 self.workspacesModel.refreshModel()
+    #     else:
+    #         menu = QtGui.QMenu()
+    #         addAction = menu.addAction("Add workspace")
+    #         addAction.setEnabled(self.apiClient is not None)
+
+    #         action = menu.exec_(
+    #             self.form.workspaceListView.viewport().mapToGlobal(pos)
+    #         )
+
+    #         if action == addAction:
+    #             self.newWorkspaceBtnClicked()
+
+    # ####
+    # Directory deletion
+    # ####
+
+    def deleteEmptyDir(self, fileItem, index):
+        # throws an APICLientException
+        result = QtGui.QMessageBox.question(
+            self.form.fileList,
+            "Delete Directory",
+            f"Are you sure you want to delete directory <b>{fileItem.name}</b>?",
+            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+        )
+        if result == QtGui.QMessageBox.Yes:
+            self.currentWorkspaceModel.deleteDirectory(index)
+
+    def deleteDirectory(self, fileItem, index):
+        wsm = self.currentWorkspaceModel
+
+        def tryDelete():
+            if wsm.isEmptyDirectory(index):
+                self.deleteEmptyDir(fileItem, index)
+            else:
+                logger.warn(f"Directory {fileItem.name} is not empty")
+
+        self.handle(tryDelete)
+
+    # ####
+    # File deletion
+    # ####
+
+    def confirmDelete(self, fileName, where, additionalInfo=""):
+        return QtGui.QMessageBox.question(
+            self.form.fileList,
+            "Delete File",
+            "Are you sure you want to delete file "
+            f"<b>{fileName}</b> from {where}?{additionalInfo}",
+            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+        )
+
+    def confirmDeleteLens(self, fileName):
+        additionalInfo = """<br><br>Deleting this file also deletes:
+        <ul>
+          <li>All file revisions</li>
+          <li>Any 3D models of the file (current or past)</li>
+          <li>All share links to any of the file's revisions</li>
+        </ul>
+        """
+        return self.confirmDelete(fileName, "Lens", additionalInfo)
+
+    def confirmDeleteLocally(self, fileName):
+        return self.confirmDelete(fileName, "the local file system")
+
+    def deleteFileLoggedIn(self, fileItem, index):
+        fileName = fileItem.name
+        if fileItem.status == FileStatus.SERVER_ONLY:
+            if self.confirmDeleteLens(fileName) == QtGui.QMessageBox.Yes:
+                self.handle(lambda: self.currentWorkspaceModel.deleteFile(index))
+        elif fileItem.status in [
+            FileStatus.UNTRACKED,
+            FileStatus.LOCAL_COPY_OUTDATED,
+            FileStatus.SERVER_COPY_OUTDATED,
+            FileStatus.SYNCED,
+        ]:
+            if self.confirmDeleteLocally(fileName) == QtGui.QMessageBox.Yes:
+                self.currentWorkspaceModel.deleteFileLocally(index)
+
+    def deleteFileLoggedOut(self, fileItem, index):
+        if self.confirmDeleteLocally(fileItem.name) == QtGui.QMessageBox.Yes:
+            self.currentWorkspaceModel.deleteFile(index)
+
+    def deleteFile(self, fileItem, index):
+        if self.isLoggedIn():
+            self.deleteFileLoggedIn(fileItem, index)
         else:
-            menu = QtGui.QMenu()
-            # addAction = menu.addAction("Add workspace")
+            self.deleteFileLoggedOut(fileItem, index)
 
-            action = menu.exec_(self.form.workspaceListView.viewport().mapToGlobal(pos))
+    def showFileContextMenuFile(self, file_item, pos, index):
+        menu = QtGui.QMenu()
+        openOnlineAction = menu.addAction("View in Lens")
+        uploadAction = menu.addAction("Upload to Lens")
+        downloadAction = menu.addAction("Download from Lens")
+        menu.addSeparator()
+        deleteAction = menu.addAction("Delete File")
+        if self.isLoggedIn():
+            if file_item.status == FileStatus.SERVER_ONLY:
+                uploadAction.setEnabled(False)
+            if file_item.status == FileStatus.UNTRACKED:
+                downloadAction.setEnabled(False)
+            if file_item.ext not in [".fcstd", ".obj"]:
+                openOnlineAction.setEnabled(False)
+        else:
+            uploadAction.setEnabled(False)
+            downloadAction.setEnabled(False)
+            openOnlineAction.setEnabled(False)
 
-            # if action == addAction:
-            #     self.newWorkspaceBtnClicked()
+        action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
+
+        if action == deleteAction:
+            self.deleteFile(file_item, index)
+        if action == openOnlineAction:
+            self.openModelOnline(file_item.getModelId())
+        elif action == downloadAction:
+            self.downloadFileIndex(index)
+        elif action == uploadAction:
+            self.upload(index, file_item)
+
+    # ####
+    # Uploading files (initial commit or updating a version
+    # ####
+
+    def uploadFile(
+        self,
+        fileItem,
+        fileName,
+        fileId=None,
+        message="Update from the Ondsel Lens addon",
+    ):
+        """Upload a file via the workspace model.
+
+        Interacts with the API.
+        """
+
+        def tryUpload():
+            wsm = self.currentWorkspaceModel
+            if fileId:
+                # updating an existing version
+                wsm.upload(fileName, fileId, message)
+            else:
+                # initial commit
+                wsm.upload(fileName)
+            wsm.refreshModel()
+            if self.form.versionsComboBox.isVisible():
+                model = self.form.versionsComboBox.model()
+                model.refreshModel(fileItem)
+                self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
+                logger.debug("versionComboBox setCurrentIndex")
+
+        self.handle(tryUpload)
+
+    def enterCommitMessage(self):
+        dialog = EnterCommitMessageDialog()
+        if dialog.exec_() == QtGui.QDialog.Accepted:
+            return dialog.getCommitMessage()
+        else:
+            return None
+
+    def uploadWithCommitMessage(self, fileItem, debugMessage):
+        commitMessage = self.enterCommitMessage()
+        if commitMessage:
+            logger.debug(f"Upload a file {fileItem.name} {debugMessage}")
+            self.uploadFile(
+                fileItem, fileItem.name, fileItem.serverFileDict["_id"], commitMessage
+            )
+
+    def confirmUpload(self, message):
+        return self.confirmFileTransfer(
+            message, "Uploading will override the server version."
+        )
+
+    def upload(self, index, fileItem):
+        """Upload a file.
+
+        First perform various checks / ask confirmation.
+        """
+        if fileItem.is_folder:
+            logger.info("Upload of folders not supported.")
+        else:
+            # TODO: in a shared setting refreshing is dangerous, suppose
+            # another user pushes a file, then the index does not point to the
+            # correct file any longer.
+            # First we refresh to make sure the file status have not changed.
+            # self.refreshModel()
+
+            # Check if the file is not newer on the server first.
+            if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
+                msg = "The local copy is outdated compared to the active version."
+                if not self.confirmUpload(msg):
+                    return
+                else:
+                    self.uploadWithCommitMessage(fileItem, "with local copy outdated")
+            elif fileItem.status is FileStatus.UNTRACKED:
+                logger.debug(f"Upload untracked file {fileItem.name}")
+                # Initial commit
+                self.uploadFile(fileItem, fileItem.name)
+            elif fileItem.status is FileStatus.SERVER_COPY_OUTDATED:
+                self.uploadWithCommitMessage(fileItem, "that is outdated on the server")
+            elif fileItem.status is FileStatus.SYNCED:
+                logger.info(f"File {fileItem.name} is already in sync")
+            else:
+                logger.error(f"Unknown file status: {fileItem.status}")
+
+    def showFileContextMenuDir(self, fileItem, pos, index):
+        menu = QtGui.QMenu()
+        deleteAction = menu.addAction("Delete Directory")
+
+        action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
+        if action == deleteAction:
+            self.deleteDirectory(fileItem, index)
 
     def showFileContextMenu(self, pos):
         index = self.form.fileList.indexAt(pos)
@@ -794,39 +1266,10 @@ class WorkspaceView(QtGui.QDockWidget):
         if file_item is None:
             return
 
-        menu = QtGui.QMenu()
-        if self.currentWorkspace["type"] == "Ondsel":
-            openOnlineAction = menu.addAction("View in Lens")
-            uploadAction = menu.addAction("Upload to Lens")
-            downloadAction = menu.addAction("Download from Lens")
-            menu.addSeparator()
-            if file_item.status == "Server only":
-                uploadAction.setEnabled(False)
-            if file_item.status == "Untracked":
-                downloadAction.setEnabled(False)
-            if file_item.ext not in [".fcstd", ".obj"]:
-                openOnlineAction.setEnabled(False)
-        deleteAction = menu.addAction("Delete File")
-
-        action = menu.exec_(self.form.fileList.viewport().mapToGlobal(pos))
-
-        if action == deleteAction:
-            result = QtGui.QMessageBox.question(
-                self.form.fileList,
-                "Delete File",
-                "Are you sure you want to delete this file?",
-                QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-            )
-            if result == QtGui.QMessageBox.Yes:
-                self.currentWorkspaceModel.deleteFile(index)
-        elif self.currentWorkspace["type"] == "Ondsel":
-            if action == openOnlineAction:
-                self.openModelOnline()
-            elif action == downloadAction:
-                self.currentWorkspaceModel.downloadFile(index)
-            elif action == uploadAction:
-                self.currentWorkspaceModel.uploadFile(index)
-                self.form.versionsComboBox.model().refreshModel()
+        if file_item.is_folder:
+            self.showFileContextMenuDir(file_item, pos, index)
+        else:
+            self.showFileContextMenuFile(file_item, pos, index)
 
     def showLinksContextMenu(self, pos):
         index = self.form.linksView.indexAt(pos)
@@ -875,12 +1318,14 @@ class WorkspaceView(QtGui.QDockWidget):
         # Add custom buttons with desired tooltips
         model_url_button = QtGui.QPushButton("Model URL")
         model_url_button.setToolTip(
-            "This is the URL where anyone with the link can view your model through Ondsel Lens."
+            "This is the URL where anyone with the link "
+            "can view your model through Ondsel Lens."
         )
 
         forum_iframe_button = QtGui.QPushButton("FreeCAD forum")
         forum_iframe_button.setToolTip(
-            "This is a shortcode that you can paste in FreeCAD forum posts to embed a view of your model in your post."
+            "This is a shortcode that you can paste in FreeCAD forum posts "
+            "to embed a view of your model in your post."
         )
 
         # Add buttons to the layout
@@ -923,7 +1368,7 @@ class WorkspaceView(QtGui.QDockWidget):
     def copyToClipboard(self, text):
         clipboard = QApplication.clipboard()
         clipboard.setText(text)
-        print("Link copied!")
+        logger.info("Link copied!")
 
     def editShareLinkClicked(self, index):
         model = self.form.linksView.model()
@@ -933,7 +1378,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
         if dialog.exec_() == QtGui.QDialog.Accepted:
             link_properties = dialog.getLinkProperties()
-            model.update_link(index, link_properties)
+            self.handle(lambda: model.update_link(index, link_properties))
 
     def deleteShareLinkClicked(self, index):
         model = self.form.linksView.model()
@@ -945,7 +1390,7 @@ class WorkspaceView(QtGui.QDockWidget):
             QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
         )
         if result == QtGui.QMessageBox.Yes:
-            model.delete_link(linkId)
+            self.handle(lambda: model.delete_link(linkId))
 
     def addShareLink(self):
         dialog = SharingLinkEditDialog(None, self)
@@ -953,20 +1398,45 @@ class WorkspaceView(QtGui.QDockWidget):
         if dialog.exec_() == QtGui.QDialog.Accepted:
             link_properties = dialog.getLinkProperties()
 
-            self.form.linksView.model().add_new_link(link_properties)
+            self.handle(
+                lambda: self.form.linksView.model().add_new_link(link_properties)
+            )
 
-    def openModelOnline(self):
+    def openModelOnline(self, modelId=None):
         url = ondselUrl
 
-        if (
-            self.currentWorkspace["type"] == "Ondsel"
-            and self.currentModelId is not None
-        ):
-            url = f"{lensUrl}model/{self.currentModelId}"
+        if not modelId:
+            comboBox = self.form.versionsComboBox
+            versionModel = comboBox.model()
+            modelId = versionModel.model_id
+
+        logger.debug(f"modelId: {modelId}")
+        if modelId is not None:
+            url = f"{lensUrl}model/{modelId}"
+            logger.debug(f"Opening {url}")
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
+    def makeActive(self):
+        comboBox = self.form.versionsComboBox
+        versionModel = comboBox.model()
+        fileItem = versionModel.fileItem
+        fileId = fileItem.serverFileDict["_id"]
+        versionId = versionModel.getCurrentVersionId()
+
+        def trySetVersion():
+            self.apiClient.setVersionActive(fileId, versionId)
+            # refresh the models
+            wsm = self.currentWorkspaceModel
+            wsm.refreshModel()
+            newFileItem = wsm.getFileItemFileId(fileItem.serverFileDict["_id"])
+            versionModel.refreshModel(newFileItem)
+            comboBox.setCurrentIndex(versionModel.getCurrentIndex())
+            self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
+
+        self.handle(trySetVersion)
+
     def openPreferences(self):
-        print("Preferences clicked")
+        logger.debug("Preferences clicked")
 
     def ondselAccount(self):
         url = f"{lensUrl}login"
@@ -985,48 +1455,73 @@ class WorkspaceView(QtGui.QDockWidget):
                 try:
                     self.apiClient = APIClient(email, password, baseUrl, lensUrl)
                     self.apiClient._authenticate()
-                except CustomAuthenticationError as e:
-                    print("Handling authentication error:", str(e))
+                except APIClientAuthenticationException as e:
+                    logger.warn(e)
                     continue  # Present the login dialog again if authentication fails
+                except APIClientException as e:
+                    logger.error(e)
+                    self.apiClient = None
+                    break
                 # Check if the request was successful (201 status code)
                 if self.apiClient.access_token is not None:
+                    self.user = self.apiClient.user
                     loginData = {
                         "accessToken": self.apiClient.access_token,
-                        "user": self.apiClient.user,
+                        "user": self.user,
                     }
                     p.SetString("loginData", json.dumps(loginData))
 
                     self.access_token = self.apiClient.access_token
 
-                    self.setUIForLogin(True, self.apiClient.user)
+                    self.setUILoggedIn(True, self.apiClient.user)
+                    self.leaveWorkspace()
+                    self.handle(self.workspacesModel.refreshModel)
+                    self.switchView()
 
-                    self.workspacesModel.addWorkspace(
-                        "Ondsel",
-                        "For now single Ondsel workspace of user",
-                        "Ondsel",
-                        cachePath + "ondsel",
-                    )
-
-                    # Set a timer to logout when token expires.
+                    # Set a timer to logout when token expires.  since we've
+                    # just received the access token, it is very unlikely that
+                    # it is expired.
                     self.setTokenExpirationTimer(self.access_token)
                 else:
-                    print("Authentication failed")
+                    logger.warn("Authentication failed")
                 break
             else:
                 break  # Exit the login loop if the dialog is canceled
 
     def logout(self):
-        self.setUIForLogin(False)
+        self.setUILoggedIn(False)
         p.SetString("loginData", "")
-        self.access_token = ""
+        self.access_token = None
+        self.apiClient = None
+        self.user = None
 
-        self.leaveWorkspace()
+        if self.currentWorkspaceModel:
+            self.setWorkspaceModel()
 
-        self.workspacesModel.removeOndselWorkspaces()
+        self.hideFileDetails()
+
+        if p.GetBool("clearCache", False):
+            shutil.rmtree(CACHE_PATH)
+            self.currentWorkspace = None
+            self.currentWorkspaceModel = None
+            self.form.fileList.setModel(None)
+            self.workspacesModel.removeWorkspaces()
+            self.switchView()
+            self.form.workspaceNameLabel.setText("")
+            self.form.fileDetails.setVisible(False)
 
     def timerTick(self):
-        if self.currentWorkspace != None and self.currentWorkspace["type"] == "Ondsel":
-            self.currentWorkspaceModel.refreshModel()
+        def tryRefresh():
+            if self.currentWorkspace is not None:
+                self.currentWorkspaceModel.refreshModel()
+            else:
+                self.workspacesModel.refreshModel()
+
+        self.handle(tryRefresh)
+
+    # ####
+    # Adding files and directories
+    # ####
 
     def addCurrentFile(self):
         # Save current file on the server.
@@ -1039,25 +1534,39 @@ class WorkspaceView(QtGui.QDockWidget):
                 "You don't have any FreeCAD file opened now.",
             )
             return
+        wsm = self.currentWorkspaceModel
         # Get the default name of the file from the document
         default_name = doc.Label + ".FCStd"
-        default_path = self.currentWorkspaceModel.getFullPath()
+        default_path = wsm.getFullPath()
         default_file_path = Utils.joinPath(default_path, default_name)
 
+        doc.FileName = default_file_path
+        Gui.SendMsgToActiveView("SaveAs")
+
+        fileName = os.path.basename(doc.FileName)
+
         # Open a dialog box for the user to select a file location and name
-        file_name, _ = QtGui.QFileDialog.getSaveFileName(
-            self, "Save File", default_file_path, "FreeCAD file (*.fcstd)"
-        )
+        # file_name, _ = QtGui.QFileDialog.getSaveFileName(
+        #     self, "Save File", default_file_path, "FreeCAD file (*.fcstd)"
+        # )
 
-        if file_name:
-            # Make sure the file has the correct extension
-            if not file_name.lower().endswith(".fcstd"):
-                file_name += ".FCStd"
-            # Save the file
-            FreeCAD.Console.PrintMessage(f"Saving document to file: {file_name}\n")
-            doc.saveAs(file_name)
+        # if file_name:
+        #     # Make sure the file has the correct extension
+        #     if not file_name.lower().endswith(".fcstd"):
+        #         file_name += ".FCStd"
+        #     # Save the file
+        #     FreeCAD.Console.PrintMessage(f"Saving document to file: {file_name}\n")
+        #     doc.saveAs(file_name)
 
-    def addFileBtnClicked(self):
+        def tryUpload():
+            if self.isLoggedIn():
+                wsm.upload(fileName)
+            wsm.refreshModel()
+
+        self.handle(tryUpload)
+        self.switchView()
+
+    def addSelectedFiles(self):
         # open file browser dialog to select files to copy
         selectedFiles, _ = QtGui.QFileDialog.getOpenFileNames(
             None,
@@ -1066,47 +1575,95 @@ class WorkspaceView(QtGui.QDockWidget):
             "All Files (*);;Text Files (*.txt)",
         )
 
+        wsm = self.currentWorkspaceModel
+
         # copy selected files to destination folder
         for fileUrl in selectedFiles:
             fileName = os.path.basename(fileUrl)
+            destFileUrl = Utils.joinPath(wsm.getFullPath(), fileName)
 
-            destFileUrl = Utils.joinPath(
-                self.currentWorkspaceModel.getFullPath(), fileName
-            )
+            try:
+                shutil.copy(fileUrl, destFileUrl)
+            except (shutil.SameFileError, OSError):
+                QtGui.QMessageBox.warning(
+                    None, "Error", "Failed to copy file " + fileName
+                )
 
-            if Utils.isOpenableByFreeCAD(fileName):
-                try:
-                    shutil.copy(fileUrl, destFileUrl)
-                except:
-                    QtGui.QMessageBox.warning(
-                        None, "Error", "Failed to copy file " + fileName
-                    )
+        # after copying try the upload
+        def tryUpload():
+            if self.isLoggedIn():
+                for fileUrl in selectedFiles:
+                    fileName = os.path.basename(fileUrl)
+                    destFileUrl = Utils.joinPath(wsm.getFullPath(), fileName)
+                    if os.path.isfile(destFileUrl):
+                        wsm.upload(fileName)
+                    else:
+                        logger.warning(f"Failed to upload {fileName}")
+            wsm.refreshModel()
 
-    def newWorkspaceBtnClicked(self):
-        dialog = NewWorkspaceDialog()
-        # Show the dialog and wait for the user to close it
-        if dialog.exec_() == QtGui.QDialog.Accepted:
-            workspaceName = dialog.nameEdit.text()
-            workspaceDesc = dialog.descEdit.toPlainText()
-            workspaceType = ""
-            workspaceUrl = ""
-            workspaceType = "Ondsel"
-            workspaceUrl = cachePath + dialog.nameEdit.text()
+        self.handle(tryUpload)
+        self.switchView()
 
-            # # Determine workspace type and get corresponding values
-            # if dialog.localRadio.isChecked():
-            #     workspaceType = "Local"
-            #     workspaceUrl = dialog.localFolderLabel.text()
-            # elif dialog.ondselRadio.isChecked():
-            #     workspaceType = "Ondsel"
-            #     workspaceUrl = cachePath + dialog.nameEdit.text()
-            # else:
-            #     workspaceType = "External"
-            #     workspaceUrl = dialog.externalServerEdit.text()
-            # Update workspaceListWidget with new workspace
-            self.workspacesModel.addWorkspace(
-                workspaceName, workspaceDesc, workspaceType, workspaceUrl
-            )
+    def addDir(self):
+        existingFileNames = self.currentWorkspaceModel.getFileNames()
+        dialog = CreateDirDialog(existingFileNames)
+
+        def tryCreateDir():
+            if dialog.exec_() == QtGui.QDialog.Accepted:
+                dir = dialog.getDir()
+                self.currentWorkspaceModel.createDir(dir)
+            self.currentWorkspaceModel.refreshModel()
+
+        self.handle(tryCreateDir)
+        self.switchView()
+
+    # def newWorkspaceBtnClicked(self):
+    #     if self.apiClient is None and self.access_token is None:
+    #         logger.debug("You need to login first")
+    #         self.loginBtnClicked()
+    #         return
+    #     if self.apiClient is None and self.access_token is not None:
+    #         self.apiClient = APIClient(
+    #             "", "", baseUrl, lensUrl, self.access_token, self.user
+    #         )
+
+    #     dialog = NewWorkspaceDialog()
+    #     # Show the dialog and wait for the user to close it
+    #     if dialog.exec_() == QtGui.QDialog.Accepted:
+    #         workspaceName = dialog.nameEdit.text()
+    #         workspaceDesc = dialog.descEdit.toPlainText()
+
+    #         personal_organisation = None
+    #         for organization in self.user["organizations"]:
+    #             if organization.get("name") == "Personal":
+    #                 personal_organisation = organization.get("_id")
+    #                 break
+
+    #         if personal_organisation is None:
+    #             return
+
+    #         self.apiClient.createWorkspace(
+    #             workspaceName, workspaceDesc, personal_organisation
+    #         )
+
+    #         # workspaceType = "Ondsel"
+    #         # workspaceId = result["_id"]
+    #         # workspaceUrl = cachePath + workspaceId #workspace id.
+    #         # workspaceRootDir = result["rootDirectory"]
+
+    #         self.workspacesModel.refreshModel()
+
+    #         # # Determine workspace type and get corresponding values
+    #         # if dialog.localRadio.isChecked():
+    #         #     workspaceType = "Local"
+    #         #     workspaceUrl = dialog.localFolderLabel.text()
+    #         # elif dialog.ondselRadio.isChecked():
+    #         #     workspaceType = "Ondsel"
+    #         #     workspaceUrl = cachePath + dialog.nameEdit.text()
+    #         # else:
+    #         #     workspaceType = "External"
+    #         #     workspaceUrl = dialog.externalServerEdit.text()
+    #         # Update workspaceListWidget with new workspace
 
     def get_server_package_file(self):
         response = requests.get(remote_package_url)
@@ -1144,129 +1701,132 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.updateAvailable.setText(
                 f"Ondsel Lens v{remote_version} available!"
             )
+            # TODO: the </a> at the end?
             self.form.updateAvailable.setToolTip(
-                f"Click to see the change-log of Ondsel Lens v{remote_version} in your browser.</a>"
+                "Click to see the change-log of Ondsel Lens "
+                f"v{remote_version} in your browser.</a>"
             )
 
             self.form.updateAvailable.show()
 
 
-class NewWorkspaceDialog(QtGui.QDialog):
-    def __init__(self, parent=None):
-        super(NewWorkspaceDialog, self).__init__(parent)
-        self.setWindowTitle("Add Workspace")
-        self.setModal(True)
+# class NewWorkspaceDialog(QtGui.QDialog):
+#     def __init__(self, parent=None):
+#         super(NewWorkspaceDialog, self).__init__(parent)
+#         self.setWindowTitle("Add Workspace")
+#         self.setModal(True)
 
-        layout = QtGui.QVBoxLayout()
+#         layout = QtGui.QVBoxLayout()
 
-        # Radio buttons for selecting workspace type
-        # self.localRadio = QtGui.QRadioButton("Local")
-        # self.ondselRadio = QtGui.QRadioButton("Ondsel Server")
-        # self.ondselRadio.setToolTip(
-        #     "Ondsel currently supports only one workspace that is added automatically on login."
-        # )
-        # self.ondselRadio.setEnabled(False)
-        # self.externalRadio = QtGui.QRadioButton("External Server")
-        # self.externalRadio.setToolTip(
-        #     "Currently external servers support is not implemented."
-        # )
-        # self.externalRadio.setEnabled(False)
+#         # Radio buttons for selecting workspace type
+#         # self.localRadio = QtGui.QRadioButton("Local")
+#         # self.ondselRadio = QtGui.QRadioButton("Ondsel Server")
+#         # self.ondselRadio.setToolTip(
+#         #     "Ondsel currently supports only one workspace "
+#         #     "that is added automatically on login."
+#         # )
+#         # self.ondselRadio.setEnabled(False)
+#         # self.externalRadio = QtGui.QRadioButton("External Server")
+#         # self.externalRadio.setToolTip(
+#         #     "Currently external servers support is not implemented."
+#         # )
+#         # self.externalRadio.setEnabled(False)
 
-        # button_group = QtGui.QButtonGroup()
-        # button_group.addButton(self.localRadio)
-        # button_group.addButton(self.ondselRadio)
-        # button_group.addButton(self.externalRadio)
+#         # button_group = QtGui.QButtonGroup()
+#         # button_group.addButton(self.localRadio)
+#         # button_group.addButton(self.ondselRadio)
+#         # button_group.addButton(self.externalRadio)
 
-        # group_box = QtGui.QGroupBox("type")
-        # group_box_layout = QtGui.QHBoxLayout()
-        # group_box_layout.addWidget(self.localRadio)
-        # group_box_layout.addWidget(self.ondselRadio)
-        # group_box_layout.addWidget(self.externalRadio)
-        # group_box.setLayout(group_box_layout)
+#         # group_box = QtGui.QGroupBox("type")
+#         # group_box_layout = QtGui.QHBoxLayout()
+#         # group_box_layout.addWidget(self.localRadio)
+#         # group_box_layout.addWidget(self.ondselRadio)
+#         # group_box_layout.addWidget(self.externalRadio)
+#         # group_box.setLayout(group_box_layout)
 
-        # Workspace Name
-        self.nameLabel = QtGui.QLabel("Name")
-        self.nameEdit = QtGui.QLineEdit()
-        nameHlayout = QtGui.QHBoxLayout()
-        nameHlayout.addWidget(self.nameLabel)
-        nameHlayout.addWidget(self.nameEdit)
+#         # Workspace Name
+#         self.nameLabel = QtGui.QLabel("Name")
+#         self.nameEdit = QtGui.QLineEdit()
+#         nameHlayout = QtGui.QHBoxLayout()
+#         nameHlayout.addWidget(self.nameLabel)
+#         nameHlayout.addWidget(self.nameEdit)
 
-        # Workspace description
-        self.descLabel = QtGui.QLabel("Description")
-        self.descEdit = QtGui.QTextEdit()
+#         # Workspace description
+#         self.descLabel = QtGui.QLabel("Description")
+#         self.descEdit = QtGui.QTextEdit()
 
-        # # Widgets for local workspace type
-        # self.localFolderLabel = QtGui.QLineEdit("")
-        # self.localFolderEdit = QtGui.QPushButton("Select folder")
-        # self.localFolderEdit.clicked.connect(self.show_folder_picker)
-        # h_layout = QtGui.QHBoxLayout()
-        # h_layout.addWidget(self.localFolderLabel)
-        # h_layout.addWidget(self.localFolderEdit)
+#         # # Widgets for local workspace type
+#         # self.localFolderLabel = QtGui.QLineEdit("")
+#         # self.localFolderEdit = QtGui.QPushButton("Select folder")
+#         # self.localFolderEdit.clicked.connect(self.show_folder_picker)
+#         # h_layout = QtGui.QHBoxLayout()
+#         # h_layout.addWidget(self.localFolderLabel)
+#         # h_layout.addWidget(self.localFolderEdit)
 
-        # # Widgets for external server workspace type
-        # self.externalServerLabel = QtGui.QLabel("Server URL")
-        # self.externalServerEdit = QtGui.QLineEdit()
+#         # # Widgets for external server workspace type
+#         # self.externalServerLabel = QtGui.QLabel("Server URL")
+#         # self.externalServerEdit = QtGui.QLineEdit()
 
-        # Add widgets to layout
-        # layout.addWidget(group_box)
-        layout.addLayout(nameHlayout)
-        layout.addWidget(self.descLabel)
-        layout.addWidget(self.descEdit)
-        # layout.addLayout(h_layout)
-        # layout.addWidget(self.externalServerLabel)
-        # layout.addWidget(self.externalServerEdit)
+#         # Add widgets to layout
+#         # layout.addWidget(group_box)
+#         layout.addLayout(nameHlayout)
+#         layout.addWidget(self.descLabel)
+#         layout.addWidget(self.descEdit)
+#         # layout.addLayout(h_layout)
+#         # layout.addWidget(self.externalServerLabel)
+#         # layout.addWidget(self.externalServerEdit)
 
-        # Connect radio buttons to updateDialog function
-        # self.localRadio.toggled.connect(self.updateDialog)
-        # self.ondselRadio.toggled.connect(self.updateDialog)
-        # self.externalRadio.toggled.connect(self.updateDialog)
-        # self.localRadio.setChecked(True)
+#         # Connect radio buttons to updateDialog function
+#         # self.localRadio.toggled.connect(self.updateDialog)
+#         # self.ondselRadio.toggled.connect(self.updateDialog)
+#         # self.externalRadio.toggled.connect(self.updateDialog)
+#         # self.localRadio.setChecked(True)
 
-        # Add OK and Cancel buttons
-        buttonBox = QtGui.QDialogButtonBox(
-            QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel
-        )
-        buttonBox.accepted.connect(self.okClicked)
-        buttonBox.rejected.connect(self.reject)
+#         # Add OK and Cancel buttons
+#         buttonBox = QtGui.QDialogButtonBox(
+#             QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel
+#         )
+#         buttonBox.accepted.connect(self.accept)
+#         buttonBox.rejected.connect(self.reject)
 
-        # Add layout and buttons to dialog
-        self.setLayout(layout)
-        layout.addWidget(buttonBox)
+#         # Add layout and buttons to dialog
+#         self.setLayout(layout)
+#         layout.addWidget(buttonBox)
 
-    # Function to update the dialog when the workspace type is changed
-    def updateDialog(self):
-        pass
-        # if self.ondselRadio.isChecked():
-        #     self.nameLabel.setText("ondsel.com/")
-        # else:
-        #     self.nameLabel.setText("Name")
-        # self.localFolderLabel.setVisible(self.localRadio.isChecked())
-        # self.localFolderEdit.setVisible(self.localRadio.isChecked())
+#     # Function to update the dialog when the workspace type is changed
+#     def updateDialog(self):
+#         pass
+#         # if self.ondselRadio.isChecked():
+#         #     self.nameLabel.setText("ondsel.com/")
+#         # else:
+#         #     self.nameLabel.setText("Name")
+#         # self.localFolderLabel.setVisible(self.localRadio.isChecked())
+#         # self.localFolderEdit.setVisible(self.localRadio.isChecked())
 
-        # self.externalServerLabel.setVisible(self.externalRadio.isChecked())
-        # self.externalServerEdit.setVisible(self.externalRadio.isChecked())
+#         # self.externalServerLabel.setVisible(self.externalRadio.isChecked())
+#         # self.externalServerEdit.setVisible(self.externalRadio.isChecked())
 
-    # def show_folder_picker(self):
-    #     options = QtGui.QFileDialog.Options()
-    #     options |= QtGui.QFileDialog.ShowDirsOnly
-    #     folder_url = QtGui.QFileDialog.getExistingDirectory(
-    #         self, "Select Folder", options=options
-    #     )
-    #     if folder_url:
-    #         self.localFolderLabel.setText(folder_url)
+#     # def show_folder_picker(self):
+#     #     options = QtGui.QFileDialog.Options()
+#     #     options |= QtGui.QFileDialog.ShowDirsOnly
+#     #     folder_url = QtGui.QFileDialog.getExistingDirectory(
+#     #         self, "Select Folder", options=options
+#     #     )
+#     #     if folder_url:
+#     #         self.localFolderLabel.setText(folder_url)
 
-    def okClicked(self):
-        pass
-        if self.localRadio.isChecked():
-            if os.path.isdir(self.localFolderLabel.text()):
-                self.accept()
-            else:
-                result = QtGui.QMessageBox.question(
-                    self,
-                    "Wrong URL",
-                    "The URL you entered is not correct.",
-                    QtGui.QMessageBox.Ok,
-                )
+#     # def okClicked(self):
+#     #    pass
+#     # if self.localRadio.isChecked():
+#     #    if os.path.isdir(self.localFolderLabel.text()):
+#     #        self.accept()
+#     #    else:
+#     #        result = QtGui.QMessageBox.question(
+#     #            self,
+#     #            "Wrong URL",
+#     #            "The URL you entered is not correct.",
+#     #            QtGui.QMessageBox.Ok,
+#     #        )
 
 
 class SharingLinkEditDialog(QtGui.QDialog):
@@ -1302,12 +1862,17 @@ class SharingLinkEditDialog(QtGui.QDialog):
 
     def setLinkProperties(self):
         self.dialog.linkName.setText(self.linkProperties["description"])
+        self.dialog.canViewModelCheckBox.setChecked(self.linkProperties["canViewModel"])
         self.dialog.canViewModelAttributesCheckBox.setChecked(
             self.linkProperties["canViewModelAttributes"]
         )
-        self.dialog.canUpdateModelCheckBox.setChecked(
+        self.dialog.canUpdateModelAttributesCheckBox.setChecked(
             self.linkProperties["canUpdateModel"]
         )
+        self.dialog.canDownloadOriginalCheckBox.setChecked(
+            self.linkProperties["canDownloadDefaultModel"]
+        )
+
         self.dialog.canExportFCStdCheckBox.setChecked(
             self.linkProperties["canExportFCStd"]
         )
@@ -1320,11 +1885,15 @@ class SharingLinkEditDialog(QtGui.QDialog):
     def getLinkProperties(self):
         self.linkProperties["description"] = self.dialog.linkName.text()
         self.linkProperties[
+            "canViewModel"
+        ] = self.dialog.canViewModelCheckBox.isChecked()
+        self.linkProperties[
             "canViewModelAttributes"
         ] = self.dialog.canViewModelAttributesCheckBox.isChecked()
         self.linkProperties[
             "canUpdateModel"
-        ] = self.dialog.canUpdateModelCheckBox.isChecked()
+        ] = self.dialog.canUpdateModelAttributesCheckBox.isChecked()
+
         self.linkProperties[
             "canExportFCStd"
         ] = self.dialog.canExportFCStdCheckBox.isChecked()
@@ -1339,6 +1908,92 @@ class SharingLinkEditDialog(QtGui.QDialog):
         ] = self.dialog.canExportOBJCheckBox.isChecked()
 
         return self.linkProperties
+
+
+class EnterCommitMessageDialog(QtGui.QDialog):
+    MAX_LENGTH_COMMIT_MESSAGE = 50
+
+    def __init__(self):
+        super().__init__()
+        self.setWindowTitle("Commit Message")
+
+        self.label = QtGui.QLabel("Please provide a commit message:")
+        self.commit_message_input = QtGui.QLineEdit()
+        self.commit_message_input.setMaxLength(
+            EnterCommitMessageDialog.MAX_LENGTH_COMMIT_MESSAGE
+        )
+
+        self.upload_button = QtGui.QPushButton("Upload")
+        self.upload_button.clicked.connect(self.accept)
+
+        self.cancel_button = QtGui.QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.reject)
+
+        self.upload_button.setEnabled(False)
+
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(self.commit_message_input)
+
+        buttons_layout = QtGui.QHBoxLayout()
+        buttons_layout.addWidget(self.upload_button)
+        buttons_layout.addWidget(self.cancel_button)
+
+        layout.addLayout(buttons_layout)
+
+        self.setLayout(layout)
+
+        # Connect textChanged signals to enable/disable the create button
+        self.commit_message_input.textChanged.connect(self.check_commit_message)
+
+    def check_commit_message(self):
+        commit_message = self.commit_message_input.text()
+        enabled = len(commit_message) > 0
+        self.upload_button.setEnabled(enabled)
+
+    def getCommitMessage(self):
+        return self.commit_message_input.text()
+
+
+class CreateDirDialog(QtGui.QDialog):
+    def __init__(self, filenames):
+        super().__init__()
+        self.setWindowTitle("Create Directory")
+
+        self.filenames = filenames
+        self.label = QtGui.QLabel("Directory name:")
+        self.directory_input = QtGui.QLineEdit()
+
+        self.create_button = QtGui.QPushButton("Create")
+        self.create_button.clicked.connect(self.accept)
+
+        self.cancel_button = QtGui.QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.reject)
+
+        self.create_button.setEnabled(False)
+
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(self.label)
+        layout.addWidget(self.directory_input)
+
+        buttons_layout = QtGui.QHBoxLayout()
+        buttons_layout.addWidget(self.create_button)
+        buttons_layout.addWidget(self.cancel_button)
+
+        layout.addLayout(buttons_layout)
+
+        self.setLayout(layout)
+
+        # Connect textChanged signals to enable/disable the create button
+        self.directory_input.textChanged.connect(self.check_dir)
+
+    def check_dir(self):
+        dir = self.directory_input.text()
+        enabled = not (dir in self.filenames or dir == "")
+        self.create_button.setEnabled(enabled)
+
+    def getDir(self):
+        return self.directory_input.text()
 
 
 class LoginDialog(QtGui.QDialog):
@@ -1415,3 +2070,6 @@ class LoginDialog(QtGui.QDialog):
         email = self.email_input.text()
         password = self.password_input.text()
         return email, password
+
+
+wsv = WorkspaceView()

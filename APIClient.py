@@ -1,15 +1,31 @@
 import requests
 import json
-import uuid
 import os
 
+import Utils
 
-class CustomAuthenticationError(Exception):
+logger = Utils.getLogger(__name__)
+
+
+class APIClientException(Exception):
     pass
 
 
-class CustomConnectionError(Exception):
+class APIClientAuthenticationException(APIClientException):
     pass
+
+
+class APIClientConnectionError(APIClientException):
+    pass
+
+
+class APIClientRequestException(APIClientException):
+    pass
+
+
+OK = requests.codes.ok
+CREATED = requests.codes.created
+UNAUTHORIZED = requests.codes.unauthorized
 
 
 class APIClient:
@@ -19,7 +35,7 @@ class APIClient:
         self.base_url = api_url
         self.lens_url = lens_url
 
-        if access_token == None:
+        if access_token is None:
             self.email = email
             self.password = password
             self.access_token = None
@@ -51,18 +67,18 @@ class APIClient:
         }
 
         headers = {"Content-Type": "application/json"}
-        try:
-            data = self._post(endpoint, headers=headers, data=json.dumps(payload))
-            self.access_token = data["accessToken"]
-            self.user = data["user"]
-        except requests.exceptions.RequestException as e:
-            raise CustomConnectionError("Connection Error")
+        data = self._post(endpoint, headers=headers, data=json.dumps(payload))
+        self.access_token = data["accessToken"]
+        self.user = data["user"]
 
-        except CustomAuthenticationError as e:
-            raise CustomAuthenticationError("Authentication Error")
-
-        except Exception as e:
-            raise e
+    def _raiseException(self, response, **kwargs):
+        "Raise a generic exception based on the status code"
+        # dumps only when debugging is enabled
+        self._dump_response(response, **kwargs)
+        raise APIClientRequestException(
+            f"API request failed with status code {response.status_code}: "
+            + response.json()["message"]
+        )
 
     def _delete(self, endpoint, headers={}, params=None):
         headers["Authorization"] = f"Bearer {self.access_token}"
@@ -73,21 +89,13 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", params=params, headers=headers
             )
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
+            raise APIClientConnectionError(e)
 
-        if response.status_code == 200:
+        if response.status_code == OK:
             return response.json()
         else:
-            # Handle API error cases
-            callData = {
-                "endpoint": endpoint,
-                "headers": headers,
-                "params": params,
-            }
-            self._dump_response(response, callData)
-            raise Exception(
-                f"API request failed with status code {response.status_code}"
+            self._raiseException(
+                response, endpoint=endpoint, headers=headers, params=params
             )
 
     def _request(self, endpoint, headers={}, params=None):
@@ -98,20 +106,13 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, params=params
             )
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
+            raise APIClientConnectionError(e)
 
-        if response.status_code == 200:
+        if response.status_code == OK:
             return response.json()
         else:
-            callData = {
-                "endpoint": endpoint,
-                "headers": headers,
-                "params": params,
-            }
-            self._dump_response(response, callData)
-            raise Exception(
-                f"API request failed with status code {response.status_code}"
+            self._raiseException(
+                response, endpoint=endpoint, headers=headers, params=params
             )
 
     def _post(self, endpoint, headers={}, params=None, data=None, files=None):
@@ -123,24 +124,19 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
-            return
+            raise APIClientConnectionError(e)
 
-        if response.status_code in [201, 200]:
+        # only _post makes a distinction between the general error and
+        # unauthorized because _authenticate makes use of post and unauthorized
+        # should be handled differently for the _authenticate function (for
+        # example give the user another try to log in).
+        if response.status_code in [CREATED, OK]:
             return response.json()
-        elif response.status_code == 401:
-            raise CustomAuthenticationError("Not Authenticated")
+        elif response.status_code == UNAUTHORIZED:
+            raise APIClientAuthenticationException("Not authenticated")
         else:
-            callData = {
-                "endpoint": endpoint,
-                "headers": headers,
-                "data": data,
-                "files": files,
-            }
-            self._dump_response(response, callData)
-            raise Exception(
-                f"API request failed with status code {response.status_code}"
+            self._raiseException(
+                response, endpoint=endpoint, headers=headers, data=data, files=files
             )
 
     def _update(self, endpoint, headers={}, data=None, files=None):
@@ -152,32 +148,20 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
+            raise APIClientConnectionError(e)
 
-        if response.status_code in [201, 200]:
+        if response.status_code in [CREATED, OK]:
             return response.json()
         else:
-            callData = {
-                "endpoint": endpoint,
-                "headers": headers,
-                "data": data,
-                "files": files,
-            }
-            self._dump_response(response, callData)
-            raise Exception(
-                f"API request failed with status code {response.status_code}"
+            self._raiseException(
+                response, endpoint=endpoint, headers=headers, data=data, files=files
             )
 
     def _download(self, url, filename):
         try:
             response = requests.get(url)
         except requests.exceptions.RequestException as e:
-            # Handle connection error
-            print(f"Connection Error: {e}")
-            print(f"URL: {url}")
-            print(f"Filename: {filename}")
-            return None
+            raise APIClientException(e)
 
         if response.status_code == 200:
             # Save file to workspace directory under the user name not the unique name
@@ -185,31 +169,28 @@ class APIClient:
                 f.write(response.content)
             return True
         else:
-            # Handle API error cases
-            callData = {"url": url, "filename": filename}
-            self._dump_response(response, callData)
-            raise Exception(
-                f"API request failed with status code {response.status_code}"
-            )
+            self._raiseException(response, url=url, filename=filename)
 
-    def _dump_response(self, response, callData):
-        print("XXXXXX Call Data XXXXXX")
-        for key, value in callData.items():
-            print(key, value)
-        print("XXXXXXXXXXXXXXXXXXXXXXX")
+    def _dump_response(self, response, **kwargs):
+        # # make a dictionary out of the keyword arguments
+        # callData = {f"{k}": v for k, v in kwargs.items}
+        logger.debug("XXXXXX Call Data XXXXXX")
+        for key, value in kwargs.items():
+            logger.debug(f"{key} {value}")
+        logger.debug("XXXXXXXXXXXXXXXXXXXXXXX")
 
-        print(response)
-        print(f"Status code: {response.status_code}")
+        logger.debug(response)
+        logger.debug(f"Status code: {response.status_code}")
 
         # Access headers
-        print(f"Content-Type: {response.headers['Content-Type']}")
+        logger.debug(f"Content-Type: {response.headers['Content-Type']}")
 
         # Access response body as text
-        print(f"Response body (text): {response.text}")
+        logger.debug(f"Response body (text): {response.text}")
 
-        if response.headers["Content-Type"] == "application/json":
+        if response.headers["Content-Type"].startswith("application/json"):
             # Access response body as JSON
-            print(f"Response body (JSON): {response.json()}")
+            logger.debug(f"Response body (JSON): {response.json()}")
 
     @authRequired
     def get_base_url(self):
@@ -252,8 +233,8 @@ class APIClient:
         return result
 
     @authRequired
-    def createModel(self, fileName, fileUpdatedAt, uniqueName):
-        print("Creating the model...")
+    def createModel(self, fileId):
+        logger.debug("Creating the model...")
         endpoint = "models"
 
         headers = {
@@ -261,11 +242,9 @@ class APIClient:
         }
 
         payload = {
-            "custFileName": fileName,
-            "uniqueFileName": uniqueName,
+            "fileId": fileId,
             "shouldStartObjGeneration": True,
-            "errorMsg": "",
-            "fileUpdatedAt": fileUpdatedAt,
+            "createSystemGeneratedShareLink": False,
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
@@ -273,24 +252,23 @@ class APIClient:
         return result
 
     @authRequired
-    def regenerateModelObj(self, fileId, fileUpdatedAt, uniqueFileName):
-        print(f"Regenerating the model OBJ... {fileUpdatedAt}")
-        endpoint = f"models/{fileId}"
+    def regenerateModelObj(self, modelId, fileId):
+        logger.debug("Regenerating the model OBJ... ")
+        endpoint = f"models/{modelId}"
 
         headers = {
             "Content-Type": "application/json",
         }
         payload = {
-            "shouldCommitNewVersion": True,
-            "version": {
-                "uniqueFileName": uniqueFileName,
-                "fileUpdatedAt": fileUpdatedAt,
-                "message": "Commit message",
-            },
+            # "shouldCommitNewVersion": True,
+            "fileId": fileId,
             "shouldStartObjGeneration": True,
+            # "createSystemGeneratedShareLink": False,
         }
 
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))
+
+        return result
 
     @authRequired
     def deleteModel(self, _id):
@@ -316,8 +294,8 @@ class APIClient:
         return files
 
     @authRequired
-    def createFile(self, fileName, fileUpdatedAt, uniqueName):
-        print("Creating the file object...")
+    def createFile(self, fileName, fileUpdatedAt, uniqueName, directory, workspace):
+        logger.debug(f"Creating file {fileName} in dir {directory}")
         endpoint = "file"
 
         headers = {
@@ -329,9 +307,12 @@ class APIClient:
             "shouldCommitNewVersion": True,
             "version": {
                 "uniqueFileName": uniqueName,
-                "message": "",
+                # "message": "Initial commit from the Ondsel Lens addon",
+                "message": "Initial commit",
                 "fileUpdatedAt": fileUpdatedAt,
             },
+            "directory": directory,
+            "workspace": workspace,
         }
 
         result = self._post(endpoint, headers=headers, data=json.dumps(payload))
@@ -339,8 +320,10 @@ class APIClient:
         return result
 
     @authRequired
-    def updateFileObj(self, fileId, fileUpdatedAt, uniqueFileName):
-        print(f"Posting new version of file...")
+    def updateFileObj(
+        self, fileId, fileUpdatedAt, uniqueFileName, directory, workspace, message
+    ):
+        logger.debug(f"updatingFileObj {fileId} in dir {directory}")
         endpoint = f"file/{fileId}"
 
         headers = {
@@ -351,15 +334,36 @@ class APIClient:
             "version": {
                 "uniqueFileName": uniqueFileName,
                 "fileUpdatedAt": fileUpdatedAt,
-                "message": "",
+                "message": message,
             },
+            "directory": directory,
+            "workspace": workspace,
         }
 
         result = self._update(endpoint, headers=headers, data=json.dumps(payload))
 
+        return result
+
     @authRequired
-    def deleteFile(self, _id):
-        endpoint = f"/file/{_id}"
+    def setVersionActive(self, fileId, versionId):
+        logger.debug("setVersionActive")
+        endpoint = f"file/{fileId}"
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+        payload = {
+            "shouldCheckoutToVersion": True,
+            "versionId": versionId,
+        }
+
+        result = self._update(endpoint, headers=headers, data=json.dumps(payload))
+
+        return result
+
+    @authRequired
+    def deleteFile(self, fileId):
+        endpoint = f"file/{fileId}"
 
         result = self._delete(endpoint)
         return result
@@ -368,8 +372,11 @@ class APIClient:
 
     @authRequired
     def uploadFileToServer(self, uniqueName, filename):
-        print(filename)
-        # files to be uploaded needs to have a unique name generated with uuid (use str(uuid.uuid4()) ) : test.fcstd -> c4481734-c18f-4b8c-8867-9694ae2a9f5a.fcstd
+        logger.debug(f"upload: {filename}")
+        # files to be uploaded need to have a unique name generated with uuid
+        # (use str(uuid.uuid4()) ) : test.fcstd ->
+        # c4481734-c18f-4b8c-8867-9694ae2a9f5a.fcstd
+        # Note that this is not a hash but a random identifier.
         endpoint = "upload"
 
         if not os.path.isfile(filename):
@@ -389,14 +396,12 @@ class APIClient:
     @authRequired
     def downloadFileFromServer(self, uniqueName, filename):
         endpoint = f"/upload/{uniqueName}"
-        print(filename)
 
         response = self._request(endpoint)
         directory = os.path.dirname(filename)
         os.makedirs(directory, exist_ok=True)
-        print(response)
 
-        self._download(response["url"], filename)
+        return self._download(response["url"], filename)
 
     # Shared Model Functions
 
@@ -450,6 +455,125 @@ class APIClient:
     @authRequired
     def deleteSharedModel(self, ShareModelID):
         endpoint = f"shared-models/{ShareModelID}"
+
+        result = self._delete(endpoint)
+        return result
+
+    # Workspace functions.
+    @authRequired
+    def getWorkspaces(self, params=None):
+        paginationparams = {"$limit": 50, "$skip": 0}
+        endpoint = "workspaces"
+        if params is None:
+            params = paginationparams
+        else:
+            params = {**params, **paginationparams}
+
+        result = self._request(endpoint, params=params)
+        workspaces = result["data"]
+
+        return workspaces
+
+    @authRequired
+    def getWorkspace(self, workspaceID):
+        endpoint = f"workspaces/{workspaceID}"
+
+        result = self._request(endpoint)
+        return result
+
+    @authRequired
+    def createWorkspace(self, name, description, organizationId):
+        logger.debug("Creating the workspace...")
+        endpoint = "workspaces"
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "name": name,
+            "description": description,
+            "organizationId": organizationId,
+        }
+
+        result = self._post(endpoint, headers=headers, data=json.dumps(payload))
+
+        return result
+
+    @authRequired
+    def updateWorkspace(self, workspaceData):
+        endpoint = f"workspaces/{workspaceData['_id']}"
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        result = self._update(endpoint, headers=headers, data=json.dumps(workspaceData))
+
+        return result
+
+    @authRequired
+    def deleteWorkspace(self, WorkspaceID):
+        endpoint = f"workspaces/{WorkspaceID}"
+
+        result = self._delete(endpoint)
+        return result
+
+    # Directory Functions
+    @authRequired
+    def getDirectories(self, params=None):
+        paginationparams = {"$limit": 50, "$skip": 0}
+        endpoint = "directories"
+        if params is None:
+            params = paginationparams
+        else:
+            params = {**params, **paginationparams}
+
+        result = self._request(endpoint, params=params)
+        directories = result["data"]
+
+        return directories
+
+    @authRequired
+    def getDirectory(self, directoryID):
+        endpoint = f"directories/{directoryID}"
+
+        result = self._request(endpoint)
+        return result
+
+    @authRequired
+    def createDirectory(self, name, idParentDir, nameParentDir, workspace):
+        logger.debug("Creating the directory...")
+        endpoint = "directories"
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            "name": name,
+            "workspace": workspace,
+            "parentDirectory": {
+                "_id": idParentDir,
+                "name": nameParentDir,
+            },
+        }
+
+        return self._post(endpoint, headers=headers, data=json.dumps(payload))
+
+    @authRequired
+    def updateDirectory(self, directoryData):
+        endpoint = f"directories/{directoryData['_id']}"
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        result = self._update(endpoint, headers=headers, data=json.dumps(directoryData))
+
+        return result
+
+    @authRequired
+    def deleteDirectory(self, directoryID):
+        endpoint = f"directories/{directoryID}"
 
         result = self._delete(endpoint)
         return result
