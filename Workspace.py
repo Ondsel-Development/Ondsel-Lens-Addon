@@ -681,15 +681,15 @@ class ServerWorkspaceModel(WorkspaceModel):
     def summarizeWorkspace(self):
         return {k: self.workspace[k] for k in ("_id", "name", "refName")}
 
-    def createDir(self, dir):
+    def createDir(self, nameDirectory):
         # raises an APIClientException
         currentDir = self.currentDirectory[-1]
         workspace = self.summarizeWorkspace()
         result = self.apiClient.createDirectory(
-            dir, currentDir["_id"], currentDir["name"], workspace
+            nameDirectory, currentDir["_id"], currentDir["name"], workspace
         )
 
-        return result
+        return result["_id"]
 
 
 class FileItem:
