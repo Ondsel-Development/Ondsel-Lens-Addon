@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Ondsel Lens</name>
-  <description>Workspace Manager for Ondsel and Local Workspaces</description>
+  <description>Workspace manager for Ondsel Lens workspaces</description>
   <version>2023.12.13.01</version>
   <date>2023-12-13</date>
   <maintainer email="development@ondsel.com">Ondsel Development</maintainer>
