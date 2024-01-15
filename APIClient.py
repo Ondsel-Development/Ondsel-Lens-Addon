@@ -120,7 +120,6 @@ class APIClient:
             headers["Authorization"] = f"Bearer {self.access_token}"
         headers["Accept"] = "application/json"
         try:
-            logger.debug(f"Posting {endpoint} {data} {files}")
             response = requests.post(
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
