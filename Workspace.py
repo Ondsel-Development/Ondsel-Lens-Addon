@@ -47,11 +47,11 @@ class FileStatus(Enum):
     def __str__(self):
         match self:
             case FileStatus.SERVER_ONLY:
-                return "Server only"
+                return "Not downloaded"
             case FileStatus.SERVER_COPY_OUTDATED:
-                return "Server copy outdated"
+                return "Local copy newer"
             case FileStatus.LOCAL_COPY_OUTDATED:
-                return "Local copy outdated"
+                return "Lens copy newer"
             case FileStatus.SYNCED:
                 return "Synced"
             case FileStatus.UNTRACKED:
