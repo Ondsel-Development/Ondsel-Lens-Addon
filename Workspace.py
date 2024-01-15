@@ -720,6 +720,12 @@ class FileItem:
     def getPath(self):
         return Utils.joinPath(self.path, self.name)
 
+    def getModelId(self):
+        if self.serverFileDict and "modelId" in self.serverFileDict:
+            return self.serverFileDict["modelId"]
+        else:
+            return None
+
     def dump(self):
         print(
             cleandoc(

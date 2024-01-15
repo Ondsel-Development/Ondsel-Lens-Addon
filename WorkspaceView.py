@@ -907,18 +907,21 @@ class WorkspaceView(QtGui.QDockWidget):
         path = self.currentWorkspaceModel.getFullPath()
         pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
         if pixmap is None:
-            pixmap = self.getServerThumbnail(fileName, path, self.currentModelId)
-            if pixmap is None:
-                pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
+            modelId = fileItem.getModelId()
+            if modelId:
+                pixmap = self.getServerThumbnail(fileName, path, modelId)
+                if pixmap is None:
+                    pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
         self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
         self.form.thumbnail_label.setPixmap(pixmap)
 
     def fileListClickedLoggedIn(self, file_item):
         fileName = file_item.name
-        if file_item.serverFileDict and "modelId" in file_item.serverFileDict:
-            # currentModelId is used for the server model and is necessary to
-            # open models online
-            self.currentModelId = file_item.serverFileDict["modelId"]
+        modelId = file_item.getModelId()
+        # if file_item.serverFileDict and "modelId" in file_item.serverFileDict:
+        #     # currentModelId is used for the server model and is necessary to
+        #     # open models online
+        #     self.currentModelId = file_item.serverFileDict["modelId"]
         self.form.thumbnail_label.show()
         self.updateThumbnail(file_item)
         self.form.fileNameLabel.setText(renderFileName(fileName))
@@ -938,14 +941,12 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.linkDetails.setVisible(False)
             self.form.makeActiveBtn.setVisible(False)
 
-        if self.currentModelId is not None:
+        if modelId is not None:
 
             def tryInitModels():
-                self.links_model = ShareLinkModel(self.currentModelId, self.apiClient)
+                self.links_model = ShareLinkModel(modelId, self.apiClient)
                 nonlocal version_model
-                version_model = OndselVersionModel(
-                    self.currentModelId, self.apiClient, file_item
-                )
+                version_model = OndselVersionModel(modelId, self.apiClient, file_item)
                 self.form.viewOnlineBtn.setVisible(True)
                 self.form.linkDetails.setVisible(True)
                 self.form.makeActiveBtn.setVisible(version_model.canBeMadeActive())
@@ -989,7 +990,7 @@ class WorkspaceView(QtGui.QDockWidget):
         # do as little modifications to the state as possible.
         file_item = self.currentWorkspaceModel.data(index)
         fileName = file_item.name
-        self.currentModelId = None
+        # self.currentModelId = None
         if Utils.isOpenableByFreeCAD(fileName):
             if self.isLoggedIn():
                 self.fileListClickedLoggedIn(file_item)
@@ -1159,9 +1160,7 @@ class WorkspaceView(QtGui.QDockWidget):
         if action == deleteAction:
             self.deleteFile(file_item, index)
         if action == openOnlineAction:
-            self.currentModelId = file_item.serverFileDict["modelId"]
-            self.openModelOnline()
-            self.currentModelId = None
+            self.openModelOnline(file_item.getModelId())
         elif action == downloadAction:
             self.downloadFileIndex(index)
         elif action == uploadAction:
@@ -1402,11 +1401,18 @@ class WorkspaceView(QtGui.QDockWidget):
                 lambda: self.form.linksView.model().add_new_link(link_properties)
             )
 
-    def openModelOnline(self):
+    def openModelOnline(self, modelId=None):
         url = ondselUrl
 
-        if self.currentModelId is not None:
-            url = f"{lensUrl}model/{self.currentModelId}"
+        if not modelId:
+            comboBox = self.form.versionsComboBox
+            versionModel = comboBox.model()
+            modelId = versionModel.model_id
+
+        logger.debug(f"modelId: {modelId}")
+        if modelId is not None:
+            url = f"{lensUrl}model/{modelId}"
+            logger.debug(f"Opening {url}")
         QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
 
     def makeActive(self):
