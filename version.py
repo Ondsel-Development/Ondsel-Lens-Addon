@@ -1,10 +1,6 @@
 import re
 from datetime import datetime
 
-import Utils
-
-logger = Utils.getLogger(__name__)
-
 
 def increment_version(version):
     version_parts = version.split(".")
@@ -56,7 +52,7 @@ if __name__ == "__main__":
 
     if new_version != current_version:
         update_version_in_file(package_xml_file, new_version, new_date)
-        logger.info(f"Version updated from {current_version} to {new_version}")
-        logger.info(f"Date updated to {new_date}")
+        print(f"Version updated from {current_version} to {new_version}")
+        print(f"Date updated to {new_date}")
     else:
-        logger.info("Version remains unchanged. No update needed.")
+        print("Version remains unchanged. No update needed.")
