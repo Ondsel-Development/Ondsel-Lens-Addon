@@ -13,8 +13,7 @@ Open the Addon manager. Find in the list 'Ondsel-Lens' and install it.
 The installation will require restarting FreeCAD.
 
 You should see the Ondsel Addon shown on the right side of FreeCAD. If it doesn't appear, right-click on the toolbar area and toggle the visibility of the 'Ondsel Lens'.
-
-![image](https://github.com/Ondsel-Development/Ondsel-Lens/assets/538057/4ecccf11-6797-4c81-815e-1fc66db87b08)
+![image](https://github.com/Ondsel-Development/Ondsel-Lens/assets/538057/766b7cd7-5c0a-409b-9135-940be8b2fe54)
 
 ## Dependencies
 
@@ -43,7 +42,7 @@ workspace "Default (Personal)".  From here you can save files and access them
 from another location.
 
 <!-- needs to be updated with images from the new flavor -->
-![image](https://github.com/Ondsel-Development/Ondsel-Lens/assets/538057/07d8b957-efe8-4140-a9a5-2a6a3140d507)
+![image](https://github.com/Ondsel-Development/Ondsel-Lens/assets/538057/5de4781c-b90c-4de1-bd8a-e23283348fbd)
 
 ### Workspaces
 
