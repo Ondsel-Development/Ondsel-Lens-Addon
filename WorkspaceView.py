@@ -1701,10 +1701,9 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.updateAvailable.setText(
                 f"Ondsel Lens v{remote_version} available!"
             )
-            # TODO: the </a> at the end?
             self.form.updateAvailable.setToolTip(
                 "Click to see the change-log of Ondsel Lens "
-                f"v{remote_version} in your browser.</a>"
+                f"v{remote_version} in your browser."
             )
 
             self.form.updateAvailable.show()

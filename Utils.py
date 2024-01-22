@@ -10,6 +10,7 @@ import zipfile
 import math
 import logging
 from PySide2.QtGui import QPixmap
+from PySide.QtCore import Qt
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
 
@@ -63,7 +64,7 @@ def extract_thumbnail(file_path):
                 pixmap = QPixmap()
                 pixmap.loadFromData(thumbnail_data)
 
-                return pixmap
+                return pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio)
 
         except (zipfile.BadZipFile, KeyError):
             # Handle the case where the thumbnail file doesn't exist

@@ -583,7 +583,11 @@ class ServerWorkspaceModel(WorkspaceModel):
 
     def getFileItemFileId(self, fileId):
         for fi in self.files:
-            if fi.serverFileDict and fi.serverFileDict["_id"] == fileId:
+            if (
+                fi.serverFileDict
+                and "_id" in fi.serverFileDict
+                and fi.serverFileDict["_id"] == fileId
+            ):
                 return fi
         logger.error("Cannot find the correct fileId")
         return None
@@ -656,7 +660,11 @@ class ServerWorkspaceModel(WorkspaceModel):
             #     self.apiClient.regenerateModelObj(result["modelId"], fileId)
         else:
             result = self.apiClient.createFile(
-                fileName, fileUpdateDate, uniqueName, currentDir, workspace
+                fileName,
+                fileUpdateDate,
+                uniqueName,
+                currentDir,
+                workspace,
             )
             fileId = result["_id"]
             if extension.lower() in [".fcstd", ".obj"]:
@@ -679,14 +687,17 @@ class ServerWorkspaceModel(WorkspaceModel):
         )
 
     def summarizeWorkspace(self):
-        return {k: self.workspace[k] for k in ("_id", "name", "refName")}
+        return {k: self.workspace[k] for k in ("_id", "name", "refName", "open")}
 
     def createDir(self, nameDirectory):
         # raises an APIClientException
         currentDir = self.currentDirectory[-1]
         workspace = self.summarizeWorkspace()
         result = self.apiClient.createDirectory(
-            nameDirectory, currentDir["_id"], currentDir["name"], workspace
+            nameDirectory,
+            currentDir["_id"],
+            currentDir["name"],
+            workspace,
         )
 
         return result["_id"]
