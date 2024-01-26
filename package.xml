@@ -6,8 +6,8 @@
   <date>2024-03-26</date>
   <maintainer email="development@ondsel.com">Ondsel Development</maintainer>
   <license file="LICENSE">MIT</license>
-  <url type="repository" branch="master">https://github.com/ondsel-Development/ondsel-lens</url>
-  <url type="readme">https://github.com/ondsel-Development/ondsel-lens/blob/master/README.md</url>
+  <url type="repository" branch="master">https://github.com/Ondsel-Development/Ondsel-Lens</url>
+  <url type="readme">https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/README.md</url>
   <icon>Resources/icons/OndselWorkbench.svg</icon>
 
   <content>
