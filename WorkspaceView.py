@@ -1883,28 +1883,28 @@ class SharingLinkEditDialog(QtGui.QDialog):
 
     def getLinkProperties(self):
         self.linkProperties["description"] = self.dialog.linkName.text()
-        self.linkProperties[
-            "canViewModel"
-        ] = self.dialog.canViewModelCheckBox.isChecked()
-        self.linkProperties[
-            "canViewModelAttributes"
-        ] = self.dialog.canViewModelAttributesCheckBox.isChecked()
-        self.linkProperties[
-            "canUpdateModel"
-        ] = self.dialog.canUpdateModelAttributesCheckBox.isChecked()
+        self.linkProperties["canViewModel"] = (
+            self.dialog.canViewModelCheckBox.isChecked()
+        )
+        self.linkProperties["canViewModelAttributes"] = (
+            self.dialog.canViewModelAttributesCheckBox.isChecked()
+        )
+        self.linkProperties["canUpdateModel"] = (
+            self.dialog.canUpdateModelAttributesCheckBox.isChecked()
+        )
 
-        self.linkProperties[
-            "canExportFCStd"
-        ] = self.dialog.canExportFCStdCheckBox.isChecked()
-        self.linkProperties[
-            "canExportSTEP"
-        ] = self.dialog.canExportSTEPCheckBox.isChecked()
-        self.linkProperties[
-            "canExportSTL"
-        ] = self.dialog.canExportSTLCheckBox.isChecked()
-        self.linkProperties[
-            "canExportOBJ"
-        ] = self.dialog.canExportOBJCheckBox.isChecked()
+        self.linkProperties["canExportFCStd"] = (
+            self.dialog.canExportFCStdCheckBox.isChecked()
+        )
+        self.linkProperties["canExportSTEP"] = (
+            self.dialog.canExportSTEPCheckBox.isChecked()
+        )
+        self.linkProperties["canExportSTL"] = (
+            self.dialog.canExportSTLCheckBox.isChecked()
+        )
+        self.linkProperties["canExportOBJ"] = (
+            self.dialog.canExportOBJCheckBox.isChecked()
+        )
 
         return self.linkProperties
 
