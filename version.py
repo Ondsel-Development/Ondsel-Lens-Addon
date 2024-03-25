@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+import sys
 
 
 def increment_version(version):
@@ -39,8 +40,31 @@ def update_version_in_file(filename, new_version, new_date):
         file.write(updated_content)
 
 
+def update_version_changelog(filename, new_version):
+    with open(filename, "r") as file:
+        content = file.read()
+
+    updated_content = re.sub(r"<version>", f"# {new_version}", content)
+
+    with open(filename, "w") as file:
+        file.write(updated_content)
+
+    if content == updated_content:
+        print(
+            """
+Please add a Changelog line such as:
+<version>
+This version introduces...
+        """
+        )
+        sys.exit(1)
+    else:
+        print(f"Changelog updated to version {new_version}")
+
+
 if __name__ == "__main__":
     package_xml_file = "./package.xml"
+    changelog_file = "./changeLog.md"
 
     with open(package_xml_file, "r") as file:
         package_xml_content = file.read()
@@ -54,5 +78,6 @@ if __name__ == "__main__":
         update_version_in_file(package_xml_file, new_version, new_date)
         print(f"Version updated from {current_version} to {new_version}")
         print(f"Date updated to {new_date}")
+        update_version_changelog(changelog_file, new_version)
     else:
         print("Version remains unchanged. No update needed.")
