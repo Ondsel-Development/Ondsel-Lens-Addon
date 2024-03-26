@@ -45,20 +45,19 @@ class FileStatus(Enum):
     UNTRACKED = auto()
 
     def __str__(self):
-        match self:
-            case FileStatus.SERVER_ONLY:
-                return "Not downloaded"
-            case FileStatus.SERVER_COPY_OUTDATED:
-                return "Local copy newer"
-            case FileStatus.LOCAL_COPY_OUTDATED:
-                return "Lens copy newer"
-            case FileStatus.SYNCED:
-                return "Synced"
-            case FileStatus.UNTRACKED:
-                return "Untracked"
-            case _:
-                logger.error(f"Unknown file status: {self}")
-                return "Unknown"
+        if self == FileStatus.SERVER_ONLY:
+            return "Not downloaded"
+        elif self == FileStatus.SERVER_COPY_OUTDATED:
+            return "Local copy newer"
+        elif self == FileStatus.LOCAL_COPY_OUTDATED:
+            return "Lens copy newer"
+        elif self == FileStatus.SYNCED:
+            return "Synced"
+        elif self == FileStatus.UNTRACKED:
+            return "Untracked"
+        else:
+            logger.error(f"Unknown file status: {self}")
+            return "Unknown"
 
 
 class TokenRefreshThread(QThread):
