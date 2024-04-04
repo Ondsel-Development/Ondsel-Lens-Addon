@@ -110,6 +110,8 @@ class APIClient:
 
         if response.status_code == OK:
             return response.json()
+        elif response.status_code == UNAUTHORIZED:
+            raise APIClientAuthenticationException("Not authenticated")
         else:
             self._raiseException(
                 response, endpoint=endpoint, headers=headers, params=params
