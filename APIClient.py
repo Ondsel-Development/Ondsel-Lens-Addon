@@ -580,6 +580,80 @@ class APIClient:
         result = self._delete(endpoint)
         return result
 
+    @authRequired
+    def uploadPrefs(
+        self,
+        orgId,
+        uniqueFileNameUserConfig,
+        fileNameUserConfig,
+        uniqueFileNameSystemConfig,
+        fileNameSystemConfig,
+    ):
+        endpoint = "preferences"
+
+        orgData = self.getOrganization(orgId)
+
+        prefId = orgData.get("preferencesId")
+
+        if prefId:
+            endpoint = f"preferences/{prefId}"
+            payloadHeader = "shouldCommitNewVersion"
+            payloadHeaderValue = True
+            message = "Update preferences"
+        else:
+            endpoint = "preferences"
+            payloadHeader = "organizationId"
+            payloadHeaderValue = orgId
+            message = "Initial commit perferences"
+
+        headers = {
+            "Content-Type": "application/json",
+        }
+
+        payload = {
+            payloadHeader: payloadHeaderValue,
+            "version": {
+                "files": [
+                    {
+                        "fileName": fileNameUserConfig,
+                        "uniqueFileName": uniqueFileNameUserConfig,
+                        "additionalData": {
+                            "message": message,
+                        },
+                        "additionalKeysToSave": {},
+                    },
+                    {
+                        "fileName": fileNameSystemConfig,
+                        "uniqueFileName": uniqueFileNameSystemConfig,
+                        "additionalData": {},
+                        "additionalKeysToSave": {},
+                    },
+                ],
+            },
+        }
+
+        if prefId:
+            return self._update(endpoint, headers=headers, data=json.dumps(payload))
+        else:
+            return self._post(endpoint, headers=headers, data=json.dumps(payload))
+
+    @authRequired
+    def getOrganization(self, orgId):
+        endpoint = f"organizations/{orgId}"
+
+        return self._request(endpoint)
+
+    @authRequired
+    def downloadPrefs(self, orgId):
+        orgData = self.getOrganization(orgId)
+
+        prefId = orgData.get("preferencesId")
+        if prefId:
+            endpoint = f"preferences/{prefId}"
+            return self._request(endpoint)
+        else:
+            return None
+
 
 class APIHelper:
     def __init__(self):

@@ -6,13 +6,14 @@
 
 import Utils
 
-from PySide import QtCore, QtGui
+from PySide import QtCore, QtGui, QtWidgets
 import os
 from datetime import datetime
 import json
 import shutil
 import re
 import requests
+import uuid
 
 from inspect import cleandoc
 
@@ -57,6 +58,10 @@ MAX_LENGTH_BASE_FILENAME = 30
 MAX_LENGTH_WORKSPACE_NAME = 33
 ELLIPSES = "..."
 MAX_INT32 = (1 << 31) - 1
+CONFIG_PATH = FreeCAD.getUserConfigDir()
+FILENAME_USER_CFG = "user.cfg"
+FILENAME_SYS_CFG = "system.cfg"
+PREFIX_PARAM_ROOT = "/Root/"
 
 mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
@@ -356,10 +361,9 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.workspaceListView.setItemDelegate(self.workspacesDelegate)
         self.form.workspaceListView.doubleClicked.connect(self.enterWorkspace)
         self.form.workspaceListView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        # Disable this, prefer to do this in the dashboard
-        # self.form.workspaceListView.customContextMenuRequested.connect(
-        #     self.showWorkspaceContextMenu
-        # )
+        self.form.workspaceListView.customContextMenuRequested.connect(
+            self.showWorkspaceContextMenu
+        )
         self.workspacesModel.rowsInserted.connect(self.switchView)
         self.workspacesModel.rowsRemoved.connect(self.switchView)
 
@@ -1030,6 +1034,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
             self.form.versionsComboBox.setVisible(True)
 
+    # workspace add and delete is preferred to do in the Dashboard
     # def showWorkspaceContextMenu(self, pos):
     #     index = self.form.workspaceListView.indexAt(pos)
 
@@ -1066,6 +1071,199 @@ class WorkspaceView(QtGui.QDockWidget):
 
     #         if action == addAction:
     #             self.newWorkspaceBtnClicked()
+
+    # ####
+    # Managing preferences
+    # ####
+
+    def showWorkspaceContextMenu(self, pos):
+        def getOrganizationName(index):
+            workspaceData = self.workspacesModel.data(index)
+            organizationData = workspaceData.get("organization")
+            if organizationData:
+                return organizationData.get("name")
+
+        index = self.form.workspaceListView.indexAt(pos)
+
+        if index.isValid():
+            menu = QtGui.QMenu()
+
+            nameOrganization = getOrganizationName(index)
+
+            if nameOrganization:
+                labelMenuBase = f"preferences for {nameOrganization}"
+
+                storePrefAction = menu.addAction(f"Upload {labelMenuBase}")
+                storePrefAction.setEnabled(self.isLoggedIn())
+
+                loadPrefAction = menu.addAction(f"Download {labelMenuBase}")
+                loadPrefAction.setEnabled(self.isLoggedIn())
+
+                action = menu.exec_(
+                    self.form.workspaceListView.viewport().mapToGlobal(pos)
+                )
+
+                if action == storePrefAction:
+                    self.storePrefs(index)
+                elif action == loadPrefAction:
+                    self.loadPrefs(index)
+
+    def uploadPrefs(self, pathConfig):
+        base, extension = os.path.splitext(pathConfig)
+        uniqueName = f"{str(uuid.uuid4())}{extension}"
+
+        self.apiClient.uploadFileToServer(uniqueName, pathConfig)
+
+        return uniqueName
+
+    def storePrefs(self, index):
+        workspaceData = self.workspacesModel.data(index)
+        orgData = workspaceData.get("organization")
+        orgId = orgData["_id"]
+
+        pathUserConfig = Utils.joinPath(CONFIG_PATH, FILENAME_USER_CFG)
+        pathSysConfig = Utils.joinPath(CONFIG_PATH, FILENAME_SYS_CFG)
+
+        def tryStorePrefs():
+            uniqueNameUserConfig = self.uploadPrefs(pathUserConfig)
+            uniqueNameSysConfig = self.uploadPrefs(pathSysConfig)
+
+            self.apiClient.uploadPrefs(
+                orgId,
+                uniqueNameUserConfig,
+                FILENAME_USER_CFG,
+                uniqueNameSysConfig,
+                FILENAME_SYS_CFG,
+            )
+
+        self.handle(tryStorePrefs)
+
+    def convertParam(self, type, paramGroup, value):
+        if type == "FCBool":
+            return paramGroup.GetBool, paramGroup.SetBool, bool(int(value))
+        elif type == "FCUInt":
+            return paramGroup.GetUnsigned, paramGroup.SetUnsigned, int(value)
+        elif type == "FCInt":
+            return paramGroup.GetInt, paramGroup.SetInt, int(value)
+        elif type == "FCFloat":
+            return paramGroup.GetFloat, paramGroup.SetFloat, float(value)
+        elif type == "FCText":
+            return paramGroup.GetString, paramGroup.SetString, value
+        else:
+            logger.error("Unknown parameter type")
+            return None, None, None
+
+    def getRemoveFunc(self, type, paramGroup):
+        if type == "Boolean":
+            return paramGroup.RemBool
+        elif type == "Unsigned Long":
+            return paramGroup.RemUnsigned
+        elif type == "Integer":
+            return paramGroup.RemInt
+        elif type == "Float":
+            return paramGroup.RemFloat
+        elif type == "String":
+            return paramGroup.RemString
+        else:
+            logger.error("Unknown parameter type")
+            return None
+
+    def getTypeParamGroup(self, group, param):
+        contents = group.GetContents()
+        if contents:
+            filtered_tuples = filter(
+                lambda tup: len(tup) > 1 and tup[1] == param, contents
+            )
+            result = list(filtered_tuples)
+            if result:
+                return result[0][0]
+
+        return None
+
+    def removeParam(self, group, param, path):
+        type = self.getTypeParamGroup(group, param)
+        if type:
+            removeFunc = self.getRemoveFunc(type, group)
+            removeFunc(param)
+            logger.info(f"Removing parameter '{param}' in group '{path}'")
+
+    def setPrefPath(self, path, param, type, value):
+        paramGroup = FreeCAD.ParamGet(path)
+
+        if type == "KeyNotFound":
+            self.removeParam(paramGroup, param, path)
+        else:
+            getFunc, setFunc, convertedValue = self.convertParam(
+                type, paramGroup, value
+            )
+            currentValue = getFunc(param)
+            if currentValue != convertedValue:
+                logger.info(
+                    f"Setting parameter '{param}' "
+                    f"in group '{path}' to '{convertedValue}'"
+                )
+                setFunc(param, convertedValue)
+
+    def setPrefsFile(self, prefsFile):
+        fileName = prefsFile["fileName"]
+        if fileName == FILENAME_USER_CFG:
+            prefix = "User parameter:"
+        elif fileName == FILENAME_SYS_CFG:
+            prefix = "System parameter:"
+        else:
+            logger.error("Unknown preference file")
+            return
+
+        for prefData in prefsFile["data"]:
+            key, type, value = prefData["key"], prefData["type"], prefData["value"]
+            # discard the prefix '/Root/' and split into path values
+            pathValues = key[len(PREFIX_PARAM_ROOT) :].split("/")
+            # the last path value is the parameter of interest
+            param = pathValues[-1]
+            # the path is the prefix and the rest of the pathvalues joined together
+            path = prefix + "/".join(pathValues[:-1])
+            self.setPrefPath(path, param, type, value)
+
+    def setPrefs(self, prefs):
+        self.prefs = prefs
+        for filePrefs in prefs["currentVersion"]["files"]:
+            self.setPrefsFile(filePrefs)
+
+    def askRestart(self):
+        # similar to the question from the Addon Manager
+        m = QtWidgets.QMessageBox()
+        m.setWindowTitle("Ondsel Lens")
+        # m.setWindowIcon(QtGui.QIcon(":/icons/OndselWorkbench.svg"))
+        m.setWindowIcon(self.ondselIcon)
+        m.setText("You must restart FreeCAD for changes to take effect.")
+        m.setIcon(m.Warning)
+        m.setStandardButtons(m.Ok | m.Cancel)
+        m.setDefaultButton(m.Cancel)
+        okBtn = m.button(QtWidgets.QMessageBox.StandardButton.Ok)
+        cancelBtn = m.button(QtWidgets.QMessageBox.StandardButton.Cancel)
+        okBtn.setText("Restart now")
+        cancelBtn.setText("Restart later")
+        ret = m.exec_()
+        if ret == m.Ok:
+            # restart FreeCAD after a delay to give time to this dialog to close
+            QtCore.QTimer.singleShot(1000, Utils.restartFreecad)
+
+    def loadPrefs(self, index):
+        workspaceData = self.workspacesModel.data(index)
+        orgData = workspaceData.get("organization")
+        orgId = orgData["_id"]
+        nameOrg = orgData["name"]
+
+        def tryLoadPrefs():
+            result = self.apiClient.downloadPrefs(orgId)
+            if result:
+                self.setPrefs(result)
+                FreeCAD.saveParameter("User parameter")
+                self.askRestart()
+            else:
+                logger.info(f"Organization {nameOrg} has no preferences stored.")
+
+        self.handle(tryLoadPrefs)
 
     # ####
     # Directory deletion
