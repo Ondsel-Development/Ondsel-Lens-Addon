@@ -56,6 +56,7 @@ logger = Utils.getLogger(__name__)
 MAX_LENGTH_BASE_FILENAME = 30
 MAX_LENGTH_WORKSPACE_NAME = 33
 ELLIPSES = "..."
+MAX_INT32 = (1 << 31) - 1
 
 mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
@@ -545,12 +546,12 @@ class WorkspaceView(QtGui.QDockWidget):
 
             time_difference = expiration_time - current_time
             interval_milliseconds = max(0, time_difference.total_seconds() * 1000)
-
-            # Create a QTimer that triggers only once when the token is expired
-            self.token_timer = QtCore.QTimer()
-            self.token_timer.setSingleShot(True)
-            self.token_timer.timeout.connect(self.token_expired_handler)
-            self.token_timer.start(interval_milliseconds)
+            if interval_milliseconds < MAX_INT32:
+                # Create a QTimer that triggers only once when the token is expired
+                self.token_timer = QtCore.QTimer()
+                self.token_timer.setSingleShot(True)
+                self.token_timer.timeout.connect(self.token_expired_handler)
+                self.token_timer.start(interval_milliseconds)
         except ExpiredSignatureError as e:
             # unexpected
             self.logout()
