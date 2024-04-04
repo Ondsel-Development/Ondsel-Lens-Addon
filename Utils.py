@@ -9,8 +9,11 @@ import FreeCAD
 import zipfile
 import math
 import logging
+from PySide import QtCore, QtWidgets
 from PySide2.QtGui import QPixmap
 from PySide.QtCore import Qt
+
+import FreeCADGui
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
 
@@ -106,3 +109,15 @@ def getLogger(name):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
+
+
+def restartFreecad():
+    """Shuts down and restarts FreeCAD"""
+
+    # Very similar to how the Addon Manager restarts FreeCAD
+
+    args = QtWidgets.QApplication.arguments()[1:]
+    if FreeCADGui.getMainWindow().close():
+        QtCore.QProcess.startDetached(
+            QtWidgets.QApplication.applicationFilePath(), args
+        )
