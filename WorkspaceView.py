@@ -716,6 +716,11 @@ class WorkspaceView(QtGui.QDockWidget):
         except APIClientRequestException as e:
             logger.warn(e)
             return False
+        except APIClientAuthenticationException as e:
+            logger.warn(e)
+            logger.warn("Logging out")
+            self.logout()
+            return True
         except APIClientException as e:
             logger.error("Uncaught exception:")
             logger.error(e)
