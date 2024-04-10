@@ -84,7 +84,7 @@ try:
 
     baseUrl = config.base_url
     lensUrl = config.lens_url
-except ImportError:
+except (ImportError, AttributeError):
     pass
 
 
