@@ -10,3 +10,6 @@ organizations.
 
 # 2024.01.22.01
 Minor issues have been fixed.
+
+<version>
+Solve minor bugs related to a changing environment.
