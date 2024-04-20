@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>849</width>
-    <height>721</height>
+    <height>595</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -26,7 +26,7 @@
       <item>
        <widget class="QToolButton" name="userBtn">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+         <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
@@ -115,10 +115,44 @@
     </widget>
    </item>
    <item>
-    <widget class="QTextEdit" name="txtExplain"/>
+    <widget class="QTextEdit" name="txtExplain">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+    </widget>
    </item>
    <item>
     <widget class="QListView" name="workspaceListView">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>0</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>16777215</width>
+       <height>16777215</height>
+      </size>
+     </property>
+     <property name="baseSize">
+      <size>
+       <width>0</width>
+       <height>0</height>
+      </size>
+     </property>
      <property name="toolTip">
       <string>List of your workspaces.</string>
      </property>
@@ -127,7 +161,7 @@
    <item>
     <widget class="QListView" name="fileList">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+      <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
@@ -142,19 +176,25 @@
      <layout class="QVBoxLayout">
       <item>
        <layout class="QHBoxLayout">
-        <item>
+        <item alignment="Qt::AlignTop">
          <widget class="QLabel" name="thumbnail_label">
           <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
             <horstretch>0</horstretch>
             <verstretch>0</verstretch>
            </sizepolicy>
+          </property>
+          <property name="minimumSize">
+           <size>
+            <width>128</width>
+            <height>128</height>
+           </size>
           </property>
          </widget>
         </item>
         <item>
          <layout class="QVBoxLayout">
-          <item>
+          <item alignment="Qt::AlignTop">
            <widget class="QLabel" name="fileNameLabel">
             <property name="text">
              <string>part.FCStd</string>
@@ -265,7 +305,7 @@
          <item>
           <widget class="QListView" name="linksView">
            <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+            <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
              <horstretch>0</horstretch>
              <verstretch>0</verstretch>
             </sizepolicy>
