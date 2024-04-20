@@ -48,6 +48,7 @@ from PySide.QtGui import (
     QAction,
     QActionGroup,
     QMenu,
+    QSizePolicy,
     QPixmap,
 )
 
@@ -671,15 +672,22 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def switchView(self):
         isFileView = self.currentWorkspace is not None
-        self.form.WorkspaceDetails.setVisible(isFileView)
-        self.form.fileList.setVisible(isFileView)
 
-        if self.user is None and self.workspacesModel.rowCount() == 0:
-            self.form.txtExplain.setVisible(True)
+        if isFileView:
             self.form.workspaceListView.setVisible(False)
+            self.form.WorkspaceDetails.setVisible(True)
+            self.form.fileList.setVisible(True)
+            self.form.fileList.setSizePolicy(
+                QSizePolicy.Preferred, QSizePolicy.Expanding
+            )
         else:
-            self.form.txtExplain.setVisible(False)
-            self.form.workspaceListView.setVisible(not isFileView)
+            self.form.WorkspaceDetails.setVisible(False)
+            self.form.fileList.setVisible(False)
+            if self.user is None and self.workspacesModel.rowCount() == 0:
+                self.form.txtExplain.setVisible(True)
+            else:
+                self.form.txtExplain.setVisible(False)
+                self.form.workspaceListView.setVisible(True)
 
     def backClicked(self):
         if self.currentWorkspace is None:
@@ -910,7 +918,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def updateThumbnail(self, fileItem):
         fileName = fileItem.name
-        self.form.thumbnail_label.show()
         path = self.currentWorkspaceModel.getFullPath()
         pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
         if pixmap is None:
@@ -929,14 +936,18 @@ class WorkspaceView(QtGui.QDockWidget):
         #     # currentModelId is used for the server model and is necessary to
         #     # open models online
         #     self.currentModelId = file_item.serverFileDict["modelId"]
-        self.form.thumbnail_label.show()
         self.updateThumbnail(file_item)
         self.form.fileNameLabel.setText(renderFileName(fileName))
-        self.form.fileNameLabel.show()
 
         version_model = None
         self.links_model = None
 
+        self.form.fileList.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.form.fileDetails.setSizePolicy(
+            QSizePolicy.Preferred, QSizePolicy.Expanding
+        )
+        self.form.thumbnail_label.show()
+        self.form.fileNameLabel.show()
         self.form.fileDetails.setVisible(True)
 
         # It seems an idea to have the values below as default to then set them when
@@ -975,6 +986,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.makeActiveBtn.setVisible(False)
         self.form.linkDetails.setVisible(False)
         self.form.fileDetails.setVisible(False)
+        self.form.fileList.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
 
     def fileListClickedLoggedOut(self, fileName):
         path = self.currentWorkspaceModel.getFullPath()
