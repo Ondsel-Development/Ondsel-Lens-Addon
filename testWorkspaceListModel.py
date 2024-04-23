@@ -5,7 +5,7 @@
 # ***********************************************************************
 import unittest
 from unittest.mock import patch, MagicMock
-from PySide2.QtCore import Qt, QModelIndex
+from PySide.QtCore import Qt, QModelIndex
 from DataModels import WorkspaceListModel
 import os
 
