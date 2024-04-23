@@ -5,7 +5,7 @@
 # ***********************************************************************
 
 import unittest
-from PySide2.QtCore import Qt
+from PySide.QtCore import Qt
 from VersionModel import LocalVersionModel, OndselVersionModel
 import pprint
 import shutil

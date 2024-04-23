@@ -12,7 +12,7 @@ import shutil
 
 from urllib.parse import urlparse
 
-from PySide2.QtGui import QPixmap
+from PySide.QtGui import QPixmap
 from PySide.QtCore import Qt
 
 import FreeCAD

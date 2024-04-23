@@ -5,7 +5,7 @@
 # ***********************************************************************
 
 import unittest
-from PySide2.QtCore import Qt
+from PySide.QtCore import Qt
 from LinkModel import ShareLinkModel
 from APIClient import APIClient
 import pprint
