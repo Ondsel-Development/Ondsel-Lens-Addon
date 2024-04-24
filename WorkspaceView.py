@@ -23,7 +23,15 @@ import FreeCAD
 import FreeCADGui as Gui
 
 
-from DataModels import WorkspaceListModel, CACHE_PATH
+from DataModels import (
+    WorkspaceListModel,
+    CACHE_PATH,
+    getBookmarkModel,
+    ROLE_TYPE,
+    TYPE_ORG,
+    TYPE_BOOKMARK,
+    ROLE_SHARE_MODEL_ID,
+)
 from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import (
@@ -53,6 +61,8 @@ from PySide.QtGui import (
     QPixmap,
 )
 
+from PySide.QtWidgets import QTreeView
+
 logger = Utils.getLogger(__name__)
 
 MAX_LENGTH_BASE_FILENAME = 30
@@ -63,6 +73,11 @@ CONFIG_PATH = FreeCAD.getUserConfigDir()
 FILENAME_USER_CFG = "user.cfg"
 FILENAME_SYS_CFG = "system.cfg"
 PREFIX_PARAM_ROOT = "/Root/"
+
+IDX_TAB_WORKSPACES = 0
+IDX_TAB_BOOKMARKS = 1
+
+PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
 
 mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
@@ -332,6 +347,51 @@ class WorkspaceListDelegate(QStyledItemDelegate):
     #                                                           option, index)
 
 
+class BookmarkView(QTreeView):
+    def drawBranches(self, painter, rect, index):
+        pass
+
+
+class BookmarkDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def createEditor(self, parent, option, index):
+        return None
+
+    def paint(self, painter, option, index):
+        type = index.data(ROLE_TYPE)
+        if type == TYPE_ORG:
+            name = index.data(QtCore.Qt.DisplayRole)
+
+            # Mimick the workspaces list for consistency
+            name_font = painter.font()
+            name_font.setBold(True)
+
+            # Draw the name
+            name_rect = QtCore.QRect(
+                option.rect.left() + 20,
+                option.rect.top() + 10,
+                option.rect.width() - 20,
+                option.rect.height() // 2,
+            )
+            painter.setFont(name_font)
+            painter.drawText(
+                name_rect,
+                QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter,
+                name,
+            )
+        else:
+            super().paint(painter, option, index)
+
+    def sizeHint(self, option, index):
+        type = index.data(ROLE_TYPE)
+        if type == TYPE_ORG:
+            return QtCore.QSize(100, 40)  # Adjust the desired width and height
+        else:
+            return super().sizeHint(option, index)
+
+
 class WorkspaceView(QtGui.QDockWidget):
     currentWorkspace = None
     username = "none"
@@ -428,6 +488,8 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.currentWorkspaceModel = None
 
+        self.initializeBookmarks()
+
         # Check if user is already logged in.
         loginDataStr = p.GetString("loginData", "")
         if loginDataStr != "":
@@ -469,6 +531,19 @@ class WorkspaceView(QtGui.QDockWidget):
         self.handle(tryRefresh)
 
         # linksView.setModel(self.linksModel)
+
+    def initializeBookmarks(self):
+        tabWidget = self.form.tabWidget
+        self.form.viewBookmarks = BookmarkView(tabWidget)
+        bookmarkView = self.form.viewBookmarks
+        self.form.tabBookmarks.layout().addWidget(bookmarkView)
+
+        tabWidget.currentChanged.connect(self.onTabChanged)
+        bookmarkView.setRootIsDecorated(False)
+        bookmarkView.setExpandsOnDoubleClick(False)
+        bookmarkView.header().hide()
+        bookmarkView.setItemDelegate(BookmarkDelegate())
+        bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
 
     # def generate_expired_token(self):
     #     # generate an expired token for testing
@@ -740,6 +815,14 @@ class WorkspaceView(QtGui.QDockWidget):
             self.logout()
             return True
 
+    def tryOpenPathFile(self, pathFile):
+        if Utils.isOpenableByFreeCAD(pathFile):
+            logger.debug(f"Opening file: {pathFile}")
+            if not self.restoreFile(pathFile):
+                FreeCAD.loadFile(pathFile)
+        else:
+            logger.warn(f"FreeCAD cannot open {pathFile}")
+
     def openFile(self, index):
         """Open a file
 
@@ -750,14 +833,11 @@ class WorkspaceView(QtGui.QDockWidget):
         if fileItem.is_folder:
             wsm.openDirectory(index)
         else:
-            file_path = Utils.joinPath(wsm.getFullPath(), fileItem.name)
-            if not os.path.isfile(file_path) and self.isLoggedIn():
+            pathFile = Utils.joinPath(wsm.getFullPath(), fileItem.name)
+            if not os.path.isfile(pathFile) and self.isLoggedIn():
                 wsm.downloadFile(fileItem)
                 # wsm has refreshed
-            if Utils.isOpenableByFreeCAD(file_path):
-                logger.debug(f"Opening file: {file_path}")
-                if not self.restoreFile(fileItem):
-                    FreeCAD.loadFile(file_path)
+            self.tryOpenPathFile(pathFile)
 
     def setWorkspaceNameLabel(self):
         wsm = self.currentWorkspaceModel
@@ -879,10 +959,10 @@ class WorkspaceView(QtGui.QDockWidget):
         if Utils.isOpenableByFreeCAD(fileItem.getPath()):
             self.updateThumbnail(fileItem)
 
-    def restoreFile(self, fileItem):
+    def restoreFile(self, pathFile):
         # iterate over the files
         for doc in FreeCAD.listDocuments().values():
-            if doc.FileName == fileItem.getPath():
+            if doc.FileName == pathFile:
                 doc.restore()
                 return True
         return False
@@ -913,8 +993,9 @@ class WorkspaceView(QtGui.QDockWidget):
             else:
                 # the download will refresh the wsm, so refresh the UI
                 if self.downloadVersion(fileItem, version):
-                    self.restoreFile(refreshUI())
-                    self.updateThumbnail(fileItem)
+                    refreshedFileItem = refreshUI()
+                    self.restoreFile(refreshedFileItem.getPath())
+                    self.updateThumbnail(refreshedFileItem)
                 else:
                     refreshUI()
 
@@ -1943,6 +2024,53 @@ class WorkspaceView(QtGui.QDockWidget):
             )
 
             self.form.updateAvailable.show()
+
+    # ####
+    # Bookmarks / tabs
+    # ####
+
+    def onTabChanged(self, index):
+        if index == IDX_TAB_BOOKMARKS:
+
+            def tryRefresh():
+                bookmarkModel = getBookmarkModel(self.apiClient)
+                viewBookmarks = self.form.viewBookmarks
+                viewBookmarks.setModel(bookmarkModel)
+                viewBookmarks.expandAll()
+
+            self.handle(tryRefresh)
+
+    def downloadBookmarkFile(self, idSharedModel):
+        # throws an APIClientException
+        path = Utils.joinPath(PATH_BOOKMARKS, idSharedModel)
+        sharedModel = self.apiClient.getSharedModel(idSharedModel)
+        model = sharedModel["model"]
+        if sharedModel["canDownloadDefaultModel"]:
+            uniqueFileName = model["uniqueFileName"]
+            fileModel = model["file"]
+            fileName = fileModel["custFileName"]
+            pathFile = Utils.joinPath(path, fileName)
+            self.apiClient.downloadFileFromServer(uniqueFileName, pathFile)
+            return pathFile
+        else:
+            objUrl = model["objUrl"]
+            fileName = Utils.getFileNameFromURL(objUrl)
+            pathFile = Utils.joinPath(path, fileName)
+            self.apiClient.downloadObjectFileFromServer(objUrl, pathFile)
+            return pathFile
+
+    def openBookmark(self, idSharedModel):
+        # throws an APIClientException
+        pathFile = self.downloadBookmarkFile(idSharedModel)
+        self.tryOpenPathFile(pathFile)
+
+    def bookmarkDoubleClicked(self, index):
+        viewBookmarks = self.form.viewBookmarks
+        bookmarkModel = viewBookmarks.model()
+        typeItem = bookmarkModel.data(index, ROLE_TYPE)
+        if typeItem == TYPE_BOOKMARK:
+            idShareModel = bookmarkModel.data(index, ROLE_SHARE_MODEL_ID)
+            self.handle(lambda: self.openBookmark(idShareModel))
 
 
 # class NewWorkspaceDialog(QtGui.QDialog):

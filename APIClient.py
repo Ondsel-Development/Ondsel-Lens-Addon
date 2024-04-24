@@ -396,14 +396,21 @@ class APIClient:
             return result
 
     @authRequired
-    def downloadFileFromServer(self, uniqueName, filename):
-        endpoint = f"/upload/{uniqueName}"
+    def downloadFileFromServer(self, uniqueFileName, pathFile):
+        endpoint = f"/upload/{uniqueFileName}"
 
         response = self._request(endpoint)
-        directory = os.path.dirname(filename)
+        directory = os.path.dirname(pathFile)
         os.makedirs(directory, exist_ok=True)
 
-        return self._download(response["url"], filename)
+        return self._download(response["url"], pathFile)
+
+    @authRequired
+    def downloadObjectFileFromServer(self, objUrl, pathFile):
+        directory = os.path.dirname(pathFile)
+        os.makedirs(directory, exist_ok=True)
+
+        return self._download(objUrl, pathFile)
 
     # Shared Model Functions
 
@@ -653,6 +660,27 @@ class APIClient:
             return self._request(endpoint)
         else:
             return None
+
+    @authRequired
+    def getOrganizations(self, params=None):
+        paginationparams = {"$limit": 50, "$skip": 0}
+        endpoint = "organizations"
+        if params is None:
+            params = paginationparams
+        else:
+            params = {**params, **paginationparams}
+
+        result = self._request(endpoint, params=params)
+        organizations = result["data"]
+
+        return organizations
+
+    @authRequired
+    def getSecondaryRefs(self, orgSecondaryReferencesId):
+        endpoint = f"org-secondary-references/{orgSecondaryReferencesId}"
+
+        result = self._request(endpoint)
+        return result
 
 
 class APIHelper:

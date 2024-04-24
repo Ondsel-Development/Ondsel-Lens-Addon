@@ -5,14 +5,17 @@
 # ***********************************************************************
 
 import os
-import FreeCAD
 import zipfile
 import math
 import logging
+
+from urllib.parse import urlparse
+
 from PySide import QtCore, QtWidgets
 from PySide2.QtGui import QPixmap
 from PySide.QtCore import Qt
 
+import FreeCAD
 import FreeCADGui
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
@@ -96,6 +99,12 @@ def setFileModificationTimes(file_path, updatedAt, createdAt):
     whereas os.utime expects a float in seconds
     """
     os.utime(file_path, (createdAt / 1000.0, updatedAt / 1000.0))
+
+
+def getFileNameFromURL(url):
+    parsed_url = urlparse(url)
+    path = parsed_url.path
+    return path.split("/")[-1]
 
 
 def getLogger(name):

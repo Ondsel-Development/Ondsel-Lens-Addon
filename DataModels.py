@@ -5,11 +5,15 @@
 # ***********************************************************************
 
 
-from PySide.QtCore import Qt, QAbstractListModel, QModelIndex
 import os
 import json
-import FreeCAD
 from pathlib import Path
+
+from PySide.QtCore import Qt, QAbstractListModel, QModelIndex
+from PySide.QtGui import QStandardItemModel, QStandardItem
+
+import FreeCAD
+
 
 CACHE_PATH = FreeCAD.getUserCachePath() + "Ondsel-Lens/"
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
@@ -128,6 +132,38 @@ class WorkspaceListModel(QAbstractListModel):
             item_index = self.index(row)
             item_data = self.data(item_index, Qt.DisplayRole)
             print(item_data)
+
+
+ROLE_TYPE = Qt.UserRole
+ROLE_SHARE_MODEL_ID = Qt.UserRole + 1
+TYPE_ORG = 0
+TYPE_BOOKMARK = 1
+
+
+def getBookmarkModel(apiClient):
+    model = QStandardItemModel()
+
+    def addBookmarks(item, orgSecondaryReferencesId):
+        secRefs = apiClient.getSecondaryRefs(orgSecondaryReferencesId)
+
+        for bookmark in secRefs["bookmarks"]:
+            if bookmark["collectionName"] == "shared-models":
+                summary = bookmark["collectionSummary"]
+                bookmarkItem = QStandardItem(summary["custFileName"])
+                bookmarkItem.setData(TYPE_BOOKMARK, ROLE_TYPE)
+                bookmarkItem.setData(summary["_id"], ROLE_SHARE_MODEL_ID)
+                item.appendRow(bookmarkItem)
+
+    root = model.invisibleRootItem()
+    if apiClient:
+        orgs = apiClient.getOrganizations()
+        for org in orgs:
+            orgItem = QStandardItem(org["name"])
+            orgItem.setData(TYPE_ORG, ROLE_TYPE)
+            root.appendRow(orgItem)
+            addBookmarks(orgItem, org["orgSecondaryReferencesId"])
+
+    return model
 
 
 # Unused
