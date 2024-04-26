@@ -109,7 +109,6 @@ class ShareLinkModel(QAbstractListModel):
         self.endResetModel()
 
     def compute_direct_link(self, model_id):
-        # raises an APICLientException
         return f"{self.apiClient.get_base_url()}share/{model_id}"
 
     def compute_forum_shortcode(self, model_id):
