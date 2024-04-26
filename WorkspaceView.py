@@ -550,6 +550,8 @@ class WorkspaceView(QtGui.QDockWidget):
         bookmarkView.header().hide()
         bookmarkView.setItemDelegate(BookmarkDelegate())
         bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
+        bookmarkView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
 
     # def generate_expired_token(self):
     #     # generate an expired token for testing
@@ -2077,6 +2079,29 @@ class WorkspaceView(QtGui.QDockWidget):
         if typeItem == TYPE_BOOKMARK:
             idShareModel = bookmarkModel.data(index, ROLE_SHARE_MODEL_ID)
             self.handle(lambda: self.openBookmark(idShareModel))
+
+    def openShareLinkOnline(self, idShareModel):
+        url = f"{self.apiClient.get_base_url()}share/{idShareModel}"
+        QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+
+    def showBookmarkContextMenu(self, pos):
+        viewBookmarks = self.form.viewBookmarks
+        index = viewBookmarks.indexAt(pos)
+        if index.isValid():
+            bookmarkModel = viewBookmarks.model()
+            typeItem = bookmarkModel.data(index, ROLE_TYPE)
+            if typeItem == TYPE_BOOKMARK:
+                menu = QtGui.QMenu()
+                openAction = menu.addAction("Open bookmark")
+                viewAction = menu.addAction("View the bookmark in Lens")
+
+                action = menu.exec_(viewBookmarks.viewport().mapToGlobal(pos))
+
+                idShareModel = bookmarkModel.data(index, ROLE_SHARE_MODEL_ID)
+                if action == openAction:
+                    self.handle(lambda: self.openBookmark(idShareModel))
+                elif action == viewAction:
+                    self.openShareLinkOnline(idShareModel)
 
 
 # class NewWorkspaceDialog(QtGui.QDialog):
