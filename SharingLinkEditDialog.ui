@@ -24,7 +24,11 @@
       </widget>
      </item>
      <item>
-      <widget class="QLineEdit" name="linkName"/>
+      <widget class="QLineEdit" name="linkName">
+       <property name="maxLength">
+        <number>20</number>
+       </property>
+      </widget>
      </item>
      <item>
       <widget class="QCheckBox" name="canViewModelCheckBox">
