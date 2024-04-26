@@ -8,6 +8,7 @@ import os
 import zipfile
 import math
 import logging
+import shutil
 
 from urllib.parse import urlparse
 
@@ -118,6 +119,15 @@ def getLogger(name):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
+
+
+def createBackup(pathFile, extension=".ondsel-lens.bak"):
+    if os.path.exists(pathFile):
+        pathFileBak = pathFile + extension
+        shutil.copyfile(pathFile, pathFileBak)
+        return pathFileBak
+    else:
+        raise FileNotFoundError(f"File not found: {pathFile}")
 
 
 def restartFreecad():

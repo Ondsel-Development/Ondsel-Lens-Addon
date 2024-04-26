@@ -1377,13 +1377,26 @@ class WorkspaceView(QtGui.QDockWidget):
         for filePrefs in prefs["currentVersion"]["files"]:
             self.setPrefsFile(filePrefs)
 
-    def askRestart(self):
+    def askRestart(self, backupFiles):
         # similar to the question from the Addon Manager
         m = QtWidgets.QMessageBox()
         m.setWindowTitle("Ondsel Lens")
-        # m.setWindowIcon(QtGui.QIcon(":/icons/OndselWorkbench.svg"))
+        m.setWindowIcon(QtGui.QIcon(":/icons/OndselWorkbench.svg"))
         m.setWindowIcon(self.ondselIcon)
-        m.setText("You must restart FreeCAD for changes to take effect.")
+        m.setTextFormat(QtCore.Qt.RichText)
+        restartMessage = "You must restart FreeCAD for changes to take effect."
+        if backupFiles:
+            m.setText(
+                "The current preferences have been backed up in:"
+                "<ul>"
+                f"<li>{backupFiles[0]}</li>"
+                f"<li>{backupFiles[1]}</li>"
+                "</ul>"
+                "<br>"
+                f"{restartMessage}"
+            )
+        else:
+            m.setText(restartMessage)
         m.setIcon(m.Warning)
         m.setStandardButtons(m.Ok | m.Cancel)
         m.setDefaultButton(m.Cancel)
@@ -1396,6 +1409,30 @@ class WorkspaceView(QtGui.QDockWidget):
             # restart FreeCAD after a delay to give time to this dialog to close
             QtCore.QTimer.singleShot(1000, Utils.restartFreecad)
 
+    def backupPrefFile(self, pathFile):
+        try:
+            return Utils.createBackup(pathFile)
+        except FileNotFoundError as e:
+            logger.error(f"Failed to create a backup of {pathFile}")
+            logger.error(str(e))
+            return None
+
+    def backupPrefs(self):
+        # This is the correct way to obtain the used configuration files that
+        # may have been overridden with the command line user-cfg and
+        # system-cfg flags
+        userConfigFile = FreeCAD.ConfigGet("UserParameter")
+        sysConfigFile = FreeCAD.ConfigGet("SystemParameter")
+
+        backupFiles = []
+        userConfigFileBak = self.backupPrefFile(userConfigFile)
+        sysConfigFileBak = self.backupPrefFile(sysConfigFile)
+        if userConfigFileBak:
+            backupFiles.append(userConfigFileBak)
+        if sysConfigFileBak:
+            backupFiles.append(sysConfigFileBak)
+        return backupFiles
+
     def loadPrefs(self, index):
         workspaceData = self.workspacesModel.data(index)
         orgData = workspaceData.get("organization")
@@ -1405,9 +1442,10 @@ class WorkspaceView(QtGui.QDockWidget):
         def tryLoadPrefs():
             result = self.apiClient.downloadPrefs(orgId)
             if result:
+                backupFiles = self.backupPrefs()
                 self.setPrefs(result)
                 FreeCAD.saveParameter("User parameter")
-                self.askRestart()
+                self.askRestart(backupFiles)
             else:
                 logger.info(f"Organization {nameOrg} has no preferences stored.")
 
