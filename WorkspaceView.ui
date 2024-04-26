@@ -57,10 +57,16 @@
    </item>
    <item>
     <widget class="QTabWidget" name="tabWidget">
+     <property name="toolTip">
+      <string/>
+     </property>
      <property name="currentIndex">
       <number>0</number>
      </property>
      <widget class="QWidget" name="tabWorkspaces">
+      <property name="toolTip">
+       <string/>
+      </property>
       <attribute name="title">
        <string>Workspaces</string>
       </attribute>
@@ -73,6 +79,9 @@
             <property name="visible">
              <bool>true</bool>
             </property>
+            <property name="toolTip">
+             <string>Go back</string>
+            </property>
             <property name="icon">
              <iconset>
               <normaloff>:/icons/button_left.svg</normaloff>:/icons/button_left.svg</iconset>
@@ -83,6 +92,9 @@
            <widget class="QLabel" name="workspaceNameLabel">
             <property name="visible">
              <bool>true</bool>
+            </property>
+            <property name="toolTip">
+             <string>The workspace and path in Lens</string>
             </property>
             <property name="text">
              <string>workspaceName</string>
@@ -164,7 +176,7 @@
           </size>
          </property>
          <property name="toolTip">
-          <string>List of your workspaces.</string>
+          <string>Your workspaces</string>
          </property>
         </widget>
        </item>
@@ -177,12 +189,15 @@
           </sizepolicy>
          </property>
          <property name="toolTip">
-          <string>This is a list of the files in the currently selected workspace</string>
+          <string>Files in the workspace</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QFrame" name="fileDetails">
+         <property name="toolTip">
+          <string>File details</string>
+         </property>
          <layout class="QVBoxLayout">
           <item>
            <layout class="QHBoxLayout">
@@ -219,6 +234,9 @@
                   <verstretch>0</verstretch>
                  </sizepolicy>
                 </property>
+                <property name="toolTip">
+                 <string>Versions of this file</string>
+                </property>
                </widget>
               </item>
               <item>
@@ -235,6 +253,9 @@
                 </item>
                 <item>
                  <widget class="QPushButton" name="makeActiveBtn">
+                  <property name="toolTip">
+                   <string>Make the current version the active version</string>
+                  </property>
                   <property name="text">
                    <string>Make active</string>
                   </property>
@@ -324,8 +345,7 @@
              </sizepolicy>
             </property>
             <property name="toolTip">
-             <string>Those are share links, using the buttons you can :
-
+             <string>Share links, using the buttons you can:
 - Copy the url
 - Edit the link parameters.
 - Delete the link</string>
@@ -338,6 +358,9 @@
       </layout>
      </widget>
      <widget class="QWidget" name="tabBookmarks">
+      <property name="toolTip">
+       <string/>
+      </property>
       <attribute name="title">
        <string>Bookmarks</string>
       </attribute>

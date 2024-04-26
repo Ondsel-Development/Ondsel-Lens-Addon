@@ -539,7 +539,13 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.tabBookmarks.layout().addWidget(bookmarkView)
 
         tabWidget.currentChanged.connect(self.onTabChanged)
+        tabWidget.setTabToolTip(
+            IDX_TAB_WORKSPACES,
+            "Explore and create 3D CAD designs in your Lens workspaces",
+        )
+        tabWidget.setTabToolTip(IDX_TAB_BOOKMARKS, "Explore your Lens bookmarks")
         bookmarkView.setRootIsDecorated(False)
+        bookmarkView.setToolTip("Bookmarks per organization")
         bookmarkView.setExpandsOnDoubleClick(False)
         bookmarkView.header().hide()
         bookmarkView.setItemDelegate(BookmarkDelegate())
