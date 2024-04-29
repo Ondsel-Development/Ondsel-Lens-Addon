@@ -1305,9 +1305,11 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def shareShareLinkClicked(self, index):
         model = self.form.linksView.model()
-        linkId = model.data(index, ShareLinkModel.UrlRole)
-        url = model.compute_url(linkId)
-        forum_iframe = model.compute_forum_iframe(linkId)
+        shareLinkId = model.data(index, ShareLinkModel.UrlRole)
+
+        direct_link = model.compute_direct_link(shareLinkId)
+        forum_shortcode = model.compute_forum_shortcode(shareLinkId)
+        iframe = model.compute_iframe(shareLinkId)
 
         # Create a custom dialog
         dialog = QtGui.QDialog(
@@ -1318,29 +1320,47 @@ class WorkspaceView(QtGui.QDockWidget):
 
         layout = QtGui.QVBoxLayout()
 
-        label = QtGui.QLabel("Choose an option for sharing:")
+        label = QtGui.QLabel("Share Model")
         layout.addWidget(label)
 
-        # Add custom buttons with desired tooltips
-        model_url_button = QtGui.QPushButton("Model URL")
-        model_url_button.setToolTip(
-            "This is the URL where anyone with the link "
-            "can view your model through Ondsel Lens."
+        direct_link_button = QtGui.QPushButton("Direct link")
+        direct_link_button.setToolTip(
+            "Copy to the clipboard the link with which "
+            "anyone can visit this model on Ondsel Lens."
         )
 
-        forum_iframe_button = QtGui.QPushButton("FreeCAD forum")
-        forum_iframe_button.setToolTip(
-            "This is a shortcode that you can paste in FreeCAD forum posts "
-            "to embed a view of your model in your post."
+        forum_button = QtGui.QPushButton("Share in FreeCAD forum")
+        forum_button.setToolTip(
+            "Copy to the clipboard a shortcode "
+            "that you can paste in FreeCAD forum posts "
+            "to embed a view of your model."
+        )
+
+        embed_button = QtGui.QPushButton("Embed")
+        embed_button.setToolTip(
+            "Copy to the clipboard the HTML with which you can "
+            "embed a view of your model in a website."
         )
 
         # Add buttons to the layout
-        layout.addWidget(model_url_button)
-        layout.addWidget(forum_iframe_button)
+        layout.addWidget(direct_link_button)
+        layout.addWidget(forum_button)
+        layout.addWidget(embed_button)
+
+        def closeWithAction(contents, message):
+            self.copyToClipboard(contents, message)
+            dialog.close()
 
         # Connect button actions
-        model_url_button.clicked.connect(lambda: self.copyToClipboard(url))
-        forum_iframe_button.clicked.connect(lambda: self.copyToClipboard(forum_iframe))
+        direct_link_button.clicked.connect(
+            lambda: closeWithAction(direct_link, "Link to the model on Ondsel Lens")
+        )
+        forum_button.clicked.connect(
+            lambda: closeWithAction(forum_shortcode, "Forum shortcode")
+        )
+        embed_button.clicked.connect(
+            lambda: closeWithAction(iframe, "HTML to embed the model")
+        )
 
         # Set the layout for the dialog
         dialog.setLayout(layout)
@@ -1371,10 +1391,10 @@ class WorkspaceView(QtGui.QDockWidget):
         # Show the dialog
         dialog.exec_()
 
-    def copyToClipboard(self, text):
+    def copyToClipboard(self, text, message):
         clipboard = QApplication.clipboard()
         clipboard.setText(text)
-        logger.info("Link copied!")
+        logger.info(f"{message} copied to the clipboard.")
 
     def editShareLinkClicked(self, index):
         model = self.form.linksView.model()
