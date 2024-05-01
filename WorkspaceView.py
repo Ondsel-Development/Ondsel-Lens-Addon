@@ -21,6 +21,7 @@ import jwt
 from jwt.exceptions import ExpiredSignatureError
 import FreeCAD
 import FreeCADGui as Gui
+import AddonManager
 
 
 from DataModels import (
@@ -108,6 +109,39 @@ try:
     lensUrl = config.lens_url
 except (ImportError, AttributeError):
     pass
+
+
+class UpdateManager:
+    def storePreferences(self):
+        pref = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Addons")
+        self.autocheck = pref.GetBool("AutoCheck")
+        self.statusSelection = pref.GetInt("StatusSelection")
+        self.packageTypeSelection = pref.GetInt("PackageTypeSelection")
+        self.searchString = pref.GetString("SearchString")
+
+    def setCustomPreferences(self):
+        pref = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Addons")
+        pref.SetBool("AutoCheck", True)
+        pref.SetInt("StatusSelection", 3)
+        pref.SetInt("PackageTypeSelection", 1)
+        pref.SetString("SearchString", "Ondsel Lens")
+
+    def restorePreferences(self):
+        pref = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Addons")
+        pref.SetBool("AutoCheck", self.autocheck)
+        pref.SetInt("StatusSelection", self.statusSelection)
+        pref.SetInt("PackageTypeSelection", self.packageTypeSelection)
+        pref.SetString("SearchString", self.searchString)
+
+    def openAddonManager(self, finishFunction):
+        """Open the addon manager with custom preferences."""
+
+        self.storePreferences()
+        self.setCustomPreferences()
+
+        addonManager = AddonManager.CommandAddonManager()
+        addonManager.finished.connect(finishFunction)
+        addonManager.Activated()
 
 
 # Simple delegate drawing an icon and text
@@ -486,9 +520,10 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.txtExplain.setReadOnly(True)
         self.form.txtExplain.hide()
 
-        self.currentWorkspaceModel = None
-
         self.initializeBookmarks()
+        self.initializeUpdateLens()
+
+        self.currentWorkspaceModel = None
 
         # Check if user is already logged in.
         loginDataStr = p.GetString("loginData", "")
@@ -552,6 +587,18 @@ class WorkspaceView(QtGui.QDockWidget):
         bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
         bookmarkView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
+
+    def initializeUpdateLens(self):
+        self.form.frameUpdate.hide()
+        self.form.addonManagerBtn.clicked.connect(self.openAddonManager)
+
+    def openAddonManager(self):
+        self.updateManager = UpdateManager()
+        self.updateManager.openAddonManager(self.addonManagerFinished)
+
+    def addonManagerFinished(self):
+        self.updateManager.restorePreferences()
+        self.UpdateManager = None
 
     # def generate_expired_token(self):
     #     # generate an expired token for testing
@@ -2022,16 +2069,11 @@ class WorkspaceView(QtGui.QDockWidget):
         )
 
         if local_version and remote_version and local_version != remote_version:
-            self.form.updateAvailable.setUrl(remote_changelog_url)
-            self.form.updateAvailable.setText(
+            self.form.labelUpdateAvailable.setText(
                 f"Ondsel Lens v{remote_version} available!"
             )
-            self.form.updateAvailable.setToolTip(
-                "Click to see the change-log of Ondsel Lens "
-                f"v{remote_version} in your browser."
-            )
 
-            self.form.updateAvailable.show()
+            self.form.frameUpdate.show()
 
     # ####
     # Bookmarks / tabs
