@@ -369,24 +369,52 @@
     </widget>
    </item>
    <item>
-    <widget class="Gui::UrlLabel" name="updateAvailable">
-     <property name="visible">
-      <bool>false</bool>
+    <widget class="QFrame" name="frameUpdate">
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
      </property>
-     <property name="text">
-      <string/>
+     <property name="frameShadow">
+      <enum>QFrame::Plain</enum>
      </property>
+     <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QLabel" name="labelUpdateAvailable">
+        <property name="enabled">
+         <bool>true</bool>
+        </property>
+        <property name="text">
+         <string>Update available!</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="addonManagerBtn">
+        <property name="toolTip">
+         <string>Launch the Addon Manager to update Ondsel Lens</string>
+        </property>
+        <property name="text">
+         <string>Update</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
     </widget>
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>Gui::UrlLabel</class>
-   <extends>QLabel</extends>
-   <header>Gui/Widgets.h</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>
