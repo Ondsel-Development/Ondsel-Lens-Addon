@@ -651,10 +651,7 @@ class APIClient:
         return self._request(endpoint)
 
     @authRequired
-    def downloadPrefs(self, orgId):
-        orgData = self.getOrganization(orgId)
-
-        prefId = orgData.get("preferencesId")
+    def downloadPrefs(self, prefId):
         if prefId:
             endpoint = f"preferences/{prefId}"
             return self._request(endpoint)

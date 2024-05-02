@@ -630,14 +630,21 @@ class WorkspaceView(QtGui.QDockWidget):
         # self.newWorkspaceAction.triggered.connect(self.newWorkspaceBtnClicked)
         # self.userMenu.addAction(self.newWorkspaceAction)
 
-        # Preferences
-        submenu = QMenu("Preferences", self.userMenu)
-        clearCacheAction = QAction("Clear Cache on logout", submenu)
+        # Settings
+        submenuSettings = QMenu("Settings", self.userMenu)
+        clearCacheAction = QAction("Clear Cache on logout", submenuSettings)
         clearCacheAction.setCheckable(True)
         clearCacheAction.setChecked(p.GetBool("clearCache", False))
         clearCacheAction.triggered.connect(lambda state: p.SetBool("clearCache", state))
-        submenu.addAction(clearCacheAction)
-        self.userMenu.addMenu(submenu)
+        submenuSettings.addAction(clearCacheAction)
+        self.userMenu.addMenu(submenuSettings)
+
+        submenuPrefs = QMenu("Preferences", self.userMenu)
+        downloadOnselPrefsAction = QAction("Download Ondsel ES default preferences",
+                                           submenuPrefs)
+        downloadOnselPrefsAction.triggered.connect(self.downloadOndselDefaultPrefs)
+        submenuPrefs.addAction(downloadOnselPrefsAction)
+        self.userMenu.addMenu(submenuPrefs)
 
         a4 = QAction("Log out", userActions)
         a4.triggered.connect(self.logout)
@@ -1254,7 +1261,7 @@ class WorkspaceView(QtGui.QDockWidget):
                 if action == storePrefAction:
                     self.storePrefs(index)
                 elif action == loadPrefAction:
-                    self.loadPrefs(index)
+                    self.loadPrefsOrg(index)
 
     def uploadPrefs(self, pathConfig):
         base, extension = os.path.splitext(pathConfig)
@@ -1407,7 +1414,7 @@ class WorkspaceView(QtGui.QDockWidget):
         ret = m.exec_()
         if ret == m.Ok:
             # restart FreeCAD after a delay to give time to this dialog to close
-            QtCore.QTimer.singleShot(1000, Utils.restartFreecad)
+            QtCore.QTimer.singleShot(2000, Utils.restartFreecad)
 
     def backupPrefFile(self, pathFile):
         try:
@@ -1433,21 +1440,38 @@ class WorkspaceView(QtGui.QDockWidget):
             backupFiles.append(sysConfigFileBak)
         return backupFiles
 
-    def loadPrefs(self, index):
+    def loadPrefs(self, prefsId):
+        # throws APIClientException
+        result = self.apiClient.downloadPrefs(prefsId)
+        if result:
+            backupFiles = self.backupPrefs()
+            self.setPrefs(result)
+            FreeCAD.saveParameter("User parameter")
+            FreeCAD.saveParameter("System parameter")
+            self.askRestart(backupFiles)
+
+        return result
+
+    def loadPrefsOrg(self, index):
         workspaceData = self.workspacesModel.data(index)
-        orgData = workspaceData.get("organization")
-        orgId = orgData["_id"]
-        nameOrg = orgData["name"]
+        orgDataWorkspace = workspaceData.get("organization")
+        orgId = orgDataWorkspace["_id"]
+        nameOrg = orgDataWorkspace["name"]
 
         def tryLoadPrefs():
-            result = self.apiClient.downloadPrefs(orgId)
-            if result:
-                backupFiles = self.backupPrefs()
-                self.setPrefs(result)
-                FreeCAD.saveParameter("User parameter")
-                self.askRestart(backupFiles)
-            else:
+            orgData = self.apiClient.getOrganization(orgId)
+            prefsId = orgData.get("preferencesId")
+            result = self.loadPrefs(prefsId)
+            if not result:
                 logger.info(f"Organization {nameOrg} has no preferences stored.")
+
+        self.handle(tryLoadPrefs)
+
+    def downloadOndselDefaultPrefs(self):
+        def tryLoadPrefs():
+            result = self.loadPrefs("000000000000000000000000")
+            if not result:
+                logger.error("No default preferences stored")
 
         self.handle(tryLoadPrefs)
 
@@ -1844,9 +1868,6 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
 
         self.handle(trySetVersion)
-
-    def openPreferences(self):
-        logger.debug("Preferences clicked")
 
     def ondselAccount(self):
         url = f"{lensUrl}login"
