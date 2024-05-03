@@ -1868,6 +1868,19 @@ class WorkspaceView(QtGui.QDockWidget):
                 lambda: self.form.linksView.model().add_new_link(link_properties)
             )
 
+    def openUrl(self, url):
+        try:
+            ret = QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+            if not ret:
+                # some users reported problems with the above
+                import webbrowser
+
+                webbrowser.open(url)
+        except Exception:
+            import webbrowser
+
+            webbrowser.open(url)
+
     def openModelOnline(self, modelId=None):
         url = ondselUrl
 
@@ -1880,7 +1893,7 @@ class WorkspaceView(QtGui.QDockWidget):
         if modelId is not None:
             url = f"{lensUrl}model/{modelId}"
             logger.debug(f"Opening {url}")
-        QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+        self.openUrl(url)
 
     def makeActive(self):
         comboBox = self.form.versionsComboBox
@@ -1903,11 +1916,11 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def ondselAccount(self):
         url = f"{lensUrl}login"
-        QtGui.QDesktopServices.openUrl(url)
+        self.openUrl(url)
 
     def showOndselSignUpPage(self):
         url = f"{lensUrl}signup"
-        QtGui.QDesktopServices.openUrl(url)
+        self.openurl(url)
 
     def loginBtnClicked(self):
         while True:
@@ -2215,7 +2228,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def openShareLinkOnline(self, idShareModel):
         url = f"{self.apiClient.get_base_url()}share/{idShareModel}"
-        QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+        self.openUrl(url)
 
     def showBookmarkContextMenu(self, pos):
         viewBookmarks = self.form.viewBookmarks
