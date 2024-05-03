@@ -15,6 +15,7 @@ import re
 import requests
 import uuid
 import base64
+import webbrowser
 
 from inspect import cleandoc
 
@@ -1869,17 +1870,10 @@ class WorkspaceView(QtGui.QDockWidget):
             )
 
     def openUrl(self, url):
-        try:
-            ret = QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
-            if not ret:
-                # some users reported problems with the above
-                import webbrowser
-
-                webbrowser.open(url)
-        except Exception:
-            import webbrowser
-
-            webbrowser.open(url)
+        # doesn't work on platforms without `gio-launch-desktop` while Qt
+        # tries to use this.
+        # ret = QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+        webbrowser.open(url)
 
     def openModelOnline(self, modelId=None):
         url = ondselUrl
