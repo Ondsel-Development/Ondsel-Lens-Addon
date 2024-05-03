@@ -14,6 +14,7 @@ import shutil
 import re
 import requests
 import uuid
+import base64
 
 from inspect import cleandoc
 
@@ -61,6 +62,8 @@ from PySide.QtGui import (
     QSizePolicy,
     QPixmap,
 )
+
+from PySide.QtCore import QByteArray
 
 from PySide.QtWidgets import QTreeView
 
@@ -640,8 +643,9 @@ class WorkspaceView(QtGui.QDockWidget):
         self.userMenu.addMenu(submenuSettings)
 
         submenuPrefs = QMenu("Preferences", self.userMenu)
-        downloadOnselPrefsAction = QAction("Download Ondsel ES default preferences",
-                                           submenuPrefs)
+        downloadOnselPrefsAction = QAction(
+            "Download Ondsel ES default preferences", submenuPrefs
+        )
         downloadOnselPrefsAction.triggered.connect(self.downloadOndselDefaultPrefs)
         submenuPrefs.addAction(downloadOnselPrefsAction)
         self.userMenu.addMenu(submenuPrefs)
@@ -1342,6 +1346,18 @@ class WorkspaceView(QtGui.QDockWidget):
             removeFunc(param)
             logger.info(f"Removing parameter '{param}' in group '{path}'")
 
+    def setPreference(self, param, path, value, setFunc):
+        logger.info(f"Setting parameter '{param}' " f"in group '{path}' to '{value}'")
+        setFunc(param, value)
+        # The code below does not succeed in getting the task panel at the
+        # right location.
+        # if (
+        #     param == "MainWindowState"
+        #     and path == "User parameter:BaseApp/Preferences/MainWindow"
+        # ):
+        #     logger.debug("Restoring the window state")
+        #     mw.restoreState(QByteArray(base64.b64decode(value)))
+
     def setPrefPath(self, path, param, type, value):
         paramGroup = FreeCAD.ParamGet(path)
 
@@ -1353,11 +1369,7 @@ class WorkspaceView(QtGui.QDockWidget):
             )
             currentValue = getFunc(param)
             if currentValue != convertedValue:
-                logger.info(
-                    f"Setting parameter '{param}' "
-                    f"in group '{path}' to '{convertedValue}'"
-                )
-                setFunc(param, convertedValue)
+                self.setPreference(param, path, convertedValue, setFunc)
 
     def setPrefsFile(self, prefsFile):
         fileName = prefsFile["fileName"]
@@ -1380,11 +1392,24 @@ class WorkspaceView(QtGui.QDockWidget):
             self.setPrefPath(path, param, type, value)
 
     def setPrefs(self, prefs):
-        self.prefs = prefs
         for filePrefs in prefs["currentVersion"]["files"]:
             self.setPrefsFile(filePrefs)
 
-    def askRestart(self, backupFiles):
+    def restartFreecad(self, mainWindowState):
+        """Shuts down and restarts FreeCAD"""
+
+        # Very similar to how the Addon Manager restarts FreeCAD
+
+        args = QtWidgets.QApplication.arguments()[1:]
+        # delay restoring the window state as much as possible to make sure
+        # that the panels are at the right location
+        mw.restoreState(mainWindowState)
+        if mw.close():
+            QtCore.QProcess.startDetached(
+                QtWidgets.QApplication.applicationFilePath(), args
+            )
+
+    def askRestart(self, backupFiles, windowState):
         # similar to the question from the Addon Manager
         m = QtWidgets.QMessageBox()
         m.setWindowTitle("Ondsel Lens")
@@ -1414,7 +1439,7 @@ class WorkspaceView(QtGui.QDockWidget):
         ret = m.exec_()
         if ret == m.Ok:
             # restart FreeCAD after a delay to give time to this dialog to close
-            QtCore.QTimer.singleShot(2000, Utils.restartFreecad)
+            QtCore.QTimer.singleShot(2000, lambda: self.restartFreecad(windowState))
 
     def backupPrefFile(self, pathFile):
         try:
@@ -1440,15 +1465,22 @@ class WorkspaceView(QtGui.QDockWidget):
             backupFiles.append(sysConfigFileBak)
         return backupFiles
 
+    def getWindowStatePreferences(self):
+        paramGroup = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/MainWindow")
+        return QByteArray(base64.b64decode(paramGroup.GetString("MainWindowState")))
+
     def loadPrefs(self, prefsId):
         # throws APIClientException
         result = self.apiClient.downloadPrefs(prefsId)
         if result:
             backupFiles = self.backupPrefs()
             self.setPrefs(result)
+            # Get the windows state we would like at this time to restore it as
+            # late as possible.
+            windowState = self.getWindowStatePreferences()
             FreeCAD.saveParameter("User parameter")
             FreeCAD.saveParameter("System parameter")
-            self.askRestart(backupFiles)
+            self.askRestart(backupFiles, windowState)
 
         return result
 
