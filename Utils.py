@@ -12,12 +12,10 @@ import shutil
 
 from urllib.parse import urlparse
 
-from PySide import QtCore, QtWidgets
 from PySide2.QtGui import QPixmap
 from PySide.QtCore import Qt
 
 import FreeCAD
-import FreeCADGui
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
 
@@ -128,15 +126,3 @@ def createBackup(pathFile, extension=".ondsel-lens.bak"):
         return pathFileBak
     else:
         raise FileNotFoundError(f"File not found: {pathFile}")
-
-
-def restartFreecad():
-    """Shuts down and restarts FreeCAD"""
-
-    # Very similar to how the Addon Manager restarts FreeCAD
-
-    args = QtWidgets.QApplication.arguments()[1:]
-    if FreeCADGui.getMainWindow().close():
-        QtCore.QProcess.startDetached(
-            QtWidgets.QApplication.applicationFilePath(), args
-        )
