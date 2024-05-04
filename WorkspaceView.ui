@@ -388,7 +388,7 @@
        </widget>
       </item>
       <item>
-       <widget class="QPushButton" name="addonManagerBtn">
+       <widget class="QPushButton" name="updateBtn">
         <property name="toolTip">
          <string>Launch the Addon Manager to update Ondsel Lens</string>
         </property>

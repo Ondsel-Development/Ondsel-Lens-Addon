@@ -594,7 +594,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def initializeUpdateLens(self):
         self.form.frameUpdate.hide()
-        self.form.addonManagerBtn.clicked.connect(self.openAddonManager)
+        self.form.updateBtn.clicked.connect(self.openAddonManager)
 
     def openAddonManager(self):
         self.updateManager = UpdateManager()
@@ -1873,7 +1873,8 @@ class WorkspaceView(QtGui.QDockWidget):
         # doesn't work on platforms without `gio-launch-desktop` while Qt
         # tries to use this.
         # ret = QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
-        webbrowser.open(url)
+        if not webbrowser.open(url):
+            logger.warn(f"Failed to open {url} in the browser")
 
     def openModelOnline(self, modelId=None):
         url = ondselUrl
@@ -2158,6 +2159,68 @@ class WorkspaceView(QtGui.QDockWidget):
                 version = line.strip().lstrip("<version>").rstrip("</version>")
                 return version
 
+    def getLatestVersionOndselEs(self):
+        try:
+            response = requests.get(
+                "https://api.github.com/repos/Ondsel-Development/"
+                "FreeCAD/releases/latest"
+            )
+        except requests.exceptions.RequestException:
+            return None
+
+        if response.status_code == requests.codes.ok:
+            json = response.json()
+            return json.get("tag_name")
+
+        return None
+
+    def getCurrentVersionOndselES(self):
+        version = FreeCAD.Version()
+        # Filter for FreeCAD instances that are built from this repo
+        if version[4].startswith("https://github.com/Ondsel-Development/FreeCAD"):
+            return f"{version[0]}.{version[1]}.{version[2]}"
+
+        return None
+
+    def openDownloadPage(self):
+        url = f"{self.apiClient.get_base_url()}download-and-explore"
+        self.openUrl(url)
+
+    def toVersionNumber(self, version):
+        return [int(n) for n in version.split(".")]
+
+    def versionGreaterThan(self, latestVersion, currentVersion):
+        latestV = self.toVersionNumber(latestVersion)
+        currentV = self.toVersionNumber(currentVersion)
+        if len(latestV) != len(currentV):
+            return False  # don't report
+
+        for i in range(len(latestV)):
+            if latestV[i] > currentV[i]:
+                return True
+            elif latestV[i] < currentV[i]:
+                return False
+            else:
+                # these version numbers are the same, so look at the next
+                # version number
+                pass
+
+        # All are the same
+        return False
+
+    def check_for_update_ondsel_es(self):
+        currentVersion = self.getCurrentVersionOndselES()
+        if currentVersion:
+            latestVersion = self.getLatestVersionOndselEs()
+            if latestVersion and self.versionGreaterThan(latestVersion, currentVersion):
+                self.setFrameUpdate("Ondsel ES", latestVersion, self.openDownloadPage)
+
+    def setFrameUpdate(self, name, version, function):
+        self.form.labelUpdateAvailable.setText(f"{name} v{version} available!")
+        self.form.updateBtn.clicked.disconnect()
+        self.form.updateBtn.clicked.connect(function)
+        self.form.frameUpdate.show()
+
     def check_for_update(self):
         local_version = self.get_version_from_package_file(
             self.get_local_package_file()
@@ -2167,11 +2230,9 @@ class WorkspaceView(QtGui.QDockWidget):
         )
 
         if local_version and remote_version and local_version != remote_version:
-            self.form.labelUpdateAvailable.setText(
-                f"Ondsel Lens v{remote_version} available!"
-            )
-
-            self.form.frameUpdate.show()
+            self.setFrameUpdate("Ondsel Lens", remote_version, self.openAddonManager)
+        else:
+            self.check_for_update_ondsel_es()
 
     # ####
     # Bookmarks / tabs
