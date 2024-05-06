@@ -14,5 +14,5 @@ Minor issues have been fixed.
 # 2024.04.16.01
 Solve minor bugs related to a changing environment.
 
-<version>
+# 2024.05.06.01
 Add support for bookmarks, preferences. Improve update process.
