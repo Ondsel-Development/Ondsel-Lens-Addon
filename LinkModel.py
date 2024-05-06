@@ -108,12 +108,18 @@ class ShareLinkModel(QAbstractListModel):
             self._add_link(link)
         self.endResetModel()
 
-    def compute_url(self, model_id):
-        # raises an APICLientException
+    def compute_direct_link(self, model_id):
         return f"{self.apiClient.get_base_url()}share/{model_id}"
 
-    def compute_forum_iframe(self, model_id):
+    def compute_forum_shortcode(self, model_id):
         return f"[ondsel]{model_id}[/ondsel]"
+
+    def compute_iframe(self, model_id):
+        direct_link = self.compute_direct_link(model_id)
+        return (
+            '<iframe width="560" height="315" '
+            f'src="{direct_link}" title="Ondsel"></iframe>'
+        )
 
     def dump(self):
         print("dumping model")

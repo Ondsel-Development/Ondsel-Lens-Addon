@@ -5,12 +5,17 @@
 # ***********************************************************************
 
 import os
-import FreeCAD
 import zipfile
 import math
 import logging
+import shutil
+
+from urllib.parse import urlparse
+
 from PySide2.QtGui import QPixmap
 from PySide.QtCore import Qt
+
+import FreeCAD
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
 
@@ -95,6 +100,12 @@ def setFileModificationTimes(file_path, updatedAt, createdAt):
     os.utime(file_path, (createdAt / 1000.0, updatedAt / 1000.0))
 
 
+def getFileNameFromURL(url):
+    parsed_url = urlparse(url)
+    path = parsed_url.path
+    return path.split("/")[-1]
+
+
 def getLogger(name):
     logger = logging.getLogger(name)
     logger.setLevel(DEBUG_LEVEL)
@@ -106,3 +117,12 @@ def getLogger(name):
     handler.setFormatter(formatter)
     logger.addHandler(handler)
     return logger
+
+
+def createBackup(pathFile, extension=".ondsel-lens.bak"):
+    if os.path.exists(pathFile):
+        pathFileBak = pathFile + extension
+        shutil.copyfile(pathFile, pathFileBak)
+        return pathFileBak
+    else:
+        raise FileNotFoundError(f"File not found: {pathFile}")

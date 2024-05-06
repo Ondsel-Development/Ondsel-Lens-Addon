@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>849</width>
-    <height>721</height>
+    <height>643</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -26,7 +26,7 @@
       <item>
        <widget class="QToolButton" name="userBtn">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+         <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
@@ -56,31 +56,349 @@
     </widget>
    </item>
    <item>
-    <widget class="QFrame" name="WorkspaceDetails">
-     <layout class="QHBoxLayout" name="workspaceDetails">
+    <widget class="QTabWidget" name="tabWidget">
+     <property name="toolTip">
+      <string/>
+     </property>
+     <property name="currentIndex">
+      <number>0</number>
+     </property>
+     <widget class="QWidget" name="tabWorkspaces">
+      <property name="toolTip">
+       <string/>
+      </property>
+      <attribute name="title">
+       <string>Workspaces</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <item>
+        <widget class="QFrame" name="WorkspaceDetails">
+         <layout class="QHBoxLayout" name="workspaceDetails">
+          <item>
+           <widget class="QToolButton" name="buttonBack">
+            <property name="visible">
+             <bool>true</bool>
+            </property>
+            <property name="toolTip">
+             <string>Go back</string>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>:/icons/button_left.svg</normaloff>:/icons/button_left.svg</iconset>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLabel" name="workspaceNameLabel">
+            <property name="visible">
+             <bool>true</bool>
+            </property>
+            <property name="toolTip">
+             <string>The workspace and path in Lens</string>
+            </property>
+            <property name="text">
+             <string>workspaceName</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QPushButton" name="addFileBtn">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="visible">
+             <bool>true</bool>
+            </property>
+            <property name="toolTip">
+             <string>Add files or directories to your workspace</string>
+            </property>
+            <property name="text">
+             <string>Add</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTextEdit" name="txtExplain">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListView" name="workspaceListView">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="baseSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="toolTip">
+          <string>Your workspaces</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QListView" name="fileList">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="toolTip">
+          <string>Files in the workspace</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QFrame" name="fileDetails">
+         <property name="toolTip">
+          <string>File details</string>
+         </property>
+         <layout class="QVBoxLayout">
+          <item>
+           <layout class="QHBoxLayout">
+            <item alignment="Qt::AlignTop">
+             <widget class="QLabel" name="thumbnail_label">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="minimumSize">
+               <size>
+                <width>128</width>
+                <height>128</height>
+               </size>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <layout class="QVBoxLayout">
+              <item alignment="Qt::AlignTop">
+               <widget class="QLabel" name="fileNameLabel">
+                <property name="text">
+                 <string>part.FCStd</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QComboBox" name="versionsComboBox">
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
+                  <horstretch>0</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+                <property name="toolTip">
+                 <string>Versions of this file</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <layout class="QHBoxLayout">
+                <item>
+                 <widget class="QPushButton" name="viewOnlineBtn">
+                  <property name="toolTip">
+                   <string>Open this model in your webbrowser through Ondsel Lens</string>
+                  </property>
+                  <property name="text">
+                   <string>View in Lens</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QPushButton" name="makeActiveBtn">
+                  <property name="toolTip">
+                   <string>Make the current version the active version</string>
+                  </property>
+                  <property name="text">
+                   <string>Make active</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="horizontalSpacer_4">
+                  <property name="orientation">
+                   <enum>Qt::Horizontal</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>40</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+               </layout>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </item>
+          <item>
+           <widget class="QFrame" name="linkDetails">
+            <layout class="QVBoxLayout">
+             <property name="leftMargin">
+              <number>0</number>
+             </property>
+             <property name="topMargin">
+              <number>0</number>
+             </property>
+             <property name="rightMargin">
+              <number>0</number>
+             </property>
+             <property name="bottomMargin">
+              <number>0</number>
+             </property>
+             <item>
+              <layout class="QHBoxLayout">
+               <item>
+                <widget class="QLabel" name="shareLinksLabel">
+                 <property name="text">
+                  <string>Share links</string>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <widget class="QToolButton" name="addLinkBtn">
+                 <property name="toolTip">
+                  <string>Create a new share link</string>
+                 </property>
+                 <property name="text">
+                  <string/>
+                 </property>
+                 <property name="icon">
+                  <iconset>
+                   <normaloff>:/icons/list-add.svg</normaloff>:/icons/list-add.svg</iconset>
+                 </property>
+                </widget>
+               </item>
+               <item>
+                <spacer name="horizontalSpacer_3">
+                 <property name="orientation">
+                  <enum>Qt::Horizontal</enum>
+                 </property>
+                 <property name="sizeHint" stdset="0">
+                  <size>
+                   <width>40</width>
+                   <height>20</height>
+                  </size>
+                 </property>
+                </spacer>
+               </item>
+              </layout>
+             </item>
+            </layout>
+           </widget>
+          </item>
+          <item>
+           <widget class="QListView" name="linksView">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Share links, using the buttons you can:
+- Copy the url
+- Edit the link parameters.
+- Delete the link</string>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabBookmarks">
+      <property name="toolTip">
+       <string/>
+      </property>
+      <attribute name="title">
+       <string>Bookmarks</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_3"/>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <widget class="QFrame" name="frameUpdate">
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Plain</enum>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
-       <widget class="QToolButton" name="buttonBack">
-        <property name="visible">
-         <bool>true</bool>
-        </property>
-        <property name="icon">
-         <iconset>
-          <normaloff>:/icons/button_left.svg</normaloff>:/icons/button_left.svg</iconset>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QLabel" name="workspaceNameLabel">
-        <property name="visible">
+       <widget class="QLabel" name="labelUpdateAvailable">
+        <property name="enabled">
          <bool>true</bool>
         </property>
         <property name="text">
-         <string>workspaceName</string>
+         <string>Update available!</string>
         </property>
        </widget>
       </item>
       <item>
-       <spacer name="horizontalSpacer_2">
+       <widget class="QPushButton" name="updateBtn">
+        <property name="toolTip">
+         <string>Launch the Addon Manager to update Ondsel Lens</string>
+        </property>
+        <property name="text">
+         <string>Update</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer">
         <property name="orientation">
          <enum>Qt::Horizontal</enum>
         </property>
@@ -92,218 +410,11 @@
         </property>
        </spacer>
       </item>
-      <item>
-       <widget class="QPushButton" name="addFileBtn">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="visible">
-         <bool>true</bool>
-        </property>
-        <property name="toolTip">
-         <string>Add files or directories to your workspace</string>
-        </property>
-        <property name="text">
-         <string>Add</string>
-        </property>
-       </widget>
-      </item>
      </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QTextEdit" name="txtExplain"/>
-   </item>
-   <item>
-    <widget class="QListView" name="workspaceListView">
-     <property name="toolTip">
-      <string>List of your workspaces.</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QListView" name="fileList">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="toolTip">
-      <string>This is a list of the files in the currently selected workspace</string>
-     </property>
-    </widget>
-   </item>
-   <item>
-    <widget class="QFrame" name="fileDetails">
-     <layout class="QVBoxLayout">
-      <item>
-       <layout class="QHBoxLayout">
-        <item>
-         <widget class="QLabel" name="thumbnail_label">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <layout class="QVBoxLayout">
-          <item>
-           <widget class="QLabel" name="fileNameLabel">
-            <property name="text">
-             <string>part.FCStd</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QComboBox" name="versionsComboBox">
-            <property name="sizePolicy">
-             <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-              <horstretch>0</horstretch>
-              <verstretch>0</verstretch>
-             </sizepolicy>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <layout class="QHBoxLayout">
-            <item>
-             <widget class="QPushButton" name="viewOnlineBtn">
-              <property name="toolTip">
-               <string>Open this model in your webbrowser through Ondsel Lens</string>
-              </property>
-              <property name="text">
-               <string>View in Lens</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="makeActiveBtn">
-              <property name="text">
-               <string>Make active</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <spacer name="horizontalSpacer_4">
-              <property name="orientation">
-               <enum>Qt::Horizontal</enum>
-              </property>
-              <property name="sizeHint" stdset="0">
-               <size>
-                <width>40</width>
-                <height>20</height>
-               </size>
-              </property>
-             </spacer>
-            </item>
-           </layout>
-          </item>
-         </layout>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <widget class="QFrame" name="linkDetails">
-        <layout class="QVBoxLayout">
-         <property name="leftMargin">
-          <number>0</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>0</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <layout class="QHBoxLayout">
-           <item>
-            <widget class="QLabel" name="shareLinksLabel">
-             <property name="text">
-              <string>Share links</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QToolButton" name="addLinkBtn">
-             <property name="toolTip">
-              <string>Create a new share link</string>
-             </property>
-             <property name="text">
-              <string/>
-             </property>
-             <property name="icon">
-              <iconset>
-               <normaloff>:/icons/list-add.svg</normaloff>:/icons/list-add.svg</iconset>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <spacer name="horizontalSpacer_3">
-             <property name="orientation">
-              <enum>Qt::Horizontal</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>40</width>
-               <height>20</height>
-              </size>
-             </property>
-            </spacer>
-           </item>
-          </layout>
-         </item>
-         <item>
-          <widget class="QListView" name="linksView">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="toolTip">
-            <string>Those are share links, using the buttons you can :
-
-- Copy the url
-- Edit the link parameters.
-- Delete the link</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="Gui::UrlLabel" name="updateAvailable">
-     <property name="visible">
-      <bool>false</bool>
-     </property>
-     <property name="text">
-      <string/>
-     </property>
     </widget>
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>Gui::UrlLabel</class>
-   <extends>QLabel</extends>
-   <header>Gui/Widgets.h</header>
-  </customwidget>
- </customwidgets>
  <resources/>
  <connections/>
 </ui>

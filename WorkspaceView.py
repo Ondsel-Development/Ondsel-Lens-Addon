@@ -6,13 +6,16 @@
 
 import Utils
 
-from PySide import QtCore, QtGui
+from PySide import QtCore, QtGui, QtWidgets
 import os
 from datetime import datetime
 import json
 import shutil
 import re
 import requests
+import uuid
+import base64
+import webbrowser
 
 from inspect import cleandoc
 
@@ -20,9 +23,18 @@ import jwt
 from jwt.exceptions import ExpiredSignatureError
 import FreeCAD
 import FreeCADGui as Gui
+import AddonManager
 
 
-from DataModels import WorkspaceListModel, CACHE_PATH
+from DataModels import (
+    WorkspaceListModel,
+    CACHE_PATH,
+    getBookmarkModel,
+    ROLE_TYPE,
+    TYPE_ORG,
+    TYPE_BOOKMARK,
+    ROLE_SHARE_MODEL_ID,
+)
 from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import (
@@ -48,8 +60,13 @@ from PySide.QtGui import (
     QAction,
     QActionGroup,
     QMenu,
+    QSizePolicy,
     QPixmap,
 )
+
+from PySide.QtCore import QByteArray
+
+from PySide.QtWidgets import QTreeView
 
 logger = Utils.getLogger(__name__)
 
@@ -57,6 +74,15 @@ MAX_LENGTH_BASE_FILENAME = 30
 MAX_LENGTH_WORKSPACE_NAME = 33
 ELLIPSES = "..."
 MAX_INT32 = (1 << 31) - 1
+CONFIG_PATH = FreeCAD.getUserConfigDir()
+FILENAME_USER_CFG = "user.cfg"
+FILENAME_SYS_CFG = "system.cfg"
+PREFIX_PARAM_ROOT = "/Root/"
+
+IDX_TAB_WORKSPACES = 0
+IDX_TAB_BOOKMARKS = 1
+
+PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
 
 mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
@@ -87,6 +113,39 @@ try:
     lensUrl = config.lens_url
 except (ImportError, AttributeError):
     pass
+
+
+class UpdateManager:
+    def storePreferences(self):
+        pref = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Addons")
+        self.autocheck = pref.GetBool("AutoCheck")
+        self.statusSelection = pref.GetInt("StatusSelection")
+        self.packageTypeSelection = pref.GetInt("PackageTypeSelection")
+        self.searchString = pref.GetString("SearchString")
+
+    def setCustomPreferences(self):
+        pref = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Addons")
+        pref.SetBool("AutoCheck", True)
+        pref.SetInt("StatusSelection", 3)
+        pref.SetInt("PackageTypeSelection", 1)
+        pref.SetString("SearchString", "Ondsel Lens")
+
+    def restorePreferences(self):
+        pref = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/Addons")
+        pref.SetBool("AutoCheck", self.autocheck)
+        pref.SetInt("StatusSelection", self.statusSelection)
+        pref.SetInt("PackageTypeSelection", self.packageTypeSelection)
+        pref.SetString("SearchString", self.searchString)
+
+    def openAddonManager(self, finishFunction):
+        """Open the addon manager with custom preferences."""
+
+        self.storePreferences()
+        self.setCustomPreferences()
+
+        addonManager = AddonManager.CommandAddonManager()
+        addonManager.finished.connect(finishFunction)
+        addonManager.Activated()
 
 
 # Simple delegate drawing an icon and text
@@ -326,6 +385,51 @@ class WorkspaceListDelegate(QStyledItemDelegate):
     #                                                           option, index)
 
 
+class BookmarkView(QTreeView):
+    def drawBranches(self, painter, rect, index):
+        pass
+
+
+class BookmarkDelegate(QStyledItemDelegate):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+
+    def createEditor(self, parent, option, index):
+        return None
+
+    def paint(self, painter, option, index):
+        type = index.data(ROLE_TYPE)
+        if type == TYPE_ORG:
+            name = index.data(QtCore.Qt.DisplayRole)
+
+            # Mimick the workspaces list for consistency
+            name_font = painter.font()
+            name_font.setBold(True)
+
+            # Draw the name
+            name_rect = QtCore.QRect(
+                option.rect.left() + 20,
+                option.rect.top() + 10,
+                option.rect.width() - 20,
+                option.rect.height() // 2,
+            )
+            painter.setFont(name_font)
+            painter.drawText(
+                name_rect,
+                QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter,
+                name,
+            )
+        else:
+            super().paint(painter, option, index)
+
+    def sizeHint(self, option, index):
+        type = index.data(ROLE_TYPE)
+        if type == TYPE_ORG:
+            return QtCore.QSize(100, 40)  # Adjust the desired width and height
+        else:
+            return super().sizeHint(option, index)
+
+
 class WorkspaceView(QtGui.QDockWidget):
     currentWorkspace = None
     username = "none"
@@ -356,10 +460,9 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.workspaceListView.setItemDelegate(self.workspacesDelegate)
         self.form.workspaceListView.doubleClicked.connect(self.enterWorkspace)
         self.form.workspaceListView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        # Disable this, prefer to do this in the dashboard
-        # self.form.workspaceListView.customContextMenuRequested.connect(
-        #     self.showWorkspaceContextMenu
-        # )
+        self.form.workspaceListView.customContextMenuRequested.connect(
+            self.showWorkspaceContextMenu
+        )
         self.workspacesModel.rowsInserted.connect(self.switchView)
         self.workspacesModel.rowsRemoved.connect(self.switchView)
 
@@ -421,6 +524,9 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.txtExplain.setReadOnly(True)
         self.form.txtExplain.hide()
 
+        self.initializeBookmarks()
+        self.initializeUpdateLens()
+
         self.currentWorkspaceModel = None
 
         # Check if user is already logged in.
@@ -465,6 +571,39 @@ class WorkspaceView(QtGui.QDockWidget):
 
         # linksView.setModel(self.linksModel)
 
+    def initializeBookmarks(self):
+        tabWidget = self.form.tabWidget
+        self.form.viewBookmarks = BookmarkView(tabWidget)
+        bookmarkView = self.form.viewBookmarks
+        self.form.tabBookmarks.layout().addWidget(bookmarkView)
+
+        tabWidget.currentChanged.connect(self.onTabChanged)
+        tabWidget.setTabToolTip(
+            IDX_TAB_WORKSPACES,
+            "Explore and create 3D CAD designs in your Lens workspaces",
+        )
+        tabWidget.setTabToolTip(IDX_TAB_BOOKMARKS, "Explore your Lens bookmarks")
+        bookmarkView.setRootIsDecorated(False)
+        bookmarkView.setToolTip("Bookmarks per organization")
+        bookmarkView.setExpandsOnDoubleClick(False)
+        bookmarkView.header().hide()
+        bookmarkView.setItemDelegate(BookmarkDelegate())
+        bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
+        bookmarkView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
+        bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
+
+    def initializeUpdateLens(self):
+        self.form.frameUpdate.hide()
+        self.form.updateBtn.clicked.connect(self.openAddonManager)
+
+    def openAddonManager(self):
+        self.updateManager = UpdateManager()
+        self.updateManager.openAddonManager(self.addonManagerFinished)
+
+    def addonManagerFinished(self):
+        self.updateManager.restorePreferences()
+        self.UpdateManager = None
+
     # def generate_expired_token(self):
     #     # generate an expired token for testing
     #     # Set expiration time to 5 minutes ago
@@ -495,14 +634,23 @@ class WorkspaceView(QtGui.QDockWidget):
         # self.newWorkspaceAction.triggered.connect(self.newWorkspaceBtnClicked)
         # self.userMenu.addAction(self.newWorkspaceAction)
 
-        # Preferences
-        submenu = QMenu("Preferences", self.userMenu)
-        clearCacheAction = QAction("Clear Cache on logout", submenu)
+        # Settings
+        submenuSettings = QMenu("Settings", self.userMenu)
+        clearCacheAction = QAction("Clear Cache on logout", submenuSettings)
         clearCacheAction.setCheckable(True)
         clearCacheAction.setChecked(p.GetBool("clearCache", False))
         clearCacheAction.triggered.connect(lambda state: p.SetBool("clearCache", state))
-        submenu.addAction(clearCacheAction)
-        self.userMenu.addMenu(submenu)
+        submenuSettings.addAction(clearCacheAction)
+        self.userMenu.addMenu(submenuSettings)
+
+        submenuPrefs = QMenu("Preferences", self.userMenu)
+        downloadOnselPrefsAction = QAction(
+            "Download Ondsel ES default preferences", submenuPrefs
+        )
+        downloadOnselPrefsAction.setEnabled(FreeCAD.ConfigGet("ExeVendor") == "Ondsel")
+        downloadOnselPrefsAction.triggered.connect(self.downloadOndselDefaultPrefs)
+        submenuPrefs.addAction(downloadOnselPrefsAction)
+        self.userMenu.addMenu(submenuPrefs)
 
         a4 = QAction("Log out", userActions)
         a4.triggered.connect(self.logout)
@@ -671,15 +819,22 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def switchView(self):
         isFileView = self.currentWorkspace is not None
-        self.form.WorkspaceDetails.setVisible(isFileView)
-        self.form.fileList.setVisible(isFileView)
 
-        if self.user is None and self.workspacesModel.rowCount() == 0:
-            self.form.txtExplain.setVisible(True)
+        if isFileView:
             self.form.workspaceListView.setVisible(False)
+            self.form.WorkspaceDetails.setVisible(True)
+            self.form.fileList.setVisible(True)
+            self.form.fileList.setSizePolicy(
+                QSizePolicy.Preferred, QSizePolicy.Expanding
+            )
         else:
-            self.form.txtExplain.setVisible(False)
-            self.form.workspaceListView.setVisible(not isFileView)
+            self.form.WorkspaceDetails.setVisible(False)
+            self.form.fileList.setVisible(False)
+            if self.user is None and self.workspacesModel.rowCount() == 0:
+                self.form.txtExplain.setVisible(True)
+            else:
+                self.form.txtExplain.setVisible(False)
+                self.form.workspaceListView.setVisible(True)
 
     def backClicked(self):
         if self.currentWorkspace is None:
@@ -728,6 +883,14 @@ class WorkspaceView(QtGui.QDockWidget):
             self.logout()
             return True
 
+    def tryOpenPathFile(self, pathFile):
+        if Utils.isOpenableByFreeCAD(pathFile):
+            logger.debug(f"Opening file: {pathFile}")
+            if not self.restoreFile(pathFile):
+                FreeCAD.loadFile(pathFile)
+        else:
+            logger.warn(f"FreeCAD cannot open {pathFile}")
+
     def openFile(self, index):
         """Open a file
 
@@ -738,14 +901,11 @@ class WorkspaceView(QtGui.QDockWidget):
         if fileItem.is_folder:
             wsm.openDirectory(index)
         else:
-            file_path = Utils.joinPath(wsm.getFullPath(), fileItem.name)
-            if not os.path.isfile(file_path) and self.isLoggedIn():
+            pathFile = Utils.joinPath(wsm.getFullPath(), fileItem.name)
+            if not os.path.isfile(pathFile) and self.isLoggedIn():
                 wsm.downloadFile(fileItem)
                 # wsm has refreshed
-            if Utils.isOpenableByFreeCAD(file_path):
-                logger.debug(f"Opening file: {file_path}")
-                if not self.restoreFile(fileItem):
-                    FreeCAD.loadFile(file_path)
+            self.tryOpenPathFile(pathFile)
 
     def setWorkspaceNameLabel(self):
         wsm = self.currentWorkspaceModel
@@ -867,10 +1027,10 @@ class WorkspaceView(QtGui.QDockWidget):
         if Utils.isOpenableByFreeCAD(fileItem.getPath()):
             self.updateThumbnail(fileItem)
 
-    def restoreFile(self, fileItem):
+    def restoreFile(self, pathFile):
         # iterate over the files
         for doc in FreeCAD.listDocuments().values():
-            if doc.FileName == fileItem.getPath():
+            if doc.FileName == pathFile:
                 doc.restore()
                 return True
         return False
@@ -901,8 +1061,9 @@ class WorkspaceView(QtGui.QDockWidget):
             else:
                 # the download will refresh the wsm, so refresh the UI
                 if self.downloadVersion(fileItem, version):
-                    self.restoreFile(refreshUI())
-                    self.updateThumbnail(fileItem)
+                    refreshedFileItem = refreshUI()
+                    self.restoreFile(refreshedFileItem.getPath())
+                    self.updateThumbnail(refreshedFileItem)
                 else:
                     refreshUI()
 
@@ -910,7 +1071,6 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def updateThumbnail(self, fileItem):
         fileName = fileItem.name
-        self.form.thumbnail_label.show()
         path = self.currentWorkspaceModel.getFullPath()
         pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
         if pixmap is None:
@@ -929,14 +1089,18 @@ class WorkspaceView(QtGui.QDockWidget):
         #     # currentModelId is used for the server model and is necessary to
         #     # open models online
         #     self.currentModelId = file_item.serverFileDict["modelId"]
-        self.form.thumbnail_label.show()
         self.updateThumbnail(file_item)
         self.form.fileNameLabel.setText(renderFileName(fileName))
-        self.form.fileNameLabel.show()
 
         version_model = None
         self.links_model = None
 
+        self.form.fileList.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self.form.fileDetails.setSizePolicy(
+            QSizePolicy.Preferred, QSizePolicy.Expanding
+        )
+        self.form.thumbnail_label.show()
+        self.form.fileNameLabel.show()
         self.form.fileDetails.setVisible(True)
 
         # It seems an idea to have the values below as default to then set them when
@@ -975,6 +1139,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.makeActiveBtn.setVisible(False)
         self.form.linkDetails.setVisible(False)
         self.form.fileDetails.setVisible(False)
+        self.form.fileList.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
 
     def fileListClickedLoggedOut(self, fileName):
         path = self.currentWorkspaceModel.getFullPath()
@@ -1030,6 +1195,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
             self.form.versionsComboBox.setVisible(True)
 
+    # workspace add and delete is preferred to do in the Dashboard
     # def showWorkspaceContextMenu(self, pos):
     #     index = self.form.workspaceListView.indexAt(pos)
 
@@ -1066,6 +1232,282 @@ class WorkspaceView(QtGui.QDockWidget):
 
     #         if action == addAction:
     #             self.newWorkspaceBtnClicked()
+
+    # ####
+    # Managing preferences
+    # ####
+
+    def showWorkspaceContextMenu(self, pos):
+        def getOrganizationName(index):
+            workspaceData = self.workspacesModel.data(index)
+            organizationData = workspaceData.get("organization")
+            if organizationData:
+                return organizationData.get("name")
+
+        index = self.form.workspaceListView.indexAt(pos)
+
+        if index.isValid():
+            menu = QtGui.QMenu()
+
+            nameOrganization = getOrganizationName(index)
+
+            if nameOrganization:
+                labelMenuBase = f"preferences for {nameOrganization}"
+
+                storePrefAction = menu.addAction(f"Upload {labelMenuBase}")
+                storePrefAction.setEnabled(self.isLoggedIn())
+
+                loadPrefAction = menu.addAction(f"Download {labelMenuBase}")
+                loadPrefAction.setEnabled(self.isLoggedIn())
+
+                action = menu.exec_(
+                    self.form.workspaceListView.viewport().mapToGlobal(pos)
+                )
+
+                if action == storePrefAction:
+                    self.storePrefs(index)
+                elif action == loadPrefAction:
+                    self.loadPrefsOrg(index)
+
+    def uploadPrefs(self, pathConfig):
+        base, extension = os.path.splitext(pathConfig)
+        uniqueName = f"{str(uuid.uuid4())}{extension}"
+
+        self.apiClient.uploadFileToServer(uniqueName, pathConfig)
+
+        return uniqueName
+
+    def storePrefs(self, index):
+        workspaceData = self.workspacesModel.data(index)
+        orgData = workspaceData.get("organization")
+        orgId = orgData["_id"]
+
+        pathUserConfig = Utils.joinPath(CONFIG_PATH, FILENAME_USER_CFG)
+        pathSysConfig = Utils.joinPath(CONFIG_PATH, FILENAME_SYS_CFG)
+
+        def tryStorePrefs():
+            uniqueNameUserConfig = self.uploadPrefs(pathUserConfig)
+            uniqueNameSysConfig = self.uploadPrefs(pathSysConfig)
+
+            self.apiClient.uploadPrefs(
+                orgId,
+                uniqueNameUserConfig,
+                FILENAME_USER_CFG,
+                uniqueNameSysConfig,
+                FILENAME_SYS_CFG,
+            )
+
+        self.handle(tryStorePrefs)
+
+    def convertParam(self, type, paramGroup, value):
+        if type == "FCBool":
+            return paramGroup.GetBool, paramGroup.SetBool, bool(int(value))
+        elif type == "FCUInt":
+            return paramGroup.GetUnsigned, paramGroup.SetUnsigned, int(value)
+        elif type == "FCInt":
+            return paramGroup.GetInt, paramGroup.SetInt, int(value)
+        elif type == "FCFloat":
+            return paramGroup.GetFloat, paramGroup.SetFloat, float(value)
+        elif type == "FCText":
+            return paramGroup.GetString, paramGroup.SetString, value
+        else:
+            logger.error("Unknown parameter type")
+            return None, None, None
+
+    def getRemoveFunc(self, type, paramGroup):
+        if type == "Boolean":
+            return paramGroup.RemBool
+        elif type == "Unsigned Long":
+            return paramGroup.RemUnsigned
+        elif type == "Integer":
+            return paramGroup.RemInt
+        elif type == "Float":
+            return paramGroup.RemFloat
+        elif type == "String":
+            return paramGroup.RemString
+        else:
+            logger.error("Unknown parameter type")
+            return None
+
+    def getTypeParamGroup(self, group, param):
+        contents = group.GetContents()
+        if contents:
+            filtered_tuples = filter(
+                lambda tup: len(tup) > 1 and tup[1] == param, contents
+            )
+            result = list(filtered_tuples)
+            if result:
+                return result[0][0]
+
+        return None
+
+    def removeParam(self, group, param, path):
+        type = self.getTypeParamGroup(group, param)
+        if type:
+            removeFunc = self.getRemoveFunc(type, group)
+            removeFunc(param)
+            logger.info(f"Removing parameter '{param}' in group '{path}'")
+
+    def setPreference(self, param, path, value, setFunc):
+        logger.info(f"Setting parameter '{param}' " f"in group '{path}' to '{value}'")
+        setFunc(param, value)
+        # The code below does not succeed in getting the task panel at the
+        # right location.
+        # if (
+        #     param == "MainWindowState"
+        #     and path == "User parameter:BaseApp/Preferences/MainWindow"
+        # ):
+        #     logger.debug("Restoring the window state")
+        #     mw.restoreState(QByteArray(base64.b64decode(value)))
+
+    def setPrefPath(self, path, param, type, value):
+        paramGroup = FreeCAD.ParamGet(path)
+
+        if type == "KeyNotFound":
+            self.removeParam(paramGroup, param, path)
+        else:
+            getFunc, setFunc, convertedValue = self.convertParam(
+                type, paramGroup, value
+            )
+            currentValue = getFunc(param)
+            if currentValue != convertedValue:
+                self.setPreference(param, path, convertedValue, setFunc)
+
+    def setPrefsFile(self, prefsFile):
+        fileName = prefsFile["fileName"]
+        if fileName == FILENAME_USER_CFG:
+            prefix = "User parameter:"
+        elif fileName == FILENAME_SYS_CFG:
+            prefix = "System parameter:"
+        else:
+            logger.error("Unknown preference file")
+            return
+
+        for prefData in prefsFile["data"]:
+            key, type, value = prefData["key"], prefData["type"], prefData["value"]
+            # discard the prefix '/Root/' and split into path values
+            pathValues = key[len(PREFIX_PARAM_ROOT) :].split("/")
+            # the last path value is the parameter of interest
+            param = pathValues[-1]
+            # the path is the prefix and the rest of the pathvalues joined together
+            path = prefix + "/".join(pathValues[:-1])
+            self.setPrefPath(path, param, type, value)
+
+    def setPrefs(self, prefs):
+        for filePrefs in prefs["currentVersion"]["files"]:
+            self.setPrefsFile(filePrefs)
+
+    def restartFreecad(self, mainWindowState):
+        """Shuts down and restarts FreeCAD"""
+
+        # Very similar to how the Addon Manager restarts FreeCAD
+
+        args = QtWidgets.QApplication.arguments()[1:]
+        # delay restoring the window state as much as possible to make sure
+        # that the panels are at the right location
+        mw.restoreState(mainWindowState)
+        if mw.close():
+            QtCore.QProcess.startDetached(
+                QtWidgets.QApplication.applicationFilePath(), args
+            )
+
+    def askRestart(self, backupFiles, windowState):
+        # similar to the question from the Addon Manager
+        m = QtWidgets.QMessageBox()
+        m.setWindowTitle("Ondsel Lens")
+        m.setWindowIcon(QtGui.QIcon(":/icons/OndselWorkbench.svg"))
+        m.setWindowIcon(self.ondselIcon)
+        m.setTextFormat(QtCore.Qt.RichText)
+        restartMessage = "You must restart FreeCAD for changes to take effect."
+        if backupFiles:
+            m.setText(
+                "The current preferences have been backed up in:"
+                "<ul>"
+                f"<li>{backupFiles[0]}</li>"
+                f"<li>{backupFiles[1]}</li>"
+                "</ul>"
+                "<br>"
+                f"{restartMessage}"
+            )
+        else:
+            m.setText(restartMessage)
+        m.setIcon(m.Warning)
+        m.setStandardButtons(m.Ok | m.Cancel)
+        m.setDefaultButton(m.Cancel)
+        okBtn = m.button(QtWidgets.QMessageBox.StandardButton.Ok)
+        cancelBtn = m.button(QtWidgets.QMessageBox.StandardButton.Cancel)
+        okBtn.setText("Restart now")
+        cancelBtn.setText("Restart later")
+        ret = m.exec_()
+        if ret == m.Ok:
+            # restart FreeCAD after a delay to give time to this dialog to close
+            QtCore.QTimer.singleShot(2000, lambda: self.restartFreecad(windowState))
+
+    def backupPrefFile(self, pathFile):
+        try:
+            return Utils.createBackup(pathFile)
+        except FileNotFoundError as e:
+            logger.error(f"Failed to create a backup of {pathFile}")
+            logger.error(str(e))
+            return None
+
+    def backupPrefs(self):
+        # This is the correct way to obtain the used configuration files that
+        # may have been overridden with the command line user-cfg and
+        # system-cfg flags
+        userConfigFile = FreeCAD.ConfigGet("UserParameter")
+        sysConfigFile = FreeCAD.ConfigGet("SystemParameter")
+
+        backupFiles = []
+        userConfigFileBak = self.backupPrefFile(userConfigFile)
+        sysConfigFileBak = self.backupPrefFile(sysConfigFile)
+        if userConfigFileBak:
+            backupFiles.append(userConfigFileBak)
+        if sysConfigFileBak:
+            backupFiles.append(sysConfigFileBak)
+        return backupFiles
+
+    def getWindowStatePreferences(self):
+        paramGroup = FreeCAD.ParamGet("User parameter:BaseApp/Preferences/MainWindow")
+        return QByteArray(base64.b64decode(paramGroup.GetString("MainWindowState")))
+
+    def loadPrefs(self, prefsId):
+        # throws APIClientException
+        result = self.apiClient.downloadPrefs(prefsId)
+        if result:
+            backupFiles = self.backupPrefs()
+            self.setPrefs(result)
+            # Get the windows state we would like at this time to restore it as
+            # late as possible.
+            windowState = self.getWindowStatePreferences()
+            FreeCAD.saveParameter("User parameter")
+            FreeCAD.saveParameter("System parameter")
+            self.askRestart(backupFiles, windowState)
+
+        return result
+
+    def loadPrefsOrg(self, index):
+        workspaceData = self.workspacesModel.data(index)
+        orgDataWorkspace = workspaceData.get("organization")
+        orgId = orgDataWorkspace["_id"]
+        nameOrg = orgDataWorkspace["name"]
+
+        def tryLoadPrefs():
+            orgData = self.apiClient.getOrganization(orgId)
+            prefsId = orgData.get("preferencesId")
+            result = self.loadPrefs(prefsId)
+            if not result:
+                logger.info(f"Organization {nameOrg} has no preferences stored.")
+
+        self.handle(tryLoadPrefs)
+
+    def downloadOndselDefaultPrefs(self):
+        def tryLoadPrefs():
+            result = self.loadPrefs("000000000000000000000000")
+            if not result:
+                logger.error("No default preferences stored")
+
+        self.handle(tryLoadPrefs)
 
     # ####
     # Directory deletion
@@ -1305,9 +1747,11 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def shareShareLinkClicked(self, index):
         model = self.form.linksView.model()
-        linkId = model.data(index, ShareLinkModel.UrlRole)
-        url = model.compute_url(linkId)
-        forum_iframe = model.compute_forum_iframe(linkId)
+        shareLinkId = model.data(index, ShareLinkModel.UrlRole)
+
+        direct_link = model.compute_direct_link(shareLinkId)
+        forum_shortcode = model.compute_forum_shortcode(shareLinkId)
+        iframe = model.compute_iframe(shareLinkId)
 
         # Create a custom dialog
         dialog = QtGui.QDialog(
@@ -1318,29 +1762,47 @@ class WorkspaceView(QtGui.QDockWidget):
 
         layout = QtGui.QVBoxLayout()
 
-        label = QtGui.QLabel("Choose an option for sharing:")
+        label = QtGui.QLabel("Share Model")
         layout.addWidget(label)
 
-        # Add custom buttons with desired tooltips
-        model_url_button = QtGui.QPushButton("Model URL")
-        model_url_button.setToolTip(
-            "This is the URL where anyone with the link "
-            "can view your model through Ondsel Lens."
+        direct_link_button = QtGui.QPushButton("Direct link")
+        direct_link_button.setToolTip(
+            "Copy to the clipboard the link with which "
+            "anyone can visit this model on Ondsel Lens."
         )
 
-        forum_iframe_button = QtGui.QPushButton("FreeCAD forum")
-        forum_iframe_button.setToolTip(
-            "This is a shortcode that you can paste in FreeCAD forum posts "
-            "to embed a view of your model in your post."
+        forum_button = QtGui.QPushButton("Share in FreeCAD forum")
+        forum_button.setToolTip(
+            "Copy to the clipboard a shortcode "
+            "that you can paste in FreeCAD forum posts "
+            "to embed a view of your model."
+        )
+
+        embed_button = QtGui.QPushButton("Embed")
+        embed_button.setToolTip(
+            "Copy to the clipboard the HTML with which you can "
+            "embed a view of your model in a website."
         )
 
         # Add buttons to the layout
-        layout.addWidget(model_url_button)
-        layout.addWidget(forum_iframe_button)
+        layout.addWidget(direct_link_button)
+        layout.addWidget(forum_button)
+        layout.addWidget(embed_button)
+
+        def closeWithAction(contents, message):
+            self.copyToClipboard(contents, message)
+            dialog.close()
 
         # Connect button actions
-        model_url_button.clicked.connect(lambda: self.copyToClipboard(url))
-        forum_iframe_button.clicked.connect(lambda: self.copyToClipboard(forum_iframe))
+        direct_link_button.clicked.connect(
+            lambda: closeWithAction(direct_link, "Link to the model on Ondsel Lens")
+        )
+        forum_button.clicked.connect(
+            lambda: closeWithAction(forum_shortcode, "Forum shortcode")
+        )
+        embed_button.clicked.connect(
+            lambda: closeWithAction(iframe, "HTML to embed the model")
+        )
 
         # Set the layout for the dialog
         dialog.setLayout(layout)
@@ -1371,10 +1833,10 @@ class WorkspaceView(QtGui.QDockWidget):
         # Show the dialog
         dialog.exec_()
 
-    def copyToClipboard(self, text):
+    def copyToClipboard(self, text, message):
         clipboard = QApplication.clipboard()
         clipboard.setText(text)
-        logger.info("Link copied!")
+        logger.info(f"{message} copied to the clipboard.")
 
     def editShareLinkClicked(self, index):
         model = self.form.linksView.model()
@@ -1408,6 +1870,13 @@ class WorkspaceView(QtGui.QDockWidget):
                 lambda: self.form.linksView.model().add_new_link(link_properties)
             )
 
+    def openUrl(self, url):
+        # doesn't work on platforms without `gio-launch-desktop` while Qt
+        # tries to use this.
+        # ret = QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+        if not webbrowser.open(url):
+            logger.warn(f"Failed to open {url} in the browser")
+
     def openModelOnline(self, modelId=None):
         url = ondselUrl
 
@@ -1420,7 +1889,7 @@ class WorkspaceView(QtGui.QDockWidget):
         if modelId is not None:
             url = f"{lensUrl}model/{modelId}"
             logger.debug(f"Opening {url}")
-        QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+        self.openUrl(url)
 
     def makeActive(self):
         comboBox = self.form.versionsComboBox
@@ -1441,16 +1910,13 @@ class WorkspaceView(QtGui.QDockWidget):
 
         self.handle(trySetVersion)
 
-    def openPreferences(self):
-        logger.debug("Preferences clicked")
-
     def ondselAccount(self):
         url = f"{lensUrl}login"
-        QtGui.QDesktopServices.openUrl(url)
+        self.openUrl(url)
 
     def showOndselSignUpPage(self):
         url = f"{lensUrl}signup"
-        QtGui.QDesktopServices.openUrl(url)
+        self.openurl(url)
 
     def loginBtnClicked(self):
         while True:
@@ -1672,7 +2138,7 @@ class WorkspaceView(QtGui.QDockWidget):
     #         # Update workspaceListWidget with new workspace
 
     def get_server_package_file(self):
-        response = requests.get(remote_package_url)
+        response = requests.get(remote_package_url, timeout=5)
         if response.status_code == 200:
             return response.text
         return None
@@ -1694,6 +2160,68 @@ class WorkspaceView(QtGui.QDockWidget):
                 version = line.strip().lstrip("<version>").rstrip("</version>")
                 return version
 
+    def getLatestVersionOndselEs(self):
+        try:
+            response = requests.get(
+                "https://api.github.com/repos/Ondsel-Development/"
+                "FreeCAD/releases/latest"
+            )
+        except requests.exceptions.RequestException:
+            return None
+
+        if response.status_code == requests.codes.ok:
+            json = response.json()
+            return json.get("tag_name")
+
+        return None
+
+    def getCurrentVersionOndselES(self):
+        version = FreeCAD.Version()
+        # Filter for FreeCAD instances that are built from this repo
+        if version[4].startswith("https://github.com/Ondsel-Development/FreeCAD"):
+            return f"{version[0]}.{version[1]}.{version[2]}"
+
+        return None
+
+    def openDownloadPage(self):
+        url = f"{self.apiClient.get_base_url()}download-and-explore"
+        self.openUrl(url)
+
+    def toVersionNumber(self, version):
+        return [int(n) for n in version.split(".")]
+
+    def versionGreaterThan(self, latestVersion, currentVersion):
+        latestV = self.toVersionNumber(latestVersion)
+        currentV = self.toVersionNumber(currentVersion)
+        if len(latestV) != len(currentV):
+            return False  # don't report
+
+        for i in range(len(latestV)):
+            if latestV[i] > currentV[i]:
+                return True
+            elif latestV[i] < currentV[i]:
+                return False
+            else:
+                # these version numbers are the same, so look at the next
+                # version number
+                pass
+
+        # All are the same
+        return False
+
+    def check_for_update_ondsel_es(self):
+        currentVersion = self.getCurrentVersionOndselES()
+        if currentVersion:
+            latestVersion = self.getLatestVersionOndselEs()
+            if latestVersion and self.versionGreaterThan(latestVersion, currentVersion):
+                self.setFrameUpdate("Ondsel ES", latestVersion, self.openDownloadPage)
+
+    def setFrameUpdate(self, name, version, function):
+        self.form.labelUpdateAvailable.setText(f"{name} v{version} available!")
+        self.form.updateBtn.clicked.disconnect()
+        self.form.updateBtn.clicked.connect(function)
+        self.form.frameUpdate.show()
+
     def check_for_update(self):
         local_version = self.get_version_from_package_file(
             self.get_local_package_file()
@@ -1703,16 +2231,79 @@ class WorkspaceView(QtGui.QDockWidget):
         )
 
         if local_version and remote_version and local_version != remote_version:
-            self.form.updateAvailable.setUrl(remote_changelog_url)
-            self.form.updateAvailable.setText(
-                f"Ondsel Lens v{remote_version} available!"
-            )
-            self.form.updateAvailable.setToolTip(
-                "Click to see the change-log of Ondsel Lens "
-                f"v{remote_version} in your browser."
-            )
+            self.setFrameUpdate("Ondsel Lens", remote_version, self.openAddonManager)
+        else:
+            self.check_for_update_ondsel_es()
 
-            self.form.updateAvailable.show()
+    # ####
+    # Bookmarks / tabs
+    # ####
+
+    def onTabChanged(self, index):
+        if index == IDX_TAB_BOOKMARKS:
+
+            def tryRefresh():
+                bookmarkModel = getBookmarkModel(self.apiClient)
+                viewBookmarks = self.form.viewBookmarks
+                viewBookmarks.setModel(bookmarkModel)
+                viewBookmarks.expandAll()
+
+            self.handle(tryRefresh)
+
+    def downloadBookmarkFile(self, idSharedModel):
+        # throws an APIClientException
+        path = Utils.joinPath(PATH_BOOKMARKS, idSharedModel)
+        sharedModel = self.apiClient.getSharedModel(idSharedModel)
+        model = sharedModel["model"]
+        if sharedModel["canDownloadDefaultModel"]:
+            uniqueFileName = model["uniqueFileName"]
+            fileModel = model["file"]
+            fileName = fileModel["custFileName"]
+            pathFile = Utils.joinPath(path, fileName)
+            self.apiClient.downloadFileFromServer(uniqueFileName, pathFile)
+            return pathFile
+        else:
+            objUrl = model["objUrl"]
+            fileName = Utils.getFileNameFromURL(objUrl)
+            pathFile = Utils.joinPath(path, fileName)
+            self.apiClient.downloadObjectFileFromServer(objUrl, pathFile)
+            return pathFile
+
+    def openBookmark(self, idSharedModel):
+        # throws an APIClientException
+        pathFile = self.downloadBookmarkFile(idSharedModel)
+        self.tryOpenPathFile(pathFile)
+
+    def bookmarkDoubleClicked(self, index):
+        viewBookmarks = self.form.viewBookmarks
+        bookmarkModel = viewBookmarks.model()
+        typeItem = bookmarkModel.data(index, ROLE_TYPE)
+        if typeItem == TYPE_BOOKMARK:
+            idShareModel = bookmarkModel.data(index, ROLE_SHARE_MODEL_ID)
+            self.handle(lambda: self.openBookmark(idShareModel))
+
+    def openShareLinkOnline(self, idShareModel):
+        url = f"{self.apiClient.get_base_url()}share/{idShareModel}"
+        self.openUrl(url)
+
+    def showBookmarkContextMenu(self, pos):
+        viewBookmarks = self.form.viewBookmarks
+        index = viewBookmarks.indexAt(pos)
+        if index.isValid():
+            bookmarkModel = viewBookmarks.model()
+            typeItem = bookmarkModel.data(index, ROLE_TYPE)
+            if typeItem == TYPE_BOOKMARK:
+                menu = QtGui.QMenu()
+                openAction = menu.addAction("Open bookmark")
+                viewAction = menu.addAction("View the bookmark in Lens")
+
+                action = menu.exec_(viewBookmarks.viewport().mapToGlobal(pos))
+
+                idShareModel = bookmarkModel.data(index, ROLE_SHARE_MODEL_ID)
+                if action == openAction:
+                    self.handle(lambda: self.openBookmark(idShareModel))
+                elif action == viewAction:
+                    self.openShareLinkOnline(idShareModel)
 
 
 # class NewWorkspaceDialog(QtGui.QDialog):
