@@ -647,6 +647,7 @@ class WorkspaceView(QtGui.QDockWidget):
         downloadOnselPrefsAction = QAction(
             "Download Ondsel ES default preferences", submenuPrefs
         )
+        downloadOnselPrefsAction.setEnabled(FreeCAD.ConfigGet("ExeVendor") == "Ondsel")
         downloadOnselPrefsAction.triggered.connect(self.downloadOndselDefaultPrefs)
         submenuPrefs.addAction(downloadOnselPrefsAction)
         self.userMenu.addMenu(submenuPrefs)
@@ -2137,7 +2138,7 @@ class WorkspaceView(QtGui.QDockWidget):
     #         # Update workspaceListWidget with new workspace
 
     def get_server_package_file(self):
-        response = requests.get(remote_package_url)
+        response = requests.get(remote_package_url, timeout=5)
         if response.status_code == 200:
             return response.text
         return None
