@@ -565,9 +565,8 @@ class WorkspaceView(QtGui.QDockWidget):
             self.timer.setInterval(60000)
             self.timer.start()
 
-            self.check_for_update()
-
         self.handle(tryRefresh)
+        self.handleRequest(self.check_for_update)
 
         # linksView.setModel(self.linksModel)
 
@@ -851,6 +850,17 @@ class WorkspaceView(QtGui.QDockWidget):
                 self.hideFileDetails()
 
             self.handle(tryOpenParent)
+
+    def handleRequest(self, func):
+        """Handle a function that raises an exception from requests.
+
+        Issue warning/errors and possibly log out the user, making
+        it still possible to use the addon.
+        """
+        try:
+            func()
+        except requests.exceptions.RequestException as e:
+            logger.debug(e)
 
     def handle(self, func):
         """Handle a function that raises an APICLientException.
@@ -2161,13 +2171,10 @@ class WorkspaceView(QtGui.QDockWidget):
                 return version
 
     def getLatestVersionOndselEs(self):
-        try:
-            response = requests.get(
-                "https://api.github.com/repos/Ondsel-Development/"
-                "FreeCAD/releases/latest"
-            )
-        except requests.exceptions.RequestException:
-            return None
+        # raises a ReqestException
+        response = requests.get(
+            "https://api.github.com/repos/Ondsel-Development/FreeCAD/releases/latest"
+        )
 
         if response.status_code == requests.codes.ok:
             json = response.json()
@@ -2210,6 +2217,7 @@ class WorkspaceView(QtGui.QDockWidget):
         return False
 
     def check_for_update_ondsel_es(self):
+        # raises a RequestException
         currentVersion = self.getCurrentVersionOndselES()
         if currentVersion:
             latestVersion = self.getLatestVersionOndselEs()
@@ -2223,6 +2231,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.frameUpdate.show()
 
     def check_for_update(self):
+        # raises a RequestException
         local_version = self.get_version_from_package_file(
             self.get_local_package_file()
         )
