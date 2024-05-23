@@ -16,3 +16,6 @@ Solve minor bugs related to a changing environment.
 
 # 2024.05.06.01
 Add support for bookmarks, preferences. Improve update process.
+
+<version>
+Prepare for Qt 6
