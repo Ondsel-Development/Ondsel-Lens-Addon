@@ -2597,33 +2597,45 @@ class LoginDialog(QtGui.QDialog):
         super().__init__()
         self.setWindowTitle("Login")
 
+        layout = QtGui.QVBoxLayout()
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(20)
+
         self.email_label = QtGui.QLabel("Email:")
+        self.email_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
         self.email_input = QtGui.QLineEdit()
+        self.email_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
 
         self.password_label = QtGui.QLabel("Password:")
+        self.password_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+
         self.password_input = QtGui.QLineEdit()
+        self.password_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         self.password_input.setEchoMode(QtGui.QLineEdit.Password)
 
         self.login_button = QtGui.QPushButton("Login")
+        self.login_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.login_button.clicked.connect(self.login)
         self.cancel_button = QtGui.QPushButton("Cancel")
+        self.cancel_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
         self.cancel_button.clicked.connect(self.reject)
 
         self.login_button.setEnabled(False)
 
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.email_label)
-        layout.addWidget(self.email_input)
-        layout.addWidget(self.password_label)
-        layout.addWidget(self.password_input)
+        formLayout = QtGui.QFormLayout()
+        formLayout.setSpacing(5)
+        formLayout.addRow(self.email_label, self.email_input)
+        formLayout.addRow(self.password_label, self.password_input)
 
-        buttons_layout = QtGui.QHBoxLayout()
-        buttons_layout.addWidget(self.login_button)
-        buttons_layout.addWidget(self.cancel_button)
+        buttonLayout = QtGui.QHBoxLayout()
+        buttonLayout.addWidget(self.login_button)
+        buttonLayout.addWidget(self.cancel_button)
 
-        layout.addLayout(buttons_layout)
-
+        layout.addLayout(formLayout)
+        layout.addLayout(buttonLayout)
         self.setLayout(layout)
+        self.adjustSize()
 
         # Connect textChanged signals to enable/disable login button
         self.email_input.textChanged.connect(self.check_credentials)
