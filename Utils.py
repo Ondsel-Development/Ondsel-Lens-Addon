@@ -5,11 +5,12 @@
 # ***********************************************************************
 
 import os
-import zipfile
 import math
+import re
 import logging
-import shutil
 
+import zipfile
+import shutil
 from urllib.parse import urlparse
 
 from PySide.QtGui import QPixmap
@@ -126,3 +127,14 @@ def createBackup(pathFile, extension=".ondsel-lens.bak"):
         return pathFileBak
     else:
         raise FileNotFoundError(f"File not found: {pathFile}")
+
+
+def get_addon_version():
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    package_xml_file = "package.xml"
+    path_package_file = os.path.join(current_dir, package_xml_file)
+
+    with open(path_package_file, "r") as file:
+        package_xml_content = file.read()
+
+    return re.search(r"<version>(.*?)<\/version>", package_xml_content).group(1)

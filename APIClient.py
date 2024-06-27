@@ -30,10 +30,13 @@ UNAUTHORIZED = requests.codes.unauthorized
 
 class APIClient:
     def __init__(
-        self, email, password, api_url, lens_url, access_token=None, user=None
+        self, email, password, api_url, lens_url, source, version,
+        access_token=None, user=None,
     ):
         self.base_url = api_url
         self.lens_url = lens_url
+        self.source = source
+        self.version = version
 
         if access_token is None:
             self.email = email
@@ -66,7 +69,7 @@ class APIClient:
             "password": self.password,
         }
 
-        headers = {"Content-Type": "application/json"}
+        headers = self._set_content_type()
         data = self._post(endpoint, headers=headers, data=json.dumps(payload))
         self.access_token = data["accessToken"]
         self.user = data["user"]
@@ -80,9 +83,20 @@ class APIClient:
             + response.json()["message"]
         )
 
-    def _delete(self, endpoint, headers={}, params=None):
+    def _set_default_headers(self, headers):
         headers["Authorization"] = f"Bearer {self.access_token}"
         headers["Accept"] = "application/json"
+        headers["X-Lens-Source"] = self.source
+        headers["X-Lens-Version"] = self.version
+
+        return headers
+
+    def _set_content_type(self):
+        headers = {"Content-Type": "application/json"}
+        return headers
+
+    def _delete(self, endpoint, headers={}, params=None):
+        headers = self._set_default_headers(headers)
 
         try:
             response = requests.delete(
@@ -99,8 +113,7 @@ class APIClient:
             )
 
     def _request(self, endpoint, headers={}, params=None):
-        headers["Authorization"] = f"Bearer {self.access_token}"
-        headers["Accept"] = "application/json"
+        headers = self._set_default_headers(headers)
         try:
             response = requests.get(
                 f"{self.base_url}/{endpoint}", headers=headers, params=params
@@ -118,9 +131,9 @@ class APIClient:
             )
 
     def _post(self, endpoint, headers={}, params=None, data=None, files=None):
-        if endpoint != "authentication":
-            headers["Authorization"] = f"Bearer {self.access_token}"
-        headers["Accept"] = "application/json"
+        headers = self._set_default_headers(headers)
+        if endpoint == "authentication":
+            headers.pop("Authorization")
         try:
             response = requests.post(
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
@@ -142,8 +155,7 @@ class APIClient:
             )
 
     def _update(self, endpoint, headers={}, data=None, files=None):
-        headers["Authorization"] = f"Bearer {self.access_token}"
-        headers["Accept"] = "application/json"
+        headers = self._set_default_headers(headers)
 
         try:
             response = requests.patch(
@@ -239,10 +251,7 @@ class APIClient:
         logger.debug("Creating the model...")
         endpoint = "models"
 
-        headers = {
-            "Content-Type": "application/json",
-        }
-
+        headers = self._set_content_type()
         payload = {
             "fileId": fileId,
             "shouldStartObjGeneration": True,
@@ -258,9 +267,7 @@ class APIClient:
         logger.debug("Regenerating the model OBJ... ")
         endpoint = f"models/{modelId}"
 
-        headers = {
-            "Content-Type": "application/json",
-        }
+        headers = self._set_content_type()
         payload = {
             # "shouldCommitNewVersion": True,
             "fileId": fileId,
@@ -300,10 +307,7 @@ class APIClient:
         logger.debug(f"Creating file {fileName} in dir {directory}")
         endpoint = "file"
 
-        headers = {
-            "Content-Type": "application/json",
-        }
-
+        headers = self._set_content_type()
         payload = {
             "custFileName": fileName,
             "shouldCommitNewVersion": True,
@@ -328,9 +332,7 @@ class APIClient:
         logger.debug(f"updatingFileObj {fileId} in dir {directory}")
         endpoint = f"file/{fileId}"
 
-        headers = {
-            "Content-Type": "application/json",
-        }
+        headers = self._set_content_type()
         payload = {
             "shouldCommitNewVersion": True,
             "version": {
@@ -351,9 +353,7 @@ class APIClient:
         logger.debug("setVersionActive")
         endpoint = f"file/{fileId}"
 
-        headers = {
-            "Content-Type": "application/json",
-        }
+        headers = self._set_content_type()
         payload = {
             "shouldCheckoutToVersion": True,
             "versionId": versionId,
@@ -418,10 +418,7 @@ class APIClient:
     def getSharedModels(self, params=None):
         endpoint = "shared-models"
 
-        headers = {
-            "Content-Type": "application/json",
-        }
-
+        headers = self._set_content_type()
         paginationparams = {"$limit": 50, "$skip": 0}
 
         if params is None:
@@ -436,10 +433,7 @@ class APIClient:
     def createSharedModel(self, params):
         endpoint = "shared-models"
 
-        headers = {
-            "Content-Type": "application/json",
-        }
-
+        headers = self._set_content_type()
         result = self._post(endpoint, headers, data=json.dumps(params))
         return result
 
@@ -453,10 +447,8 @@ class APIClient:
     @authRequired
     def updateSharedModel(self, fileData):
         endpoint = f"shared-models/{fileData['_id']}"
-        headers = {
-            "Content-Type": "application/json",
-        }
 
+        headers = self._set_content_type()
         result = self._update(endpoint, headers=headers, data=json.dumps(fileData))
 
         return result
@@ -495,10 +487,7 @@ class APIClient:
         logger.debug("Creating the workspace...")
         endpoint = "workspaces"
 
-        headers = {
-            "Content-Type": "application/json",
-        }
-
+        headers = self._set_content_type()
         payload = {
             "name": name,
             "description": description,
@@ -512,10 +501,8 @@ class APIClient:
     @authRequired
     def updateWorkspace(self, workspaceData):
         endpoint = f"workspaces/{workspaceData['_id']}"
-        headers = {
-            "Content-Type": "application/json",
-        }
 
+        headers = self._set_content_type()
         result = self._update(endpoint, headers=headers, data=json.dumps(workspaceData))
 
         return result
@@ -554,10 +541,7 @@ class APIClient:
         logger.debug("Creating the directory...")
         endpoint = "directories"
 
-        headers = {
-            "Content-Type": "application/json",
-        }
-
+        headers = self._set_content_type()
         payload = {
             "name": name,
             "workspace": workspace,
@@ -572,10 +556,8 @@ class APIClient:
     @authRequired
     def updateDirectory(self, directoryData):
         endpoint = f"directories/{directoryData['_id']}"
-        headers = {
-            "Content-Type": "application/json",
-        }
 
+        headers = self._set_content_type()
         result = self._update(endpoint, headers=headers, data=json.dumps(directoryData))
 
         return result
@@ -613,10 +595,7 @@ class APIClient:
             payloadHeaderValue = orgId
             message = "Initial commit perferences"
 
-        headers = {
-            "Content-Type": "application/json",
-        }
-
+        headers = self._set_content_type()
         payload = {
             payloadHeader: payloadHeaderValue,
             "version": {
