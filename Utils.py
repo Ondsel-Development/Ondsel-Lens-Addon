@@ -20,7 +20,7 @@ import FreeCAD
 
 modPath = os.path.dirname(__file__).replace("\\", "/")
 
-DEBUG_LEVEL = logging.INFO
+DEBUG_LEVEL = logging.DEBUG
 
 
 class FreeCADHandler(logging.Handler):

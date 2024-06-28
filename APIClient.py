@@ -30,8 +30,15 @@ UNAUTHORIZED = requests.codes.unauthorized
 
 class APIClient:
     def __init__(
-        self, email, password, api_url, lens_url, source, version,
-        access_token=None, user=None,
+        self,
+        email,
+        password,
+        api_url,
+        lens_url,
+        source,
+        version,
+        access_token=None,
+        user=None,
     ):
         self.base_url = api_url
         self.lens_url = lens_url
@@ -115,6 +122,7 @@ class APIClient:
     def _request(self, endpoint, headers={}, params=None):
         headers = self._set_default_headers(headers)
         try:
+            logger.debug(f"GET to {endpoint} with headers: {headers}")
             response = requests.get(
                 f"{self.base_url}/{endpoint}", headers=headers, params=params
             )

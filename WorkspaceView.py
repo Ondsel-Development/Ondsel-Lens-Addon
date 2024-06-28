@@ -545,8 +545,14 @@ class WorkspaceView(QtGui.QDockWidget):
 
                 if self.apiClient is None:
                     self.apiClient = APIClient(
-                        "", "", baseUrl, lensUrl, self.get_source(), self.get_version(),
-                        self.access_token, self.user
+                        "",
+                        "",
+                        baseUrl,
+                        lensUrl,
+                        self.get_source(),
+                        self.get_version(),
+                        self.access_token,
+                        self.user,
                     )
 
                 # Set a timer to logout when token expires.
@@ -1926,7 +1932,14 @@ class WorkspaceView(QtGui.QDockWidget):
             if dialog.exec_() == QtGui.QDialog.Accepted:
                 email, password = dialog.get_credentials()
                 try:
-                    self.apiClient = APIClient(email, password, baseUrl, lensUrl, self.get_source(), self.get_version())
+                    self.apiClient = APIClient(
+                        email,
+                        password,
+                        baseUrl,
+                        lensUrl,
+                        self.get_source(),
+                        self.get_version(),
+                    )
                     self.apiClient._authenticate()
                 except APIClientAuthenticationException as e:
                     logger.warn(e)
@@ -2202,9 +2215,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def get_version(self):
         return (
-            self.get_current_version_freecad()
-            + ", addon: "
-            + Utils.get_addon_version()
+            self.get_current_version_freecad() + ", addon: " + Utils.get_addon_version()
         )
 
     def openDownloadPage(self):
@@ -2238,7 +2249,7 @@ class WorkspaceView(QtGui.QDockWidget):
         if currentVersion:
             latestVersion = self.get_latest_version_ondsel_es()
             if latestVersion and self.version_greater_than(
-                    latestVersion, currentVersion
+                latestVersion, currentVersion
             ):
                 self.set_frame_update("Ondsel ES", latestVersion, self.openDownloadPage)
 
