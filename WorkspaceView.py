@@ -545,7 +545,14 @@ class WorkspaceView(QtGui.QDockWidget):
 
                 if self.apiClient is None:
                     self.apiClient = APIClient(
-                        "", "", baseUrl, lensUrl, self.access_token, self.user
+                        "",
+                        "",
+                        baseUrl,
+                        lensUrl,
+                        self.get_source(),
+                        self.get_version(),
+                        self.access_token,
+                        self.user,
                     )
 
                 # Set a timer to logout when token expires.
@@ -1935,7 +1942,14 @@ class WorkspaceView(QtGui.QDockWidget):
             if dialog.exec_() == QtGui.QDialog.Accepted:
                 email, password = dialog.get_credentials()
                 try:
-                    self.apiClient = APIClient(email, password, baseUrl, lensUrl)
+                    self.apiClient = APIClient(
+                        email,
+                        password,
+                        baseUrl,
+                        lensUrl,
+                        self.get_source(),
+                        self.get_version(),
+                    )
                     self.apiClient._authenticate()
                 except APIClientAuthenticationException as e:
                     logger.warn(e)
@@ -2170,7 +2184,7 @@ class WorkspaceView(QtGui.QDockWidget):
                 version = line.strip().lstrip("<version>").rstrip("</version>")
                 return version
 
-    def getLatestVersionOndselEs(self):
+    def get_latest_version_ondsel_es(self):
         # raises a ReqestException
         response = requests.get(
             "https://api.github.com/repos/Ondsel-Development/FreeCAD/releases/latest"
@@ -2182,13 +2196,34 @@ class WorkspaceView(QtGui.QDockWidget):
 
         return None
 
-    def getCurrentVersionOndselES(self):
+    def get_freecad_version_number(self):
+        version = FreeCAD.Version()
+        return f"{version[0]}.{version[1]}.{version[2]}"
+
+    def get_current_version_number_ondsel_es(self):
         version = FreeCAD.Version()
         # Filter for FreeCAD instances that are built from this repo
         if version[4].startswith("https://github.com/Ondsel-Development/FreeCAD"):
-            return f"{version[0]}.{version[1]}.{version[2]}"
+            return self.get_freecad_version_number()
 
         return None
+
+    def get_current_version_freecad(self):
+        version = FreeCAD.Version()
+
+        return ", ".join([self.get_freecad_version_number()] + version[3:])
+
+    def get_source(self):
+        version = FreeCAD.Version()
+        if version[4].startswith("https://github.com/Ondsel-Development/FreeCAD"):
+            return "ondseles"
+        else:
+            return "freecad"
+
+    def get_version(self):
+        return (
+            self.get_current_version_freecad() + ", addon: " + Utils.get_addon_version()
+        )
 
     def openDownloadPage(self):
         url = f"{self.apiClient.get_base_url()}download-and-explore"
@@ -2197,7 +2232,7 @@ class WorkspaceView(QtGui.QDockWidget):
     def toVersionNumber(self, version):
         return [int(n) for n in version.split(".")]
 
-    def versionGreaterThan(self, latestVersion, currentVersion):
+    def version_greater_than(self, latestVersion, currentVersion):
         latestV = self.toVersionNumber(latestVersion)
         currentV = self.toVersionNumber(currentVersion)
         if len(latestV) != len(currentV):
@@ -2218,13 +2253,15 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def check_for_update_ondsel_es(self):
         # raises a RequestException
-        currentVersion = self.getCurrentVersionOndselES()
+        currentVersion = self.get_current_version_number_ondsel_es()
         if currentVersion:
-            latestVersion = self.getLatestVersionOndselEs()
-            if latestVersion and self.versionGreaterThan(latestVersion, currentVersion):
-                self.setFrameUpdate("Ondsel ES", latestVersion, self.openDownloadPage)
+            latestVersion = self.get_latest_version_ondsel_es()
+            if latestVersion and self.version_greater_than(
+                latestVersion, currentVersion
+            ):
+                self.set_frame_update("Ondsel ES", latestVersion, self.openDownloadPage)
 
-    def setFrameUpdate(self, name, version, function):
+    def set_frame_update(self, name, version, function):
         self.form.labelUpdateAvailable.setText(f"{name} v{version} available!")
         self.form.updateBtn.clicked.disconnect()
         self.form.updateBtn.clicked.connect(function)
