@@ -18,7 +18,10 @@ from PySide.QtCore import Qt
 
 import FreeCAD
 
-modPath = os.path.dirname(__file__).replace("\\", "/")
+mod_path = os.path.dirname(__file__).replace("\\", "/")
+icon_path = f"{mod_path}/Resources/icons/"
+local_package_path = f"{mod_path}/package.xml"
+icon_ondsel = icon_path + "OndselWorkbench.svg"
 
 DEBUG_LEVEL = logging.INFO
 

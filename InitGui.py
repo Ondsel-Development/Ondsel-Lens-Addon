@@ -4,15 +4,8 @@
 # *                                                                     *
 # ***********************************************************************
 
-import WorkspaceView
-import PySide.QtCore as QtCore
-import FreeCAD as App
-import FreeCADGui as Gui
+import FreeCAD
+import lens_command
 
 
-Gui.getMainWindow().addDockWidget(
-    QtCore.Qt.RightDockWidgetArea,
-    # WorkspaceView.WorkspaceView(),
-    WorkspaceView.wsv,
-    QtCore.Qt.Orientation.Vertical,
-)
+lens_command.open_mdi_view()

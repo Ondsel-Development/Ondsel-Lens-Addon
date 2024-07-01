@@ -36,18 +36,21 @@ class WorkspaceListModel(QAbstractListModel):
         parent = kwargs.get("parent", None)
         super(WorkspaceListModel, self).__init__(parent)
 
-        self.workspaceView = kwargs["WorkspaceView"]
+        self.api = kwargs["api"]
 
         self.workspaceListFile = f"{CACHE_PATH}/workspaceList.json"
 
         self.refreshModel()
 
+    def set_api(self, api):
+        self.api = api
+
     def refreshModel(self):
         # raises an APIClientException
         self.beginResetModel()
-        if self.workspaceView.is_logged_in():
+        if self.api is not None and self.api.is_logged_in():
             # the user may be disconnected
-            self.workspaces = self.workspaceView.api.getWorkspaces()
+            self.workspaces = self.api.getWorkspaces()
 
             self.save()
         else:
