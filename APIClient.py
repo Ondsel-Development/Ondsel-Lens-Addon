@@ -1,8 +1,11 @@
-import requests
-import json
+from enum import Enum
 import os
 
+import requests
+import json
+
 import Utils
+
 
 logger = Utils.getLogger(__name__)
 
@@ -21,6 +24,12 @@ class APIClientConnectionError(APIClientException):
 
 class APIClientRequestException(APIClientException):
     pass
+
+
+class ConnStatus(Enum):
+    LOGGED_OUT = 1  # no connection, user logged out
+    CONNECTED = 2  # connection, user logged in
+    DISCONNECTED = 3  # no connection, user logged in
 
 
 OK = requests.codes.ok
@@ -50,16 +59,46 @@ class APIClient:
             self.password = password
             self.access_token = None
             self.user = None
+            self.status = ConnStatus.LOGGED_OUT
         else:
             self.email = None
             self.password = None
             self.access_token = access_token
             self.user = user
+            self.status = ConnStatus.CONNECTED
+
+    def getNameUser(self):
+        if self.user and "name" in self.user:
+            return self.user["name"]
+
+        return ""
+
+    def logout(self):
+        self.email = None
+        self.password = None
+        self.access_token = None
+        self.user = None
+        self.status = ConnStatus.LOGGED_OUT
+
+    def is_logged_in(self):
+        """Whether a user is logged in.
+
+        The user may be disconnected."""
+        return self.access_token is not None and self.user is not None
+
+    def disconnect(self):
+        self.status = ConnStatus.DISCONNECTED
+
+    def is_connected(self):
+        """Whether a user is connected.
+
+        This implies that the user is logged in."""
+        return self.is_logged_in() and self.status == ConnStatus.CONNECTED
 
     def authRequired(func):
         def wrapper(self, *args, **kwargs):
             if not self.access_token:
-                self._authenticate()
+                self.authenticate()
 
             result = func(self, *args, **kwargs)
 
@@ -67,7 +106,7 @@ class APIClient:
 
         return wrapper
 
-    def _authenticate(self):
+    def authenticate(self):
         endpoint = "authentication"
 
         payload = {
@@ -80,6 +119,7 @@ class APIClient:
         data = self._post(endpoint, headers=headers, data=json.dumps(payload))
         self.access_token = data["accessToken"]
         self.user = data["user"]
+        self.status = ConnStatus.CONNECTED
 
     def _raiseException(self, response, **kwargs):
         "Raise a generic exception based on the status code"
@@ -113,6 +153,7 @@ class APIClient:
             raise APIClientConnectionError(e)
 
         if response.status_code == OK:
+            self.status = ConnStatus.CONNECTED
             return response.json()
         else:
             self._raiseException(
@@ -129,6 +170,7 @@ class APIClient:
             raise APIClientConnectionError(e)
 
         if response.status_code == OK:
+            self.status = ConnStatus.CONNECTED
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
@@ -153,6 +195,7 @@ class APIClient:
         # should be handled differently for the _authenticate function (for
         # example give the user another try to log in).
         if response.status_code in [CREATED, OK]:
+            self.status = ConnStatus.CONNECTED
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
@@ -172,6 +215,7 @@ class APIClient:
             raise APIClientConnectionError(e)
 
         if response.status_code in [CREATED, OK]:
+            self.status = ConnStatus.CONNECTED
             return response.json()
         else:
             self._raiseException(
@@ -184,10 +228,11 @@ class APIClient:
         except requests.exceptions.RequestException as e:
             raise APIClientException(e)
 
-        if response.status_code == 200:
+        if response.status_code == OK:
             # Save file to workspace directory under the user name not the unique name
             with open(filename, "wb") as f:
                 f.write(response.content)
+            self.status = ConnStatus.CONNECTED
             return True
         else:
             self._raiseException(response, url=url, filename=filename)
@@ -223,11 +268,11 @@ class APIClient:
     def get_user(self):
         return self.user
 
-    @authRequired
-    def logout(self):
-        endpoint = "authentication"
-        result = self._delete(endpoint)
-        return result
+    # @authRequired
+    # def logout(self):
+    #     endpoint = "authentication"
+    #     result = self._delete(endpoint)
+    #     return result
 
     # Model Functions
 

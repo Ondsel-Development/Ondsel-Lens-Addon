@@ -45,8 +45,9 @@ class WorkspaceListModel(QAbstractListModel):
     def refreshModel(self):
         # raises an APIClientException
         self.beginResetModel()
-        if self.workspaceView.isLoggedIn():
-            self.workspaces = self.workspaceView.apiClient.getWorkspaces()
+        if self.workspaceView.is_logged_in():
+            # the user may be disconnected
+            self.workspaces = self.workspaceView.api.getWorkspaces()
 
             self.save()
         else:
