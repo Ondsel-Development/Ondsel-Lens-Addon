@@ -71,6 +71,9 @@ from PySide.QtCore import QByteArray
 
 from PySide.QtWidgets import QTreeView
 
+from WorkspaceListDelegate import WorkspaceListDelegate
+
+
 logger = Utils.getLogger(__name__)
 
 MAX_LENGTH_BASE_FILENAME = 30
@@ -89,8 +92,6 @@ PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
 
 mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
-modPath = os.path.dirname(__file__).replace("\\", "/")
-iconsPath = f"{modPath}/Resources/icons/"
 
 # Test server
 # baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
@@ -107,7 +108,6 @@ remote_package_url = (
     "https://raw.githubusercontent.com/Ondsel-Development/"
     "Ondsel-Lens-Addon/main/package.xml"
 )
-local_package_path = f"{modPath}/package.xml"
 
 try:
     import config
@@ -271,123 +271,6 @@ class LinkListDelegate(QStyledItemDelegate):
         return super().editorEvent(event, model, option, index)
 
 
-class WorkspaceListDelegate(QStyledItemDelegate):
-    def getOrganizationText(self, workspaceData):
-        organizationData = workspaceData.get("organization")
-        if organizationData:
-            organizationName = organizationData.get("name")
-            if organizationName:
-                return f"({organizationName})"
-            else:
-                logger.debug("No 'name' in organization'")
-        else:
-            logger.debug("No 'organization' in workspaceData")
-        return ""
-
-    def paint(self, painter, option, index):
-        # Get the data for the current index
-        workspaceData = index.data(QtCore.Qt.DisplayRole)
-
-        if option.state & QStyle.State_Selected:
-            painter.fillRect(option.rect, option.palette.highlight())
-        # Set up font for the name (bold)
-        name_font = painter.font()
-        name_font.setBold(True)
-
-        # Set up font for the type (normal)
-        type_font = painter.font()
-        type_font.setBold(False)
-
-        # Draw the name
-        name_rect = QtCore.QRect(
-            option.rect.left() + 20,
-            option.rect.top(),
-            option.rect.width() - 20,
-            option.rect.height() // 3,
-        )
-        painter.setFont(name_font)
-        painter.drawText(
-            name_rect,
-            QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter,
-            workspaceData["name"],
-        )
-
-        # Calculate the width of the name text
-        name_width = painter.fontMetrics().boundingRect(workspaceData["name"]).width()
-
-        # Draw the organization in parentheses TODO : name and not the id.
-
-        type_text = self.getOrganizationText(workspaceData)
-        type_rect = QtCore.QRect(
-            option.rect.left() + 20 + name_width + 5,
-            option.rect.top(),
-            option.rect.width() - 20,
-            option.rect.height() // 3,
-        )
-        painter.setFont(type_font)
-        painter.drawText(
-            type_rect, QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter, type_text
-        )
-
-        # Adjust the height of the item
-        item_height = option.rect.height() // 3
-        name_rect.setHeight(item_height)
-        type_rect.setHeight(item_height)
-
-        # Draw the description
-        desc_rect = QtCore.QRect(
-            option.rect.left() + 20,
-            type_rect.bottom(),
-            option.rect.width() - 20,
-            item_height,
-        )
-        painter.drawText(
-            desc_rect,
-            QtCore.Qt.AlignLeft | QtCore.Qt.AlignVCenter,
-            workspaceData["description"],
-        )
-
-        # Draw the button
-        # button_rect = QtCore.QRect(
-        #     option.rect.right() - 80,  # Adjust position as needed
-        #     option.rect.top() + 10,    # Adjust position as needed
-        #     70, 30                      # Width and height of the button
-        # )
-        # painter.save()
-        # painter.setPen(QtCore.Qt.NoPen)
-        # painter.setBrush(QtCore.Qt.lightGray)  # Button color
-        # painter.drawRoundedRect(button_rect, 5, 5)
-        # painter.restore()
-
-        # # Draw button text
-        # painter.setFont(type_font)
-        # painter.drawText(
-        #     button_rect,
-        #     QtCore.Qt.AlignCenter,
-        #     "Enter"
-        # )
-
-    def sizeHint(self, option, index):
-        return QtCore.QSize(100, 60)  # Adjust the desired width and height
-
-    # def editorEvent(self, event, model, option, index):
-    #     # Check if the event is a mouse button release
-    #     if event.type() == QtCore.QEvent.MouseButtonRelease:
-    #         # Define the button rect same as in the paint method
-    #         button_rect = QtCore.QRect(
-    #             option.rect.right() - 80,
-    #             option.rect.top() + 10,
-    #             70, 30
-    #         )
-    #         # Check if the click was within the button rect
-    #         if button_rect.contains(event.pos()):
-    #             # Handle button click here
-    #             logger.debug("Button clicked for item:", index.row())
-    #             return True  # Event was handled
-    #     return super(WorkspaceListDelegate, self).editorEvent(event, model,
-    #                                                           option, index)
-
-
 class BookmarkView(QTreeView):
     def drawBranches(self, painter, rect, index):
         pass
@@ -433,7 +316,7 @@ class BookmarkDelegate(QStyledItemDelegate):
             return super().sizeHint(option, index)
 
 
-class WorkspaceView(QtGui.QDockWidget):
+class WorkspaceView(QtWidgets.QScrollArea):
 
     def __init__(self):
         super(WorkspaceView, self).__init__(mw)
@@ -443,21 +326,24 @@ class WorkspaceView(QtGui.QDockWidget):
         self.api = None
 
         self.setObjectName("workspaceView")
-        self.form = Gui.PySideUic.loadUi(f"{modPath}/WorkspaceView.ui")
+        self.form = Gui.PySideUic.loadUi(f"{Utils.mod_path}/WorkspaceView.ui")
+
         self.setWidget(self.form)
+        # self.setWidgetResizable(True)
         self.setWindowTitle("Ondsel Lens")
 
         self.createOndselButtonMenus()
 
-        self.ondselIcon = QIcon(iconsPath + "OndselWorkbench.svg")
-        self.ondselIconOff = QIcon(iconsPath + "OndselWorkbench-off.svg")
+        self.ondselIcon = QIcon(Utils.icon_path + "OndselWorkbench.svg")
+        self.ondselIconOff = QIcon(Utils.icon_path + "OndselWorkbench-off.svg")
         self.form.userBtn.setIconSize(QtCore.QSize(32, 32))
         self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.form.userBtn.clicked.connect(self.form.userBtn.showMenu)
+        self.form.backToStartBtn.hide()
 
         self.form.buttonBack.clicked.connect(self.backClicked)
 
-        self.workspacesModel = WorkspaceListModel(WorkspaceView=self)
+        self.workspacesModel = WorkspaceListModel(api=self.api)
         self.workspacesDelegate = WorkspaceListDelegate(self)
         self.form.workspaceListView.setModel(self.workspacesModel)
         self.form.workspaceListView.setItemDelegate(self.workspacesDelegate)
@@ -687,7 +573,7 @@ class WorkspaceView(QtGui.QDockWidget):
                         self.get_source(),
                         self.get_version(),
                         access_token,
-                        user
+                        user,
                     )
 
                 # Set a timer to logout when token expires.
@@ -700,7 +586,7 @@ class WorkspaceView(QtGui.QDockWidget):
         while True:
             # Show a login dialog to get the user's email and password
             dialog = LoginDialog()
-            if dialog.exec_() == QtGui.QDialog.Accepted:
+            if dialog.exec() == QtGui.QDialog.Accepted:
                 email, password = dialog.get_credentials()
                 try:
                     self.api = APIClient(
@@ -709,8 +595,9 @@ class WorkspaceView(QtGui.QDockWidget):
                         baseUrl,
                         lensUrl,
                         self.get_source(),
-                        self.get_version()
+                        self.get_version(),
                     )
+                    self.workspacesModel.set_api(self.api)
                     self.api.authenticate()
                 except APIClientAuthenticationException as e:
                     logger.warn(e)
@@ -718,6 +605,7 @@ class WorkspaceView(QtGui.QDockWidget):
                 except APIClientException as e:
                     logger.error(e)
                     self.api = None
+                    self.workspacesModel.set_api(None)
                     break
                 # Check if the request was successful (201 status code)
                 if self.api.access_token is not None:
@@ -1211,7 +1099,7 @@ class WorkspaceView(QtGui.QDockWidget):
             if modelId:
                 pixmap = self.getServerThumbnail(fileName, path, modelId)
                 if pixmap is None:
-                    pixmap = QPixmap(f"{modPath}/Resources/thumbTest.png")
+                    pixmap = QPixmap(f"{Utils.mod_path}/Resources/thumbTest.png")
         self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
         self.form.thumbnail_label.setPixmap(pixmap)
 
@@ -2007,6 +1895,7 @@ class WorkspaceView(QtGui.QDockWidget):
         # doesn't work on platforms without `gio-launch-desktop` while Qt
         # tries to use this.
         # ret = QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
+        logger.debug(f"Attempting to open {url}")
         if not webbrowser.open(url):
             logger.warn(f"Failed to open {url} in the browser")
 
@@ -2067,6 +1956,7 @@ class WorkspaceView(QtGui.QDockWidget):
     def addCurrentFile(self):
         # Save current file on the server.
         doc = FreeCAD.ActiveDocument
+        gui_doc = Gui.ActiveDocument
 
         if doc is None:
             QMessageBox.information(
@@ -2082,7 +1972,7 @@ class WorkspaceView(QtGui.QDockWidget):
         default_file_path = Utils.joinPath(default_path, default_name)
 
         doc.FileName = default_file_path
-        Gui.SendMsgToActiveView("SaveAs")
+        gui_doc.ActiveView.sendMessage("SaveAs")
 
         fileName = os.path.basename(doc.FileName)
 
@@ -2214,7 +2104,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def get_local_package_file(self):
         try:
-            with open(local_package_path, "r") as file_:
+            with open(Utils.local_package_path, "r") as file_:
                 return file_.read()
         except FileNotFoundError:
             pass
@@ -2521,7 +2411,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
         super(SharingLinkEditDialog, self).__init__(parent)
 
         # Load the UI from the .ui file
-        self.dialog = Gui.PySideUic.loadUi(modPath + "/SharingLinkEditDialog.ui")
+        self.dialog = Gui.PySideUic.loadUi(Utils.mod_path + "/SharingLinkEditDialog.ui")
 
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.dialog)
@@ -2772,4 +2662,4 @@ class LoginDialog(QtGui.QDialog):
         return email, password
 
 
-wsv = WorkspaceView()
+wsv = None
