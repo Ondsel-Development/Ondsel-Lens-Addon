@@ -4,27 +4,30 @@
 # *                                                                     *
 # ***********************************************************************
 
-import Utils
-
-from PySide import QtCore, QtGui, QtWidgets
 import os
 from datetime import datetime
+import re
+
 import json
 import shutil
-import re
 import requests
 import uuid
 import base64
 import webbrowser
+import logging
 
 from inspect import cleandoc
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError
+
+from PySide import QtCore, QtGui, QtWidgets
+
 import FreeCAD
 import FreeCADGui as Gui
 import AddonManager
 
+import Utils
 
 from DataModels import (
     WorkspaceListModel,
@@ -431,14 +434,14 @@ class BookmarkDelegate(QStyledItemDelegate):
 
 
 class WorkspaceView(QtGui.QDockWidget):
-    currentWorkspace = None
-    username = "none"
-    access_token = None
-    apiClient = None
-    user = None
 
     def __init__(self):
         super(WorkspaceView, self).__init__(mw)
+
+        self.current_workspace = None
+        self.currentWorkspaceModel = None
+        self.api = None
+
         self.setObjectName("workspaceView")
         self.form = Gui.PySideUic.loadUi(f"{modPath}/WorkspaceView.ui")
         self.setWidget(self.form)
@@ -527,40 +530,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.initializeBookmarks()
         self.initializeUpdateLens()
 
-        self.currentWorkspaceModel = None
-
-        # Check if user is already logged in.
-        loginDataStr = p.GetString("loginData", "")
-        if loginDataStr != "":
-            loginData = json.loads(loginDataStr)
-            self.access_token = loginData["accessToken"]
-            # self.access_token = self.generate_expired_token()
-
-            if self.isTokenExpired(self.access_token):
-                self.user = None
-                self.logout()
-            else:
-                self.user = loginData["user"]
-                self.setUILoggedIn(True, self.user)
-
-                if self.apiClient is None:
-                    self.apiClient = APIClient(
-                        "",
-                        "",
-                        baseUrl,
-                        lensUrl,
-                        self.get_source(),
-                        self.get_version(),
-                        self.access_token,
-                        self.user,
-                    )
-
-                # Set a timer to logout when token expires.
-                # we know that the token is not expired
-                self.setTokenExpirationTimer(self.access_token)
-        else:
-            self.user = None
-            self.setUILoggedIn(False)
+        self.try_login()
         self.switchView()
 
         def tryRefresh():
@@ -667,7 +637,7 @@ class WorkspaceView(QtGui.QDockWidget):
         guestActions = QActionGroup(self.guestMenu)
 
         a5 = QAction("Login", guestActions)
-        a5.triggered.connect(self.loginBtnClicked)
+        a5.triggered.connect(self.login_btn_clicked)
         self.guestMenu.addAction(a5)
 
         a6 = QAction("Sign up", guestActions)
@@ -680,22 +650,139 @@ class WorkspaceView(QtGui.QDockWidget):
     # Authentication
     # ####
 
-    def isLoggedIn(self):
-        return self.access_token is not None and self.apiClient is not None
+    def is_logged_in(self):
+        """Whether a user is logged in.
 
-    def isTokenExpired(self, token):
+        The user may be disconnected.
+        """
+        return self.api is not None and self.api.is_logged_in()
+
+    def is_connected(self):
+        """Whether a user is connected.
+
+        This implies that the user is logged in.
+        """
+        return self.api is not None and self.api.is_connected()
+
+    def try_login(self):
+        # Check if user is already logged in.
+        login_data_str = p.GetString("loginData", "")
+        if login_data_str != "":
+            login_data = json.loads(login_data_str)
+            access_token = login_data["accessToken"]
+            # access_token = self.generate_expired_token()
+
+            if self.is_token_expired(access_token):
+                self.logout()
+            else:
+                user = login_data["user"]
+                self.set_ui_logged_in(True, user)
+
+                if self.api is None:
+                    self.api = APIClient(
+                        "",
+                        "",
+                        baseUrl,
+                        lensUrl,
+                        self.get_source(),
+                        self.get_version(),
+                        access_token,
+                        user
+                    )
+
+                # Set a timer to logout when token expires.
+                # we know that the token is not expired
+                self.set_token_expiration_timer(access_token)
+        else:
+            self.set_ui_logged_in(False)
+
+    def login_btn_clicked(self):
+        while True:
+            # Show a login dialog to get the user's email and password
+            dialog = LoginDialog()
+            if dialog.exec_() == QtGui.QDialog.Accepted:
+                email, password = dialog.get_credentials()
+                try:
+                    self.api = APIClient(
+                        email,
+                        password,
+                        baseUrl,
+                        lensUrl,
+                        self.get_source(),
+                        self.get_version()
+                    )
+                    self.api.authenticate()
+                except APIClientAuthenticationException as e:
+                    logger.warn(e)
+                    continue  # Present the login dialog again if authentication fails
+                except APIClientException as e:
+                    logger.error(e)
+                    self.api = None
+                    break
+                # Check if the request was successful (201 status code)
+                if self.api.access_token is not None:
+                    loginData = {
+                        "accessToken": self.api.access_token,
+                        "user": self.api.user,
+                    }
+                    p.SetString("loginData", json.dumps(loginData))
+
+                    self.set_ui_logged_in(True, self.api.user)
+                    self.leaveWorkspace()
+                    self.handle(self.workspacesModel.refreshModel)
+                    self.switchView()
+
+                    # Set a timer to logout when token expires.  since we've
+                    # just received the access token, it is very unlikely that
+                    # it is expired.
+                    self.set_token_expiration_timer(self.api.access_token)
+                else:
+                    logger.warn("Authentication failed")
+                break
+            else:
+                break  # Exit the login loop if the dialog is canceled
+
+    def disconnect(self):
+        self.set_ui_disconnected()
+        self.api.disconnect()
+        if self.currentWorkspaceModel:
+            self.setWorkspaceModel()
+
+        self.hideFileDetails()
+
+    def logout(self):
+        self.set_ui_logged_in(False)
+        p.SetString("loginData", "")
+        self.api.logout()
+
+        if self.currentWorkspaceModel:
+            self.setWorkspaceModel()
+
+        self.hideFileDetails()
+
+        if p.GetBool("clearCache", False):
+            shutil.rmtree(CACHE_PATH)
+            self.current_workspace = None
+            self.currentWorkspaceModel = None
+            self.form.fileList.setModel(None)
+            self.workspacesModel.removeWorkspaces()
+            self.switchView()
+            self.form.workspaceNameLabel.setText("")
+            self.form.fileDetails.setVisible(False)
+
+    def is_token_expired(self, token):
         try:
-            expiration_time = self.getTokenExpirationTime(token)
+            expiration_time = self.get_token_expiration_time(token)
         except ExpiredSignatureError:
             return True
         current_time = datetime.now()
         return current_time > expiration_time
 
-    def setTokenExpirationTimer(self, token):
+    def set_token_expiration_timer(self, token):
         # Should be called when there is no risk for an expired signature
         # However, the code still handles the error gracefully.
         try:
-            expiration_time = self.getTokenExpirationTime(token)
+            expiration_time = self.get_token_expiration_time(token)
             current_time = datetime.now()
 
             time_difference = expiration_time - current_time
@@ -709,7 +796,7 @@ class WorkspaceView(QtGui.QDockWidget):
         except ExpiredSignatureError as e:
             # unexpected
             self.logout()
-            self.setUILoggedIn(False)
+            self.set_ui_logged_in(False)
             logger.error(e)
 
     def token_expired_handler(self):
@@ -719,10 +806,9 @@ class WorkspaceView(QtGui.QDockWidget):
             "Your authentication token has expired, you have been logged out.",
         )
 
-        self.user = None
         self.logout()
 
-    def getTokenExpirationTime(self, token):
+    def get_token_expiration_time(self, token):
         """Get a token expiration time.
 
         Should be called only when we assume that the token is not expired.
@@ -742,14 +828,22 @@ class WorkspaceView(QtGui.QDockWidget):
         except Exception as e:
             self.logout()
 
-            self.setUILoggedIn(False)
+            self.set_ui_logged_in(False)
             logger.error(e)
             raise e
         return datetime.fromtimestamp(decoded_token["exp"])
 
-    def setUILoggedIn(self, loggedIn, user=None):
+    def set_ui_disconnected(self):
+        self.form.userBtn.setText(self.api.getNameUser() + " (disconnected)")
+
+    def set_ui_connected(self):
+        logger.debug("set_ui_connected")
+        self.form.userBtn.setText(self.api.getNameUser())
+
+    def set_ui_logged_in(self, loggedIn, user=None):
         """Toggle the visibility of UI elements based on if user is logged in"""
 
+        logger.debug("set_ui_logged_in")
         if loggedIn:
             userBtnText = ""
             if "name" in user:
@@ -764,40 +858,43 @@ class WorkspaceView(QtGui.QDockWidget):
             self.form.userBtn.setMenu(self.guestMenu)
 
     def enterWorkspace(self, index):
-        self.currentWorkspace = self.workspacesModel.data(index)
+        logger.debug("entering workspace")
+        self.current_workspace = self.workspacesModel.data(index)
         self.setWorkspaceModel()
 
     def setWorkspaceModel(self):
-        if self.isLoggedIn():
+        if self.is_connected():
+            logger.debug("connected")
             # not necessary to set the path because we will start with the list
             # of workspaces.
             self.currentWorkspaceModel = ServerWorkspaceModel(
-                self.currentWorkspace, apiClient=self.apiClient
+                self.current_workspace, apiClient=self.api
             )
         else:
+            logger.debug("not connected")
             subPath = ""
             if hasattr(self, "currentWorkspaceModel") and self.currentWorkspaceModel:
                 subPath = self.currentWorkspaceModel.subPath
             self.currentWorkspaceModel = LocalWorkspaceModel(
-                self.currentWorkspace, subPath=subPath
+                self.current_workspace, subPath=subPath
             )
 
         # Create a workspace model and set it to the list
-        # if self.apiClient is None and self.access_token is None:
+        # if self.api is None and self.access_token is None:
         #     logger.debug("You need to login first")
-        #     self.loginBtnClicked()
+        #     self.login_btn_clicked()
         #     self.enterWorkspace(index)
         #     return
-        # if self.apiClient is None and self.access_token is not None:
-        #     self.apiClient = APIClient(
+        # if self.api is None and self.access_token is not None:
+        #     self.api = APIClient(
         #         "", "", baseUrl, lensUrl, self.access_token, self.user
         #     )
 
         #     self.currentWorkspaceModel = ServerWorkspaceModel(
-        #         self.currentWorkspace, API_Client=self.apiClient
+        #         self.current_workspace, API_Client=self.api
         #     )
         # else:
-        #     self.currentWorkspaceModel = LocalWorkspaceModel(self.currentWorkspace)
+        #     self.currentWorkspaceModel = LocalWorkspaceModel(self.current_workspace)
 
         self.setWorkspaceNameLabel()
 
@@ -810,12 +907,12 @@ class WorkspaceView(QtGui.QDockWidget):
         self.switchView()
 
     def leaveWorkspace(self):
-        if self.currentWorkspace is None:
+        if self.current_workspace is None:
             return
         # self.newWorkspaceAction.setVisible(True)
         # self.synchronizeAction.setVisible(False)
         # self.synchronizeAction.triggered.disconnect()
-        self.currentWorkspace = None
+        self.current_workspace = None
         self.currentWorkspaceModel = None
         self.form.fileList.setModel(None)
         self.handle(self.workspacesModel.refreshModel)
@@ -824,7 +921,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.fileDetails.setVisible(False)
 
     def switchView(self):
-        isFileView = self.currentWorkspace is not None
+        isFileView = self.current_workspace is not None
 
         if isFileView:
             self.form.workspaceListView.setVisible(False)
@@ -836,14 +933,15 @@ class WorkspaceView(QtGui.QDockWidget):
         else:
             self.form.WorkspaceDetails.setVisible(False)
             self.form.fileList.setVisible(False)
-            if self.user is None and self.workspacesModel.rowCount() == 0:
+            if self.is_logged_in() and self.workspacesModel.rowCount() == 0:
+                # the user may be disconnected
                 self.form.txtExplain.setVisible(True)
             else:
                 self.form.txtExplain.setVisible(False)
                 self.form.workspaceListView.setVisible(True)
 
     def backClicked(self):
-        if self.currentWorkspace is None:
+        if self.current_workspace is None:
             return
         subPath = self.currentWorkspaceModel.subPath
 
@@ -875,30 +973,48 @@ class WorkspaceView(QtGui.QDockWidget):
         Issue warning/errors and possibly log out the user, making
         it still possible to use the addon.
 
-        Returns true if the user is logged out
+        If the user is disconnected before the call, we simply try the call but
+        ignore any warning if it doesn't succeed.  If the call succeeds but we
+        were not connected, it means we are connected again, so we set the UI
+        to be connected.
+
+        Returns true if the user is disconnected
+
         """
+        connected_before_call = self.is_connected()
         try:
             func()
+            if not connected_before_call:
+                # since the call succeeds, it may mean we are connected again
+                if self.is_connected():
+                    # check if we are connected right now
+                    logger.info("The connection to the Lens service is restored.")
+                    self.set_ui_connected()
             return False
         except APIClientConnectionError as e:
-            logger.warn(e)
-            logger.warn("Logging out")
-            self.logout()
-            return True
+            if connected_before_call:
+                if logger.level <= logging.DEBUG:
+                    logger.warn(e)
+                else:
+                    logger.warn("Disconnected from the Lens service.")
+                self.disconnect()
         except APIClientRequestException as e:
-            logger.warn(e)
-            return False
+            if connected_before_call:
+                if logger.level <= logging.DEBUG:
+                    logger.warn(e)
+                else:
+                    logger.warn("Disconnected from the Lens service.")
+                self.disconnect()
         except APIClientAuthenticationException as e:
             logger.warn(e)
             logger.warn("Logging out")
             self.logout()
-            return True
         except APIClientException as e:
             logger.error("Uncaught exception:")
             logger.error(e)
             logger.warn("Logging out")
             self.logout()
-            return True
+        return True
 
     def tryOpenPathFile(self, pathFile):
         if Utils.isOpenableByFreeCAD(pathFile):
@@ -919,7 +1035,7 @@ class WorkspaceView(QtGui.QDockWidget):
             wsm.openDirectory(index)
         else:
             pathFile = Utils.joinPath(wsm.getFullPath(), fileItem.name)
-            if not os.path.isfile(pathFile) and self.isLoggedIn():
+            if not os.path.isfile(pathFile) and self.is_connected():
                 wsm.downloadFile(fileItem)
                 # wsm has refreshed
             self.tryOpenPathFile(pathFile)
@@ -1099,7 +1215,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
         self.form.thumbnail_label.setPixmap(pixmap)
 
-    def fileListClickedLoggedIn(self, file_item):
+    def fileListClickedConnected(self, file_item):
         fileName = file_item.name
         modelId = file_item.getModelId()
         # if file_item.serverFileDict and "modelId" in file_item.serverFileDict:
@@ -1132,15 +1248,15 @@ class WorkspaceView(QtGui.QDockWidget):
         if modelId is not None:
 
             def tryInitModels():
-                self.links_model = ShareLinkModel(modelId, self.apiClient)
+                self.links_model = ShareLinkModel(modelId, self.api)
                 nonlocal version_model
-                version_model = OndselVersionModel(modelId, self.apiClient, file_item)
+                version_model = OndselVersionModel(modelId, self.api, file_item)
                 self.form.viewOnlineBtn.setVisible(True)
                 self.form.linkDetails.setVisible(True)
                 self.form.makeActiveBtn.setVisible(version_model.canBeMadeActive())
 
             if self.handle(tryInitModels):
-                # logged out
+                # disconnected
                 hideDetails()
         else:
             hideDetails()
@@ -1158,7 +1274,7 @@ class WorkspaceView(QtGui.QDockWidget):
         self.form.fileDetails.setVisible(False)
         self.form.fileList.setSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
 
-    def fileListClickedLoggedOut(self, fileName):
+    def fileListClickedDisconnected(self, fileName):
         path = self.currentWorkspaceModel.getFullPath()
         pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
         if pixmap:
@@ -1181,10 +1297,10 @@ class WorkspaceView(QtGui.QDockWidget):
         fileName = file_item.name
         # self.currentModelId = None
         if Utils.isOpenableByFreeCAD(file_item.getPath()):
-            if self.isLoggedIn():
-                self.fileListClickedLoggedIn(file_item)
+            if self.is_connected():
+                self.fileListClickedConnected(file_item)
             else:
-                self.fileListClickedLoggedOut(fileName)
+                self.fileListClickedDisconnected(fileName)
         else:
             self.hideFileDetails()
 
@@ -1220,7 +1336,7 @@ class WorkspaceView(QtGui.QDockWidget):
     #         menu = QtGui.QMenu()
 
     #         deleteAction = menu.addAction("Delete")
-    #         deleteAction.setEnabled(self.apiClient is not None)
+    #         deleteAction.setEnabled(self.api is not None)
 
     #         action = menu.exec_(
     #             self.form.workspaceListView.viewport().mapToGlobal(pos)
@@ -1234,14 +1350,14 @@ class WorkspaceView(QtGui.QDockWidget):
     #                 QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
     #             )
     #             if result == QtGui.QMessageBox.Yes:
-    #                 self.apiClient.deleteWorkspace(
+    #                 self.api.deleteWorkspace(
     #                     self.workspacesModel.data(index)["_id"]
     #                 )
     #                 self.workspacesModel.refreshModel()
     #     else:
     #         menu = QtGui.QMenu()
     #         addAction = menu.addAction("Add workspace")
-    #         addAction.setEnabled(self.apiClient is not None)
+    #         addAction.setEnabled(self.api is not None)
 
     #         action = menu.exec_(
     #             self.form.workspaceListView.viewport().mapToGlobal(pos)
@@ -1272,10 +1388,10 @@ class WorkspaceView(QtGui.QDockWidget):
                 labelMenuBase = f"preferences for {nameOrganization}"
 
                 storePrefAction = menu.addAction(f"Upload {labelMenuBase}")
-                storePrefAction.setEnabled(self.isLoggedIn())
+                storePrefAction.setEnabled(self.is_connected())
 
                 loadPrefAction = menu.addAction(f"Download {labelMenuBase}")
-                loadPrefAction.setEnabled(self.isLoggedIn())
+                loadPrefAction.setEnabled(self.is_connected())
 
                 action = menu.exec_(
                     self.form.workspaceListView.viewport().mapToGlobal(pos)
@@ -1290,7 +1406,7 @@ class WorkspaceView(QtGui.QDockWidget):
         base, extension = os.path.splitext(pathConfig)
         uniqueName = f"{str(uuid.uuid4())}{extension}"
 
-        self.apiClient.uploadFileToServer(uniqueName, pathConfig)
+        self.api.uploadFileToServer(uniqueName, pathConfig)
 
         return uniqueName
 
@@ -1306,7 +1422,7 @@ class WorkspaceView(QtGui.QDockWidget):
             uniqueNameUserConfig = self.uploadPrefs(pathUserConfig)
             uniqueNameSysConfig = self.uploadPrefs(pathSysConfig)
 
-            self.apiClient.uploadPrefs(
+            self.api.uploadPrefs(
                 orgId,
                 uniqueNameUserConfig,
                 FILENAME_USER_CFG,
@@ -1490,7 +1606,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
     def loadPrefs(self, prefsId):
         # throws APIClientException
-        result = self.apiClient.downloadPrefs(prefsId)
+        result = self.api.downloadPrefs(prefsId)
         if result:
             backupFiles = self.backupPrefs()
             self.setPrefs(result)
@@ -1510,7 +1626,7 @@ class WorkspaceView(QtGui.QDockWidget):
         nameOrg = orgDataWorkspace["name"]
 
         def tryLoadPrefs():
-            orgData = self.apiClient.getOrganization(orgId)
+            orgData = self.api.getOrganization(orgId)
             prefsId = orgData.get("preferencesId")
             result = self.loadPrefs(prefsId)
             if not result:
@@ -1578,7 +1694,7 @@ class WorkspaceView(QtGui.QDockWidget):
     def confirmDeleteLocally(self, fileName):
         return self.confirmDelete(fileName, "the local file system")
 
-    def deleteFileLoggedIn(self, fileItem, index):
+    def deleteFileConnected(self, fileItem, index):
         fileName = fileItem.name
         if fileItem.status == FileStatus.SERVER_ONLY:
             if self.confirmDeleteLens(fileName) == QtGui.QMessageBox.Yes:
@@ -1592,15 +1708,15 @@ class WorkspaceView(QtGui.QDockWidget):
             if self.confirmDeleteLocally(fileName) == QtGui.QMessageBox.Yes:
                 self.currentWorkspaceModel.deleteFileLocally(index)
 
-    def deleteFileLoggedOut(self, fileItem, index):
+    def deleteFileDisconnected(self, fileItem, index):
         if self.confirmDeleteLocally(fileItem.name) == QtGui.QMessageBox.Yes:
             self.currentWorkspaceModel.deleteFile(index)
 
     def deleteFile(self, fileItem, index):
-        if self.isLoggedIn():
-            self.deleteFileLoggedIn(fileItem, index)
+        if self.is_connected():
+            self.deleteFileConnected(fileItem, index)
         else:
-            self.deleteFileLoggedOut(fileItem, index)
+            self.deleteFileDisconnected(fileItem, index)
 
     def showFileContextMenuFile(self, file_item, pos, index):
         menu = QtGui.QMenu()
@@ -1609,7 +1725,7 @@ class WorkspaceView(QtGui.QDockWidget):
         downloadAction = menu.addAction("Download from Lens")
         menu.addSeparator()
         deleteAction = menu.addAction("Delete File")
-        if self.isLoggedIn():
+        if self.is_connected():
             if file_item.status == FileStatus.SERVER_ONLY:
                 uploadAction.setEnabled(False)
             if file_item.status == FileStatus.UNTRACKED:
@@ -1916,7 +2032,7 @@ class WorkspaceView(QtGui.QDockWidget):
         versionId = versionModel.getCurrentVersionId()
 
         def trySetVersion():
-            self.apiClient.setVersionActive(fileId, versionId)
+            self.api.setVersionActive(fileId, versionId)
             # refresh the models
             wsm = self.currentWorkspaceModel
             wsm.refreshModel()
@@ -1935,80 +2051,9 @@ class WorkspaceView(QtGui.QDockWidget):
         url = f"{lensUrl}signup"
         self.openurl(url)
 
-    def loginBtnClicked(self):
-        while True:
-            # Show a login dialog to get the user's email and password
-            dialog = LoginDialog()
-            if dialog.exec_() == QtGui.QDialog.Accepted:
-                email, password = dialog.get_credentials()
-                try:
-                    self.apiClient = APIClient(
-                        email,
-                        password,
-                        baseUrl,
-                        lensUrl,
-                        self.get_source(),
-                        self.get_version(),
-                    )
-                    self.apiClient._authenticate()
-                except APIClientAuthenticationException as e:
-                    logger.warn(e)
-                    continue  # Present the login dialog again if authentication fails
-                except APIClientException as e:
-                    logger.error(e)
-                    self.apiClient = None
-                    break
-                # Check if the request was successful (201 status code)
-                if self.apiClient.access_token is not None:
-                    self.user = self.apiClient.user
-                    loginData = {
-                        "accessToken": self.apiClient.access_token,
-                        "user": self.user,
-                    }
-                    p.SetString("loginData", json.dumps(loginData))
-
-                    self.access_token = self.apiClient.access_token
-
-                    self.setUILoggedIn(True, self.apiClient.user)
-                    self.leaveWorkspace()
-                    self.handle(self.workspacesModel.refreshModel)
-                    self.switchView()
-
-                    # Set a timer to logout when token expires.  since we've
-                    # just received the access token, it is very unlikely that
-                    # it is expired.
-                    self.setTokenExpirationTimer(self.access_token)
-                else:
-                    logger.warn("Authentication failed")
-                break
-            else:
-                break  # Exit the login loop if the dialog is canceled
-
-    def logout(self):
-        self.setUILoggedIn(False)
-        p.SetString("loginData", "")
-        self.access_token = None
-        self.apiClient = None
-        self.user = None
-
-        if self.currentWorkspaceModel:
-            self.setWorkspaceModel()
-
-        self.hideFileDetails()
-
-        if p.GetBool("clearCache", False):
-            shutil.rmtree(CACHE_PATH)
-            self.currentWorkspace = None
-            self.currentWorkspaceModel = None
-            self.form.fileList.setModel(None)
-            self.workspacesModel.removeWorkspaces()
-            self.switchView()
-            self.form.workspaceNameLabel.setText("")
-            self.form.fileDetails.setVisible(False)
-
     def timerTick(self):
         def tryRefresh():
-            if self.currentWorkspace is not None:
+            if self.current_workspace is not None:
                 self.currentWorkspaceModel.refreshModel()
             else:
                 self.workspacesModel.refreshModel()
@@ -2055,7 +2100,7 @@ class WorkspaceView(QtGui.QDockWidget):
         #     doc.saveAs(file_name)
 
         def tryUpload():
-            if self.isLoggedIn():
+            if self.is_connected():
                 wsm.upload(fileName)
             wsm.refreshModel()
 
@@ -2087,7 +2132,7 @@ class WorkspaceView(QtGui.QDockWidget):
 
         # after copying try the upload
         def tryUpload():
-            if self.isLoggedIn():
+            if self.is_connected():
                 for fileUrl in selectedFiles:
                     fileName = os.path.basename(fileUrl)
                     destFileUrl = Utils.joinPath(wsm.getFullPath(), fileName)
@@ -2114,12 +2159,12 @@ class WorkspaceView(QtGui.QDockWidget):
         self.switchView()
 
     # def newWorkspaceBtnClicked(self):
-    #     if self.apiClient is None and self.access_token is None:
+    #     if self.api is None and self.access_token is None:
     #         logger.debug("You need to login first")
-    #         self.loginBtnClicked()
+    #         self.login_btn_clicked()
     #         return
-    #     if self.apiClient is None and self.access_token is not None:
-    #         self.apiClient = APIClient(
+    #     if self.api is None and self.access_token is not None:
+    #         self.api = APIClient(
     #             "", "", baseUrl, lensUrl, self.access_token, self.user
     #         )
 
@@ -2138,7 +2183,7 @@ class WorkspaceView(QtGui.QDockWidget):
     #         if personal_organisation is None:
     #             return
 
-    #         self.apiClient.createWorkspace(
+    #         self.api.createWorkspace(
     #             workspaceName, workspaceDesc, personal_organisation
     #         )
 
@@ -2226,7 +2271,7 @@ class WorkspaceView(QtGui.QDockWidget):
         )
 
     def openDownloadPage(self):
-        url = f"{self.apiClient.get_base_url()}download-and-explore"
+        url = f"{self.api.get_base_url()}download-and-explore"
         self.openUrl(url)
 
     def toVersionNumber(self, version):
@@ -2289,7 +2334,7 @@ class WorkspaceView(QtGui.QDockWidget):
         if index == IDX_TAB_BOOKMARKS:
 
             def tryRefresh():
-                bookmarkModel = getBookmarkModel(self.apiClient)
+                bookmarkModel = getBookmarkModel(self.api)
                 viewBookmarks = self.form.viewBookmarks
                 viewBookmarks.setModel(bookmarkModel)
                 viewBookmarks.expandAll()
@@ -2299,20 +2344,20 @@ class WorkspaceView(QtGui.QDockWidget):
     def downloadBookmarkFile(self, idSharedModel):
         # throws an APIClientException
         path = Utils.joinPath(PATH_BOOKMARKS, idSharedModel)
-        sharedModel = self.apiClient.getSharedModel(idSharedModel)
+        sharedModel = self.api.getSharedModel(idSharedModel)
         model = sharedModel["model"]
         if sharedModel["canDownloadDefaultModel"]:
             uniqueFileName = model["uniqueFileName"]
             fileModel = model["file"]
             fileName = fileModel["custFileName"]
             pathFile = Utils.joinPath(path, fileName)
-            self.apiClient.downloadFileFromServer(uniqueFileName, pathFile)
+            self.api.downloadFileFromServer(uniqueFileName, pathFile)
             return pathFile
         else:
             objUrl = model["objUrl"]
             fileName = Utils.getFileNameFromURL(objUrl)
             pathFile = Utils.joinPath(path, fileName)
-            self.apiClient.downloadObjectFileFromServer(objUrl, pathFile)
+            self.api.downloadObjectFileFromServer(objUrl, pathFile)
             return pathFile
 
     def openBookmark(self, idSharedModel):
@@ -2329,7 +2374,7 @@ class WorkspaceView(QtGui.QDockWidget):
             self.handle(lambda: self.openBookmark(idShareModel))
 
     def openShareLinkOnline(self, idShareModel):
-        url = f"{self.apiClient.get_base_url()}share/{idShareModel}"
+        url = f"{self.api.get_base_url()}share/{idShareModel}"
         self.openUrl(url)
 
     def showBookmarkContextMenu(self, pos):
