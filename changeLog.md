@@ -22,3 +22,6 @@ Add a fix for max retries error, prepare for Qt 6, improve api headers.
 
 # 2024.07.05.01
 Fix creating share links.
+
+<version>
+Fix small errors
