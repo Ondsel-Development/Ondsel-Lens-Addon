@@ -2201,9 +2201,7 @@ class WorkspaceView(QtGui.QDockWidget):
         return f"{version[0]}.{version[1]}.{version[2]}"
 
     def get_current_version_number_ondsel_es(self):
-        version = FreeCAD.Version()
-        # Filter for FreeCAD instances that are built from this repo
-        if version[4].startswith("https://github.com/Ondsel-Development/FreeCAD"):
+        if self.get_source() == "ondseles":
             return self.get_freecad_version_number()
 
         return None
@@ -2214,11 +2212,13 @@ class WorkspaceView(QtGui.QDockWidget):
         return ", ".join([self.get_freecad_version_number()] + version[3:])
 
     def get_source(self):
-        version = FreeCAD.Version()
-        if version[4].startswith("https://github.com/Ondsel-Development/FreeCAD"):
+        vendor = FreeCAD.ConfigGet("ExeVendor")
+        if vendor == "Ondsel":
             return "ondseles"
-        else:
+        elif vendor == "FreeCAD":
             return "freecad"
+        else:
+            return "unknown"
 
     def get_version(self):
         return (
