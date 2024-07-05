@@ -19,3 +19,6 @@ Add support for bookmarks, preferences. Improve update process.
 
 # 2024.07.02.01
 Add a fix for max retries error, prepare for Qt 6, improve api headers.
+
+<version>
+Fix creating share links.

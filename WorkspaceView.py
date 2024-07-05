@@ -2525,6 +2525,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
         self.dialog.canExportOBJCheckBox.setChecked(self.linkProperties["canExportOBJ"])
 
     def getLinkProperties(self):
+        self.linkProperties["versionFollowing"] = "Locked"
         self.linkProperties["description"] = self.dialog.linkName.text()
         self.linkProperties["canViewModel"] = (
             self.dialog.canViewModelCheckBox.isChecked()
