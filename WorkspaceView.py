@@ -2277,7 +2277,7 @@ class WorkspaceView(QtGui.QDockWidget):
         )
 
         if local_version and remote_version and local_version != remote_version:
-            self.setFrameUpdate("Ondsel Lens", remote_version, self.openAddonManager)
+            self.set_frame_update("Ondsel Lens", remote_version, self.openAddonManager)
         else:
             self.check_for_update_ondsel_es()
 
