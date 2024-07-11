@@ -116,6 +116,8 @@ remote_package_url = (
     "Ondsel-Lens-Addon/main/package.xml"
 )
 
+consumed_args_main_app = False
+
 try:
     import config
 
@@ -123,6 +125,11 @@ try:
     lensUrl = config.lens_url
 except (ImportError, AttributeError):
     pass
+
+
+class ParseException(Exception):
+    def __init__(self, message):
+        super().__init__(message)
 
 
 class UpdateManager:
@@ -2346,6 +2353,57 @@ class WorkspaceView(QtWidgets.QScrollArea):
                         if len(allActions) > 0:
                             if allActions[0].text() == Utils.LENS_TOOLBARITEM_TEXT:
                                 self.toolBarItemAction = allActions[0]
+
+    def parse_url(self, url):
+        prefix = Utils.URL_SCHEME + ":"
+        try:
+            if url.startswith(prefix):
+                stripped_url = url[len(prefix) :]
+                try:
+                    sub_scheme, data = stripped_url.split("/", 1)
+                    logger.debug(f"stripped_url: {stripped_url}")
+                    logger.debug(f"sub_scheme: {sub_scheme}")
+                    logger.debug(f"data: {data}")
+                    if sub_scheme == "share":
+                        return sub_scheme, data
+                    else:
+                        raise ParseException(
+                            f"Unrecognized subscheme {sub_scheme} in URL {url}"
+                        )
+                except ValueError as e:
+                    raise ParseException(f"Unrecognized subscheme in URL {url}, {e}")
+            else:
+                raise ParseException(f"Unrecognized URL scheme: {url}")
+        except ParseException as e:
+            logger.warning(e)
+            return None, None
+
+    def get_lens_url(self):
+        main_window = FreeCADGui.getMainWindow()
+        args_script = main_window.consumeReceivedScriptArgs()
+
+        global consumed_args_main_app
+
+        if args_script:
+            return args_script
+        elif not consumed_args_main_app:
+            args = FreeCAD.ConfigGet("ScriptArgs")
+            consumed_args_main_app = True
+            return args
+        else:
+            return None
+
+    def handle_lens_url(self):
+        if self.is_logged_in():
+            url = self.get_lens_url()
+            if url:
+                sub_scheme, data = self.parse_url(url)
+                if sub_scheme == "share":
+                    self.openBookmark(data)
+            else:
+                logger.info("Please log in to view the share link")
+        else:
+            logger.info("Please log in to view the share link")
 
 
 # class NewWorkspaceDialog(QtGui.QDialog):
