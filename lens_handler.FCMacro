@@ -1,0 +1,9 @@
+import FreeCADGui as Gui
+
+import lens_command
+import WorkspaceView
+
+
+lens_command.start_mdi_tab()
+if WorkspaceView.wsv:
+    WorkspaceView.wsv.handle_lens_url()

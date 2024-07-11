@@ -24,6 +24,9 @@ local_package_path = f"{mod_path}/package.xml"
 icon_ondsel_path_connected = icon_path + "OndselWorkbench.svg"
 icon_ondsel_path_disconnected = icon_path + "OndselWorkbench-disconnected.svg"
 
+
+URL_SCHEME = "ondsel-lens"
+
 DEBUG_LEVEL = logging.INFO
 
 NAME_COMMAND = "OndselLens_OndselLens"
@@ -166,8 +169,12 @@ def createBackup(pathFile, extension=".ondsel-lens.bak"):
         raise FileNotFoundError(f"File not found: {pathFile}")
 
 
+def get_dir_mod():
+    return os.path.dirname(os.path.abspath(__file__))
+
+
 def get_addon_version():
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    current_dir = get_dir_mod()
     package_xml_file = "package.xml"
     path_package_file = os.path.join(current_dir, package_xml_file)
 
