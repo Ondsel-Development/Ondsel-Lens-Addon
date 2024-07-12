@@ -3,8 +3,6 @@ import sys
 
 import platform
 
-# import winreg as reg
-
 import Utils
 
 
@@ -16,22 +14,25 @@ logger = Utils.getLogger(__name__)
 # ====================================
 
 
-# def register_url_scheme_windows(scheme, path_executable):
-#     key = reg.HKEY_CURRENT_USER
-#     subkey = f"Software\\Classes\\{scheme}"
-#     command = f'"{executable_path}" "%1"'
+def register_url_scheme_windows(scheme, path_executable, path_macro):
+    import winreg as reg
 
-#     try:
-#         reg.CreateKey(key, subkey)
-#         reg.SetValue(key, subkey, reg.REG_SZ, f"URL:{scheme} Protocol")
-#         reg.SetValueEx(reg.OpenKey(key, subkey), "URL Protocol", 0, reg.REG_SZ, "")
-#         reg.CreateKey(key, f"{subkey}\\shell")
-#         reg.CreateKey(key, f"{subkey}\\shell\\open")
-#         reg.CreateKey(key, f"{subkey}\\shell\\open\\command")
-#         reg.SetValue(key, f"{subkey}\\shell\\open\\command", reg.REG_SZ, command)
-#         print(f"URL scheme {scheme} registered successfully")
-#     except Exception as e:
-#         print(f"Failed to register URL scheme: {e}")
+    key = reg.HKEY_CURRENT_USER
+    subkey = f"Software\\Classes\\{scheme}"
+    command = f'"{path_executable}" --single-instance "{path_macro}" --pass "%1"'
+
+    try:
+        reg.CreateKey(key, subkey)
+        reg.SetValue(key, subkey, reg.REG_SZ, f"URL:{scheme} Protocol")
+        with reg.OpenKey(key, subkey, 0, reg.KEY_SET_VALUE) as main_key:
+            reg.SetValueEx(main_key, "URL Protocol", 0, reg.REG_SZ, "")
+        reg.CreateKey(key, f"{subkey}\\shell")
+        reg.CreateKey(key, f"{subkey}\\shell\\open")
+        reg.CreateKey(key, f"{subkey}\\shell\\open\\command")
+        reg.SetValue(key, f"{subkey}\\shell\\open\\command", reg.REG_SZ, command)
+        logger.debug(f"URL scheme {scheme} registered successfully")
+    except Exception as e:
+        logger.error(f"Failed to register URL scheme: {e}")
 
 
 # ====================================
@@ -51,7 +52,7 @@ def register_url_scheme_linux(scheme, path_executable, path_macro):
     desktop_entry = f"""
 [Desktop Entry]
 Name=Ondsel Lens URL Handler
-Exec={path_executable} --single-instance {path_macro} --pass %u
+Exec="{path_executable}" --single-instance "{path_macro}" --pass %u
 Type=Application
 NoDisplay=true
 MimeType=x-scheme-handler/{scheme};
@@ -96,5 +97,11 @@ def register_lens_handler():
         register_url_scheme_linux(
             Utils.URL_SCHEME, abs_path_executable, get_path_macro()
         )
+    elif name_os == "Windows":
+        path_executable = sys.argv[0]
+        abs_path_executable = os.path.abspath(path_executable)
+        register_url_scheme_windows(
+            Utils.URL_SCHEME, abs_path_executable, get_path_macro()
+        )
     else:
-        logger.warn(f"Cannot install handler on {platform}")
+        logger.debug(f"Cannot install handler on {platform}")
