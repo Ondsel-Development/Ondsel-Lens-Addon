@@ -401,6 +401,16 @@
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_3"/>
      </widget>
+     <widget class="QWidget" name="tabSearch">
+      <attribute name="title">
+       <string>Search</string>
+      </attribute>
+     </widget>
+     <widget class="QWidget" name="tabSettings">
+      <attribute name="title">
+       <string>Settings</string>
+      </attribute>
+     </widget>
     </widget>
    </item>
    <item>
