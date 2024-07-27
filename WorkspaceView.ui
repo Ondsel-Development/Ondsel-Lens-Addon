@@ -58,10 +58,13 @@
       </item>
       <item>
        <spacer name="horizontalSpacer_3">
+        <property name="orientation">
+         <enum>Qt::Horizontal</enum>
+        </property>
         <property name="sizeHint" stdset="0">
          <size>
-          <width>40</width>
-          <height>20</height>
+          <width>20</width>
+          <height>40</height>
          </size>
         </property>
        </spacer>
@@ -76,6 +79,12 @@
      </property>
      <property name="currentIndex">
       <number>0</number>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>16</width>
+       <height>16</height>
+      </size>
      </property>
      <widget class="QWidget" name="tabWorkspaces">
       <property name="sizePolicy">
@@ -123,10 +132,13 @@
           </item>
           <item>
            <spacer name="horizontalSpacer_2">
+            <property name="orientation">
+             <enum>Qt::Horizontal</enum>
+            </property>
             <property name="sizeHint" stdset="0">
              <size>
-              <width>40</width>
-              <height>20</height>
+              <width>20</width>
+              <height>40</height>
              </size>
             </property>
            </spacer>
@@ -280,6 +292,9 @@
                 </item>
                 <item>
                  <spacer name="horizontalSpacer_4">
+                  <property name="orientation">
+                   <enum>Qt::Vertical</enum>
+                  </property>
                   <property name="sizeHint" stdset="0">
                    <size>
                     <width>40</width>
@@ -334,6 +349,9 @@
                </item>
                <item>
                 <spacer name="horizontalSpacer_3">
+                 <property name="orientation">
+                  <enum>Qt::Vertical</enum>
+                 </property>
                  <property name="sizeHint" stdset="0">
                   <size>
                    <width>40</width>
@@ -388,11 +406,6 @@
        <string>Search</string>
       </attribute>
      </widget>
-     <widget class="QWidget" name="tabSpacing">
-      <attribute name="title">
-       <string>(spacing)</string>
-      </attribute>
-     </widget>
      <widget class="QWidget" name="tabSettings">
       <attribute name="title">
        <string>Settings</string>
@@ -434,6 +447,9 @@
       </item>
       <item>
        <spacer name="horizontalSpacer">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
         <property name="sizeHint" stdset="0">
          <size>
           <width>40</width>
