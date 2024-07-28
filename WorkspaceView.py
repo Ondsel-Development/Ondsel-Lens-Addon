@@ -327,18 +327,17 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
         self.setObjectName("workspaceView")
         self.form = Gui.PySideUic.loadUi(f"{Utils.mod_path}/WorkspaceView.ui")
-        
+
         tabWidget = self.form.findChildren(QtGui.QTabWidget)[0]
         tabBar = tabWidget.tabBar()
         wsIcon = QtGui.QIcon(Utils.icon_path + "folder-multiple-outline.svg")
         tabBar.setTabIcon(0, wsIcon)
         bookmarkIcon = QtGui.QIcon(Utils.icon_path + "bookmark-outline.svg")
         tabBar.setTabIcon(1, bookmarkIcon)
-        searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
-        tabBar.setTabIcon(2, searchIcon)
-        settingsIcon = QtGui.QIcon(Utils.icon_path + "settings.svg")
-        tabBar.setTabIcon(3, settingsIcon)
-
+        # searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
+        # tabBar.setTabIcon(2, searchIcon)
+        # settingsIcon = QtGui.QIcon(Utils.icon_path + "settings.svg")
+        # tabBar.setTabIcon(3, settingsIcon)
 
         self.setWidget(self.form)
         self.setWindowTitle("Ondsel Lens")
