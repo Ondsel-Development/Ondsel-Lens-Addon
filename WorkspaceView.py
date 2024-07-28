@@ -336,8 +336,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
         tabBar.setTabIcon(1, bookmarkIcon)
         searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
         tabBar.setTabIcon(2, searchIcon)
-        settingsIcon = QtGui.QIcon(Utils.icon_path + "settings.svg")
-        tabBar.setTabIcon(3, settingsIcon)
+        # settingsIcon = QtGui.QIcon(Utils.icon_path + "settings.svg")
+        # tabBar.setTabIcon(3, settingsIcon)
 
         self.setWidget(self.form)
         self.setWindowTitle("Ondsel Lens")
