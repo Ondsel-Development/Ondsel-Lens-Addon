@@ -1,5 +1,6 @@
 from dataclasses import dataclass
-from file_version import FileVersion
+from data_models.file_version import FileVersion
+from typing import Optional
 
 
 @dataclass(frozen=True, order=True)
@@ -8,7 +9,7 @@ class FileSummary:
     custFileName: str
     modelId: str
     currentVersion: FileVersion
-    thumbnailUrlCache: str = None
+    thumbnailUrlCache: Optional[str] = None
 
 
 # the "Limited" variant is to prevent recursive references and simplify data structures
@@ -17,5 +18,5 @@ class FileSummary_CurationLimited:
     _id: str
     custFileName: str
     modelId: str
-    # currentVersion: FileVersion   # <-- we avoid deserializing all of this
-    thumbnailUrlCache: str = None
+    currentVersion: ...
+    thumbnailUrlCache: Optional[str] = None
