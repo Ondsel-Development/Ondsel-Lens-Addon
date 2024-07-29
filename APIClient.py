@@ -711,9 +711,11 @@ class APIClient:
         result = self._request(endpoint)
         return result
 
-    def get_search_results(self, search_text):
-        safe_search_text = urllib.parse.quote_plus(search_text)
-        result = self._request("keywords", params={"text": safe_search_text})
+    def get_search_results(self, search_text, target=None):
+        params = {"text": urllib.parse.quote_plus(search_text)}
+        if target is not None:
+            params["target"] = target
+        result = self._request("keywords", params=params)
         data = result["data"]
         scored_items = data[0]["sortedMatches"]
         curations = []

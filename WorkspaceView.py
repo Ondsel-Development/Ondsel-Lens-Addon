@@ -53,6 +53,10 @@ from Workspace import (
     ServerWorkspaceModel,
     FileStatus,
 )
+from search import (
+    SearchView,
+    SearchDelegate,
+)
 
 from PySide.QtGui import (
     QStyledItemDelegate,
@@ -424,6 +428,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.txtExplain.hide()
 
         self.initializeBookmarks()
+        self.initializeSearch()
         self.initializeUpdateLens()
 
         self.try_login()
@@ -463,6 +468,27 @@ class WorkspaceView(QtWidgets.QScrollArea):
         bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
         bookmarkView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
+
+    def perform_search(self):
+        print("SEARCH")
+        searchTargetIndex = self.form.searchTargetComboBox.currentIndex()
+        searchTarget = [
+          None,            # All
+          "shared-models", # Share Links
+          "workspaces",    # Workspaces
+          "users",         # Users
+          "organizations", # Organizations
+        ][searchTargetIndex]
+        searchText = self.form.searchLineEdit.text()
+        resulting_curations = self.api.get_search_results(searchText, searchTarget)
+        print(resulting_curations)
+
+    def initializeSearch(self):
+        tabWidget = self.form.tabWidget
+        self.form.searchView = SearchView(tabWidget)
+        searchView = self.form.searchView
+        self.form.tabSearch.layout().addWidget(searchView)
+        self.form.searchBtn.clicked.connect(self.perform_search)
 
     def initializeUpdateLens(self):
         self.form.frameUpdate.hide()

@@ -416,14 +416,14 @@
          </property>
          <layout class="QHBoxLayout" name="horizontalLayout_2">
           <item>
-           <widget class="QPushButton" name="pushButton">
+           <widget class="QPushButton" name="searchBtn">
             <property name="text">
              <string>Search</string>
             </property>
            </widget>
           </item>
           <item>
-           <widget class="QComboBox" name="comboBox">
+           <widget class="QComboBox" name="searchTargetComboBox">
             <item>
              <property name="text">
               <string>All</string>
@@ -452,7 +452,7 @@
            </widget>
           </item>
           <item>
-           <widget class="QLineEdit" name="lineEdit"/>
+           <widget class="QLineEdit" name="searchLineEdit"/>
           </item>
          </layout>
         </widget>
