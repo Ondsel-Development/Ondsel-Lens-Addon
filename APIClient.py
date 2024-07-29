@@ -6,7 +6,7 @@ import json
 import urllib
 
 import Utils
-from data_models.curation import Curation
+from models.curation import Curation
 
 logger = Utils.getLogger(__name__)
 

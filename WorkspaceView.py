@@ -53,9 +53,9 @@ from Workspace import (
     ServerWorkspaceModel,
     FileStatus,
 )
-from search import (
+from views.search import (
     SearchView,
-    SearchDelegate,
+    SearchResultItem,
 )
 
 from PySide.QtGui import (
@@ -470,24 +470,27 @@ class WorkspaceView(QtWidgets.QScrollArea):
         bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
 
     def perform_search(self):
-        print("SEARCH")
         searchTargetIndex = self.form.searchTargetComboBox.currentIndex()
         searchTarget = [
-          None,            # All
-          "shared-models", # Share Links
-          "workspaces",    # Workspaces
-          "users",         # Users
-          "organizations", # Organizations
+            None,            # All
+            "shared-models", # Share Links
+            "workspaces",    # Workspaces
+            "users",         # Users
+            "organizations", # Organizations
         ][searchTargetIndex]
         searchText = self.form.searchLineEdit.text()
         resulting_curations = self.api.get_search_results(searchText, searchTarget)
-        print(resulting_curations)
+        self.form.searchResultsTreeView.load_search_results(resulting_curations)
 
     def initializeSearch(self):
-        tabWidget = self.form.tabWidget
-        self.form.searchView = SearchView(tabWidget)
-        searchView = self.form.searchView
-        self.form.tabSearch.layout().addWidget(searchView)
+        # tabWidget = self.form.tabWidget
+        # self.form.searchView = SearchView(tabWidget)
+        # searchView = self.form.searchView
+        # self.form.tabSearch.layout().addWidget(searchView)
+        # self.form.searchResultsView = SearchView(self.form.searchResultsScrollArea)
+        self.form.searchResultsTreeView = SearchView(self.form.searchResultsTreeView)
+        self.form.searchResultsTreeView.setItemDelegate(SearchResultItem())
+        self.form.searchResultsTreeView.load_search_results([])
         self.form.searchBtn.clicked.connect(self.perform_search)
 
     def initializeUpdateLens(self):

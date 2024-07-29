@@ -1,7 +1,7 @@
 import inspect
 from dataclasses import dataclass, field
-from data_models.nav_ref import NavRef
-from data_models.file_summary import FileSummary_CurationLimited
+from models.nav_ref import NavRef
+from models.file_summary import FileSummary_CurationLimited
 from typing import Optional
 
 @dataclass(order=True)

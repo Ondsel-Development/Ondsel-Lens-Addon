@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from data_models.file_version import FileVersion
+from models.file_version import FileVersion
 from typing import Optional
 
 
