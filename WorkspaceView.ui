@@ -466,10 +466,24 @@
             </layout>
            </widget>
           </item>
-          <item>
-           <widget class="QTreeView" name="searchResultsTreeView"/>
-          </item>
          </layout>
+        </widget>
+       </item>
+       <item>
+        <widget class="QScrollArea" name="searchResultScrollArea">
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <widget class="QWidget" name="scrollAreaWidgetContents">
+          <property name="geometry">
+           <rect>
+            <x>0</x>
+            <y>0</y>
+            <width>807</width>
+            <height>610</height>
+           </rect>
+          </property>
+         </widget>
         </widget>
        </item>
       </layout>

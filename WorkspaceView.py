@@ -480,17 +480,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
         ][searchTargetIndex]
         searchText = self.form.searchLineEdit.text()
         resulting_curations = self.api.get_search_results(searchText, searchTarget)
-        self.form.searchResultsTreeView.load_search_results(resulting_curations)
+        self.form.searchResultScrollArea.load_search_results(resulting_curations)
 
     def initializeSearch(self):
-        # tabWidget = self.form.tabWidget
-        # self.form.searchView = SearchView(tabWidget)
-        # searchView = self.form.searchView
-        # self.form.tabSearch.layout().addWidget(searchView)
-        # self.form.searchResultsView = SearchView(self.form.searchResultsScrollArea)
-        self.form.searchResultsTreeView = SearchView(self.form.searchResultsTreeView)
-        self.form.searchResultsTreeView.setItemDelegate(SearchResultItem())
-        self.form.searchResultsTreeView.load_search_results([])
+        self.form.searchResultScrollArea = SearchView(self.form.searchResultScrollArea)
+        self.form.searchResultScrollArea.load_search_results([])
         self.form.searchBtn.clicked.connect(self.perform_search)
 
     def initializeUpdateLens(self):

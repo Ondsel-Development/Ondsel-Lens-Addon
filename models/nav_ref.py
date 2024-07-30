@@ -17,3 +17,18 @@ class NavRef:
     wsname: Optional[str] = None
     sharelinkid: Optional[str] = None
     modelId: Optional[str] = None
+
+    def user_friendly_target_name(self):
+        # visit https://github.com/Ondsel-Development/Ondsel-Server/blob/main/frontend/src/curationHelpers.js
+        # for source of this
+        match self.target:
+            case "workspaces":
+                return "workspace"
+            case "organizations":
+                return "organization"
+            case "users":
+                return "user"
+            case "shared-models":
+                return "share-link"
+            case _:
+                return "unknown"

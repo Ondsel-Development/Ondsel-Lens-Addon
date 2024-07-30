@@ -24,38 +24,58 @@ from PySide.QtGui import (
     QPixmap,
     QStandardItem,
     QStandardItemModel,
+    QListView,
+    QListWidgetItem,
+    QScrollArea,
+    QWidget,
+    QVBoxLayout,
+    QLabel,
+    QFrame,
 )
-from PySide.QtCore import QByteArray
+from PySide.QtCore import QByteArray, Qt
 from PySide.QtWidgets import QTreeView
+from PySide2.QtUiTools import loadUiType
+import FreeCADGui as Gui
 
 
-class NewSearchResultItem(QStandardItem):
+class SearchResultItem(QFrame):
     def __init__(self, curation):
         super().__init__()
         self.curation_detail = curation
-        self.setEditable(False)
-        self.setText(curation.name)
+        ui_path = Utils.mod_path + "/views/SearchResultItem.ui"
+        self.widget = Gui.PySideUic.loadUi(ui_path)
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(self.widget)
+        #
+        self.widget.collectionLabel.setText(curation.nav.user_friendly_target_name())
+        self.widget.titleLabel.setText(curation.name)
+        self.setLayout(layout)
 
 
-class SearchView(QTreeView):
-    def drawBranches(self, painter, rect, index):
-        pass
-
-    def load_search_results(self, resulting_curations):
-        print(resulting_curations)
-        tree_model = QStandardItemModel()
-        root = tree_model.invisibleRootItem();
-        for curation in resulting_curations:
-            new_item = NewSearchResultItem(curation)
-            root.appendRow(new_item)
-        self.setModel(tree_model)
-
-
-
-class SearchResultItem(QStyledItemDelegate):
+class SearchView(QScrollArea):
     def __init__(self, parent=None):
         super().__init__(parent)
-        # self.item = Gui.PySideUic.loadUi(Utils.mod_path + "views/SearchResultItem.ui")
-        # layout = QtGui.QVBoxLayout()
-        # layout.addWidget(self.dialog)
-        # self.setLayout(layout)
+
+    def load_search_results(self, resulting_curations):
+        # print(resulting_curations)
+
+        self.scrollContent = QWidget()
+        scrollLayout = QVBoxLayout(self.scrollContent)
+        for curation in resulting_curations:
+            # item = QLabel("bling")
+            item = SearchResultItem(curation)
+            scrollLayout.addWidget(item)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding
+        )
+        self.scrollContent.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Policy.Expanding
+        )
+        self.setWidget(self.scrollContent)
+
+    def sizeHint(self):
+        return QtCore.QSize(400, 400)
