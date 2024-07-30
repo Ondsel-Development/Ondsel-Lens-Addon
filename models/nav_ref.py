@@ -9,6 +9,7 @@ from typing import Optional
 #  'models'
 #  'ondsel'
 
+
 @dataclass(order=True)
 class NavRef:
     target: str
@@ -30,5 +31,29 @@ class NavRef:
                 return "user"
             case "shared-models":
                 return "share-link"
+            case "models":
+                return "CAD viewing"
             case _:
                 return "unknown"
+
+    def build_url_suffix(self):
+        # visit https://github.com/Ondsel-Development/Ondsel-Server/blob/main/frontend/src/curationHelpers.js
+        # for source of this
+        url = "/404"
+        match self.target:
+            case "workspaces":
+                if self.orgname != None:
+                    url = f"/org/${self.orgname}/workspace/${self.wsname}"
+                else:
+                    url = f"/user/${self.username}/workspace/${self.wsname}"
+            case "organizations":
+                url = f"/org/${self.orgname}"
+            case "users":
+                url = f"/user/${self.username}"
+            case "shared-models":
+                url = f"/share/${self.sharelinkid}"
+            case "models":
+                url = f"/model/${self.modelid}"
+            case "ondsel":
+                url = "/"
+        return url

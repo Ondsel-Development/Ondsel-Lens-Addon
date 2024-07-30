@@ -472,11 +472,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def perform_search(self):
         searchTargetIndex = self.form.searchTargetComboBox.currentIndex()
         searchTarget = [
-            None,            # All
-            "shared-models", # Share Links
-            "workspaces",    # Workspaces
-            "users",         # Users
-            "organizations", # Organizations
+            None,  # All
+            "shared-models",  # Share Links
+            "workspaces",  # Workspaces
+            "users",  # Users
+            "organizations",  # Organizations
         ][searchTargetIndex]
         searchText = self.form.searchLineEdit.text()
         resulting_curations = self.api.get_search_results(searchText, searchTarget)

@@ -49,6 +49,10 @@ class SearchResultItem(QFrame):
         #
         self.widget.collectionLabel.setText(curation.nav.user_friendly_target_name())
         self.widget.titleLabel.setText(curation.name)
+        self.widget.setSizePolicy(
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
+        )
         self.setLayout(layout)
 
 
@@ -69,11 +73,11 @@ class SearchView(QScrollArea):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.setSizePolicy(
             QtWidgets.QSizePolicy.Policy.Expanding,
-            QtWidgets.QSizePolicy.Policy.Expanding
+            QtWidgets.QSizePolicy.Policy.Expanding,
         )
         self.scrollContent.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
-            QtWidgets.QSizePolicy.Policy.Expanding
+            QtWidgets.QSizePolicy.Policy.Expanding,
+            QtWidgets.QSizePolicy.Policy.Expanding,
         )
         self.setWidget(self.scrollContent)
 

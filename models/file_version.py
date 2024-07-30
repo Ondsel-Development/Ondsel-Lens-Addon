@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass(order=True)
 class FileVersion:
     _id: str
@@ -9,7 +10,7 @@ class FileVersion:
     message: str = None
     thumbnailUrlCache: str = None
     fileUpdatedAt: int = None
-    lockedSharedModels: ... = None # TODO: add this later
+    lockedSharedModels: ... = None  # TODO: add this later
 
 
 # TODO: add date text display for createdAt and fileUpdatedAt
