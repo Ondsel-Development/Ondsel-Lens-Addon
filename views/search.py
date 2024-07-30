@@ -42,6 +42,7 @@ class SearchResultItem(QFrame):
     def __init__(self, curation):
         super().__init__()
         self.curation_detail = curation
+
         ui_path = Utils.mod_path + "/views/SearchResultItem.ui"
         self.widget = Gui.PySideUic.loadUi(ui_path)
         layout = QtGui.QVBoxLayout()
@@ -49,10 +50,13 @@ class SearchResultItem(QFrame):
         #
         self.widget.collectionLabel.setText(curation.nav.user_friendly_target_name())
         self.widget.titleLabel.setText(curation.name)
-        self.widget.setSizePolicy(
-            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
-            QtWidgets.QSizePolicy.Policy.MinimumExpanding,
-        )
+        webIcon = QtGui.QIcon(Utils.icon_path + "link.svg")
+        self.widget.webToolButton.setIcon(webIcon)
+        downloadIcon = QtGui.QIcon(Utils.icon_path + "cloud_download.svg")
+        self.widget.downloadToolButton.setIcon(downloadIcon)
+        if curation.is_downloadable():
+            self.widget.downloadToolButton.setEnabled(True)
+
         self.setLayout(layout)
 
 

@@ -26,6 +26,9 @@ class Curation:
                 **self.representativeFile
             )
 
+    def is_downloadable(self):
+        return (self.nav.target == "shared-models") or self.nav.target == "workspaces"
+
     def get_thumbnail_url(self):
         url = None
         if self.representativeFile:
