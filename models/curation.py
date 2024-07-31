@@ -30,6 +30,7 @@ class Curation:
         return (self.nav.target == "shared-models") or self.nav.target == "workspaces"
 
     def get_thumbnail_url(self):
+        """either returns a full URL to a web thumbnail or a local svg filename. an URL with have a colon"""
         url = None
         if self.representativeFile:
             url = (
@@ -39,16 +40,13 @@ class Curation:
             # todo: get better defaults for the different target collections. A generic head, for example, for a user.
             match self.nav.target:
                 case "workspaces":
-                    if self.orgname != None:
-                        url = None
-                    else:
-                        url = None
+                    url = "folder.svg"
                 case "organizations":
-                    url = None
+                    url = "group.svg"
                 case "users":
-                    url = None
+                    url = "person.svg"
                 case "shared-models":
-                    url = None
+                    url = "public.svg"
                 case "models":
                     url = None
                 case "ondsel":
