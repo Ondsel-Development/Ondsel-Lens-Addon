@@ -54,7 +54,7 @@ from Workspace import (
     FileStatus,
 )
 from views.search import (
-    SearchView,
+    SearchResultScrollArea,
     SearchResultItem,
 )
 
@@ -483,8 +483,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.searchResultScrollArea.load_search_results(resulting_curations)
 
     def initializeSearch(self):
-        self.form.searchResultScrollArea = SearchView(self.form.searchResultScrollArea)
-        self.form.searchResultScrollArea.load_search_results([])
+        self.form.searchResultScrollArea = SearchResultScrollArea(self.form.searchResultScrollArea)
         self.form.searchBtn.clicked.connect(self.perform_search)
 
     def initializeUpdateLens(self):

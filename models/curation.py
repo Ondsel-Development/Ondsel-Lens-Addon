@@ -33,10 +33,8 @@ class Curation:
         """either returns a full URL to a web thumbnail or a local svg filename. an URL with have a colon"""
         url = None
         if self.representativeFile:
-            url = (
-                self.representativeFile.thumbnailUrlCache
-            )  # defaults to None if missing
-        else:
+            url = self.representativeFile.thumbnailUrlCache
+        if url is None:
             # todo: get better defaults for the different target collections. A generic head, for example, for a user.
             match self.nav.target:
                 case "workspaces":
