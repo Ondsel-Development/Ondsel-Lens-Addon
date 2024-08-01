@@ -4,6 +4,7 @@
 from PySide.QtCore import Qt, QSize, QRect, QPoint
 from PySide.QtGui import QLayout, QSizePolicy
 
+
 class OFlowLayout(QLayout):
     def __init__(self, parent=None, margin=0, spacing=1):
         super(OFlowLayout, self).__init__(parent)
@@ -67,8 +68,12 @@ class OFlowLayout(QLayout):
             wid = item.widget()
             if wid == None:
                 continue
-            spaceX = self.spacing() + wid.style().layoutSpacing(QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Horizontal)
-            spaceY = self.spacing() + wid.style().layoutSpacing(QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Vertical)
+            spaceX = self.spacing() + wid.style().layoutSpacing(
+                QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Horizontal
+            )
+            spaceY = self.spacing() + wid.style().layoutSpacing(
+                QSizePolicy.PushButton, QSizePolicy.PushButton, Qt.Vertical
+            )
             nextX = x + item.sizeHint().width() + spaceX
             if nextX - spaceX > rect.right() and lineHeight > 0:
                 x = rect.x()

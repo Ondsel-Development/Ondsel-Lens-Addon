@@ -40,6 +40,7 @@ from views.oflowlayout import OFlowLayout
 
 logger = Utils.getLogger(__name__)
 
+
 class SearchResultItem(QFrame):
     def __init__(self, curation):
         super().__init__()
@@ -83,12 +84,13 @@ class SearchResultItem(QFrame):
         if not webbrowser.open(url):
             logger.warn(f"Failed to open {url} in the browser")
 
+
 class SearchResultWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.scrollLayout = OFlowLayout(parent)
         self.setLayout(self.scrollLayout)
-        self.children=[]
+        self.children = []
 
     def load_search_results(self, resulting_curations):
         for curation in resulting_curations:
@@ -113,7 +115,9 @@ class SearchResultScrollArea(QScrollArea):
         self.widget = QWidget()
         self.vbox = QVBoxLayout()
         self.resultWidget = SearchResultWidget(self)
-        self.vbox.addWidget(self.resultWidget)    # Yes, only one item: the resulting widget, which is flowing
+        self.vbox.addWidget(
+            self.resultWidget
+        )  # Yes, only one item: the resulting widget, which is flowing
         self.widget.setLayout(self.vbox)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
@@ -131,6 +135,7 @@ class SearchResultScrollArea(QScrollArea):
 
     def sizeHint(self):
         return QtCore.QSize(1200, 400)
+
 
 def _get_pixmap_from_url(thumbnailUrl):
     try:

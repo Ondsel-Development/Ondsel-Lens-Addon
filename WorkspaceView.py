@@ -470,7 +470,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
         bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
 
     def perform_search(self):
-        QApplication.setOverrideCursor(QtGui.QCursor(QtCore.Qt.WaitCursor)) # sets the hourglass, etc.
+        QApplication.setOverrideCursor(
+            QtGui.QCursor(QtCore.Qt.WaitCursor)
+        )  # sets the hourglass, etc.
         searchTargetIndex = self.form.searchTargetComboBox.currentIndex()
         searchTarget = [
             None,  # All
@@ -485,7 +487,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
         QApplication.restoreOverrideCursor()
 
     def initializeSearch(self):
-        self.form.searchResultScrollArea = SearchResultScrollArea(self.form.searchResultScrollArea)
+        self.form.searchResultScrollArea = SearchResultScrollArea(
+            self.form.searchResultScrollArea
+        )
         self.form.searchBtn.clicked.connect(self.perform_search)
         self.form.searchLineEdit.returnPressed.connect(self.perform_search)
 
