@@ -20,36 +20,55 @@
 # *                                                                         *
 # ***************************************************************************
 
-import FreeCAD as App
-import FreeCADGui
-import Part
 import os
 import datetime
+import Utils
+
 from PySide import QtCore, QtGui
+
+import FreeCAD as App
+import FreeCADGui as Gui
+import Part
+
+logger = Utils.getLogger(__name__)
+
+
+NAME_COMMAND = "OndselLens_AddReloadableObject"
+PROP_FILEPATH = "FilePath"
+PROP_IMPORT_TIME = "ImportDateTime"
 
 
 class ReloadableObject:
-    state = False
 
     def __init__(self, obj):
         obj.Proxy = self
-        self.Type = "FilePathFeature"
+
+        self.group = "Source"
+        self.state = False
+
         obj.addProperty(
-            "App::PropertyFile", "FilePath", "FilePathFeature", "Path to a file"
+            "App::PropertyFile", PROP_FILEPATH, self.group, "Path to a file"
         ).FilePath = ""
 
         obj.addProperty(
             "App::PropertyString",
-            "ImportDateTime",
-            "FilePathFeature",
-            "Last Time the Job was post processed",
+            PROP_IMPORT_TIME,
+            self.group,
+            "The time when object was imported",
         )
-        obj.setEditorMode("ImportDateTime", 2)
+        obj.setEditorMode(
+            PROP_IMPORT_TIME,
+            App.PropertyType.Prop_Hidden | App.PropertyType.Prop_ReadOnly,
+        )
+
+    def has_step_extension(self, path_file):
+        lowered = path_file.lower()
+        return lowered.endswith(".stp") or lowered.endswith(".step")
 
     def onChanged(self, obj, prop):
-        if prop == "FilePath":
+        if prop == PROP_FILEPATH:
             filepath = obj.FilePath
-            if filepath.endswith(".stp") or filepath.endswith(".step"):
+            if self.has_step_extension(filepath):
                 self.load_file(obj)
 
                 # update the label
@@ -57,10 +76,10 @@ class ReloadableObject:
                 obj.Label = label
 
     def execute(self, obj):
-        self.state = self.file_changed(obj)
+        self.state = self.has_file_changed(obj)
 
-    def file_changed(self, obj):
-        if not self.check_file(obj.FilePath):
+    def has_file_changed(self, obj):
+        if not self.is_valid_step_file(obj.FilePath):
             return False
 
         LastModified = os.path.getmtime(obj.FilePath)
@@ -71,36 +90,31 @@ class ReloadableObject:
 
         return LastModified > time_string_mtime
 
-    def check_file(self, filepath):
-        if filepath == "":
-            return False
-
-        if not os.path.exists(filepath):
-            return False
-
-        if not os.path.isfile(filepath):
-            return False
-
-        # check if the path ends with .stp or .step
-        if not filepath.endswith(".stp") and not filepath.endswith(".step"):
-            return False
-
-        return True
+    def is_valid_step_file(self, path_file):
+        return (
+            path_file != ""
+            and os.path.exists(path_file)
+            and os.path.isfile(path_file)
+            and self.has_step_extension(path_file)
+        )
 
     def load_file(self, obj):
-
-        if not self.check_file(obj.FilePath):
-            return
-
-        shape = self.import_step_file(obj)
-        obj.Shape = shape
-        obj.ImportDateTime = QtCore.QDateTime.currentDateTime().toString()
+        if self.is_valid_step_file(obj.FilePath):
+            shape = self.import_step_file(obj)
+            obj.Shape = shape
+            obj.ImportDateTime = QtCore.QDateTime.currentDateTime().toString()
 
     def import_step_file(self, obj):
         # Import the STEP file and create a shape
         shape = Part.Shape()
         shape.read(obj.FilePath)
         return shape
+
+    def dumps(self):
+        return None
+
+    def loads(self, state):
+        return None
 
 
 class ReloadableObjectViewProvider:
@@ -111,13 +125,16 @@ class ReloadableObjectViewProvider:
         self.Object = vobj.Object
 
     def doubleClicked(self, vobj):
-        self.setEditPanel(vobj)
+        return self.setEditPanel(vobj)
 
-    def setEditPanel(self, vobj, mode=0):
+    def setEditPanel(self, vobj):
         obj = vobj.Object
-        panel = TaskPanel(obj)
-        FreeCADGui.Control.showDialog(panel)
-        return True
+        if not Gui.Control.activeDialog():
+            panel = TaskPanel(obj)
+            Gui.Control.showDialog(panel)
+            return True
+
+        return False
 
     def getDefaultDisplayMode(self):
         return "Flat Lines"
@@ -126,9 +143,8 @@ class ReloadableObjectViewProvider:
         pass
 
     def getIcon(self):
-
         current_directory = os.path.dirname(os.path.realpath(__file__))
-        if self.Object.Proxy.file_changed(self.Object):
+        if self.Object.Proxy.has_file_changed(self.Object):
             icon = f"{current_directory}{os.path.sep}reloadable-update.svg"
         else:
             icon = f"{current_directory}{os.path.sep}reloadable.svg"
@@ -138,12 +154,18 @@ class ReloadableObjectViewProvider:
     def updateData(self, obj, prop):
         pass
 
+    def dumps(self):
+        return None
+
+    def loads(self, state):
+        return None
+
 
 class TaskPanel:
     def __init__(self, obj):
         self.obj = obj
         current_directory = os.path.dirname(os.path.realpath(__file__))
-        self.form = FreeCADGui.PySideUic.loadUi(
+        self.form = Gui.PySideUic.loadUi(
             current_directory + os.path.sep + "taskpanel.ui"
         )
 
@@ -152,7 +174,7 @@ class TaskPanel:
         self.form.lineEditFilePath.setText(self.obj.FilePath)
 
         # set the refresh button state
-        self.form.buttonRefresh.setEnabled(self.obj.Proxy.file_changed(self.obj))
+        self.form.buttonRefresh.setEnabled(self.obj.Proxy.has_file_changed(self.obj))
 
         self.form.buttonRefresh.clicked.connect(self.refresh)
         App.ActiveDocument.openTransaction("update Reloadable Object")
@@ -170,16 +192,15 @@ class TaskPanel:
 
     def accept(self):
         App.ActiveDocument.commitTransaction()
-        FreeCADGui.Control.closeDialog()
+        Gui.Control.closeDialog()
 
     def reject(self):
         App.ActiveDocument.abortTransaction()
-        FreeCADGui.Control.closeDialog()
+        Gui.Control.closeDialog()
 
 
 class ReloadableObjectCommand:
     def GetResources(self):
-
         current_directory = os.path.dirname(os.path.realpath(__file__))
         return {
             "MenuText": "Add Reloadable Object",
@@ -188,7 +209,6 @@ class ReloadableObjectCommand:
         }
 
     def Activated(self):
-
         App.ActiveDocument.openTransaction("Add Reloadable Object")
 
         filename, _ = QtGui.QFileDialog.getOpenFileName(
@@ -213,11 +233,11 @@ class ReloadableObjectCommand:
         return App.ActiveDocument is not None
 
 
-class Manipulator:
+class ReloadableObjectManipulator:
     def modifyMenuBar(self):
         return [
             {
-                "insert": "addReloadableObject",
+                "insert": NAME_COMMAND,
                 "menuItem": "Std_Import",
                 "before": "Std_Import",
             },
@@ -231,10 +251,8 @@ class Manipulator:
             return []
 
 
-if App.GuiUp:
-    FreeCADGui.addCommand("addReloadableObject", ReloadableObjectCommand())
-    manip = Manipulator()
-    FreeCADGui.addWorkbenchManipulator(manip)
-
-    wb = FreeCADGui.activeWorkbench()
-    wb.reloadActive()
+def initialize():
+    if App.GuiUp:
+        Gui.addCommand(NAME_COMMAND, ReloadableObjectCommand())
+        manip = ReloadableObjectManipulator()
+        Gui.addWorkbenchManipulator(manip)
