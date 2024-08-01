@@ -2393,9 +2393,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
         else:
             return None
 
-    def handle_lens_url(self):
+    def handle_lens_url(self, url):
         if self.is_logged_in():
-            url = self.get_lens_url()
             if url:
                 sub_scheme, data = self.parse_url(url)
                 if sub_scheme == "share":

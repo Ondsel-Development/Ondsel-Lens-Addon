@@ -3,10 +3,32 @@ import sys
 
 import platform
 
+import FreeCADGui as Gui
+
 import Utils
 
 
 logger = Utils.getLogger(__name__)
+
+
+# ====================================
+# Mac OS
+# ====================================
+
+
+def register_url_scheme_macos(scheme):
+    logger.debug(f"Registering URL scheme {scheme}")
+
+    def handle_url(url):
+        logger.debug(f"Handle URL {url}")
+        import lens_command
+        import WorkspaceView
+
+        lens_command.start_mdi_tab()
+        if WorkspaceView.wsv:
+            WorkspaceView.wsv.handle_lens_url(url)
+
+    Gui.registerUrlHandler(scheme, handle_url)
 
 
 # ====================================
@@ -103,5 +125,7 @@ def register_lens_handler():
         register_url_scheme_windows(
             Utils.URL_SCHEME, abs_path_executable, get_path_macro()
         )
+    elif name_os == "Darwin":
+        register_url_scheme_macos(Utils.URL_SCHEME)
     else:
         logger.debug(f"Cannot install handler on {platform}")
