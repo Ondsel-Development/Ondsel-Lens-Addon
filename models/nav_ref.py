@@ -39,21 +39,26 @@ class NavRef:
     def build_url_suffix(self):
         # visit https://github.com/Ondsel-Development/Ondsel-Server/blob/main/frontend/src/curationHelpers.js
         # for source of this
-        url = "/404"
+        url = "404"
         match self.target:
             case "workspaces":
                 if self.orgname != None:
-                    url = f"/org/${self.orgname}/workspace/${self.wsname}"
+                    url = f"org/{self.orgname}/workspace/{self.wsname}"
                 else:
-                    url = f"/user/${self.username}/workspace/${self.wsname}"
+                    url = f"user/{self.username}/workspace/{self.wsname}"
             case "organizations":
-                url = f"/org/${self.orgname}"
+                url = f"org/{self.orgname}"
             case "users":
-                url = f"/user/${self.username}"
+                url = f"user/{self.username}"
             case "shared-models":
-                url = f"/share/${self.sharelinkid}"
+                url = f"share/{self.sharelinkid}"
             case "models":
-                url = f"/model/${self.modelid}"
+                url = f"model/{self.modelid}"
             case "ondsel":
-                url = "/"
+                url = ""
+        return url
+
+    def generate_url(self, base):
+        suffix = self.build_url_suffix()
+        url = f"{base}{suffix}"
         return url

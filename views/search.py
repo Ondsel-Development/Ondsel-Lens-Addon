@@ -38,6 +38,7 @@ from PySide2.QtUiTools import loadUiType
 import FreeCADGui as Gui
 from views.oflowlayout import OFlowLayout
 
+logger = Utils.getLogger(__name__)
 
 class SearchResultItem(QFrame):
     def __init__(self, curation):
@@ -54,24 +55,33 @@ class SearchResultItem(QFrame):
         self.widget.titleLabel.setText(curation.name)
         webIcon = QtGui.QIcon(Utils.icon_path + "link.svg")
         self.widget.webToolButton.setIcon(webIcon)
-        downloadIcon = QtGui.QIcon(Utils.icon_path + "cloud_download.svg")
-        self.widget.downloadToolButton.setIcon(downloadIcon)
-        if curation.is_downloadable():
-            self.widget.downloadToolButton.setEnabled(True)
+        self.widget.webToolButton.clicked.connect(self._goto_url)
+        # downloadIcon = QtGui.QIcon(Utils.icon_path + "cloud_download.svg")
+        # self.widget.downloadToolButton.setIcon(downloadIcon)
+        # if curation.is_downloadable():
+        #     self.widget.downloadToolButton.setEnabled(True)
         self.image_url = curation.get_thumbnail_url()
         if self.image_url is None:
             print("checkout ", curation.nav)
         elif ":" in self.image_url:
+            self.widget.iconLabel.setStyleSheet("background-color:rgb(219,219,211)")
             mainImage = _get_pixmap_from_url(self.image_url)
             if mainImage is not None:
                 self.widget.iconLabel.setPixmap(mainImage)
         elif self.image_url is not None:
             mainImage = QtGui.QIcon(Utils.icon_path + self.image_url).pixmap(
-                QSize(48, 48)
+                QSize(96, 96)
             )
             self.widget.iconLabel.setPixmap(mainImage)
         #
         self.setLayout(layout)
+
+    def _goto_url(self):
+        base = Utils.env.lens_url
+        url = self.curation_detail.nav.generate_url(base)
+        logger.info(f"open {url}")
+        if not webbrowser.open(url):
+            logger.warn(f"Failed to open {url} in the browser")
 
 class SearchResultWidget(QWidget):
     def __init__(self, parent=None):
@@ -137,7 +147,7 @@ def _get_pixmap_from_url(thumbnailUrl):
         left = diff // 2
         pixmap = pixmap.copy(left, 0, size, size)
 
-        pixmap = pixmap.scaled(48, 48, Qt.AspectRatioMode.KeepAspectRatio)
+        pixmap = pixmap.scaled(96, 96, Qt.AspectRatioMode.KeepAspectRatio)
         return pixmap
     except requests.exceptions.RequestException:
         pass  # no thumbnail online.
