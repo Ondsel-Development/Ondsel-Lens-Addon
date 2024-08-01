@@ -6,4 +6,5 @@ import WorkspaceView
 
 lens_command.start_mdi_tab()
 if WorkspaceView.wsv:
-    WorkspaceView.wsv.handle_lens_url()
+    url = WorkspaceView.wsv.get_lens_url()
+    WorkspaceView.wsv.handle_lens_url(url)
