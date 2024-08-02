@@ -487,9 +487,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
         QApplication.restoreOverrideCursor()
 
     def initializeSearch(self):
-        self.form.searchResultScrollArea = SearchResultScrollArea(
-            self.form.searchResultScrollArea
-        )
+        self.form.searchResultScrollArea = SearchResultScrollArea()
+        self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
         self.form.searchBtn.clicked.connect(self.perform_search)
         self.form.searchLineEdit.returnPressed.connect(self.perform_search)
 

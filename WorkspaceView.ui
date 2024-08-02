@@ -408,6 +408,12 @@
       <layout class="QVBoxLayout" name="verticalLayout_4">
        <item>
         <widget class="QFrame" name="searchFrame">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>
          </property>
@@ -417,6 +423,12 @@
          <layout class="QVBoxLayout" name="verticalLayout_5">
           <item>
            <widget class="QFrame" name="searchFormFrame">
+            <property name="maximumSize">
+             <size>
+              <width>16777215</width>
+              <height>45</height>
+             </size>
+            </property>
             <property name="frameShape">
              <enum>QFrame::StyledPanel</enum>
             </property>
@@ -470,10 +482,14 @@
         </widget>
        </item>
        <item>
-        <widget class="QScrollArea" name="searchResultScrollArea">
-         <property name="widgetResizable">
-          <bool>true</bool>
+        <widget class="QFrame" name="searchResultFrame">
+         <property name="frameShape">
+          <enum>QFrame::StyledPanel</enum>
          </property>
+         <property name="frameShadow">
+          <enum>QFrame::Raised</enum>
+         </property>
+         <layout class="QVBoxLayout" name="searchResultFrameLayout"/>
         </widget>
        </item>
       </layout>
