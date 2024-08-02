@@ -53,9 +53,14 @@ from Workspace import (
     ServerWorkspaceModel,
     FileStatus,
 )
+from models.curation import (
+    CurationListModel
+)
+from delegates.curation import (
+    CurationDelegate
+)
 from views.search import (
     SearchResultScrollArea,
-    SearchResultItem,
 )
 
 from PySide.QtGui import (
@@ -69,6 +74,7 @@ from PySide.QtGui import (
     QMenu,
     QSizePolicy,
     QPixmap,
+    QListView,
 )
 
 from PySide.QtCore import QByteArray
@@ -483,11 +489,16 @@ class WorkspaceView(QtWidgets.QScrollArea):
         ][searchTargetIndex]
         searchText = self.form.searchLineEdit.text()
         resulting_curations = self.api.get_search_results(searchText, searchTarget)
-        self.form.searchResultScrollArea.load_search_results(resulting_curations)
+        self.form.curationListModel.curation_list = resulting_curations
+        self.form.curationListModel.layoutChanged.emit()
         QApplication.restoreOverrideCursor()
 
     def initializeSearch(self):
-        self.form.searchResultScrollArea = SearchResultScrollArea()
+        self.form.curationListModel = CurationListModel()
+        # self.form.searchResultScrollArea = SearchResultScrollArea()
+        self.form.searchResultScrollArea = QListView()
+        self.form.searchResultScrollArea.setItemDelegate(CurationDelegate())
+        self.form.searchResultScrollArea.setModel(self.form.curationListModel)
         self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
         self.form.searchBtn.clicked.connect(self.perform_search)
         self.form.searchLineEdit.returnPressed.connect(self.perform_search)

@@ -41,7 +41,37 @@ from views.oflowlayout import OFlowLayout
 logger = Utils.getLogger(__name__)
 
 
-class SearchResultItem(QFrame):
+class SearchResultItemView(QFrame):
+    def __init__(self, curation):
+        super().__init__()
+        self.curation_detail = curation
+        ui_path = Utils.mod_path + "/views/SearchResultItem.ui"
+        self.widget = Gui.PySideUic.loadUi(ui_path)
+        layout = QtGui.QVBoxLayout()
+        layout.addWidget(self.widget)
+        #
+        # decorate the new item with data
+        #
+        self.widget.collectionLabel.setText(curation.nav.user_friendly_target_name())
+        self.widget.titleLabel.setText(curation.name)
+        self.image_url = curation.get_thumbnail_url()
+        if self.image_url is None:
+            print("checkout ", curation.nav)
+        elif ":" in self.image_url:
+            self.widget.iconLabel.setStyleSheet("background-color:rgb(219,219,211)")
+            mainImage = _get_pixmap_from_url(self.image_url)
+            if mainImage is not None:
+                self.widget.iconLabel.setPixmap(mainImage)
+        elif self.image_url is not None:
+            mainImage = QtGui.QIcon(Utils.icon_path + self.image_url).pixmap(
+                QSize(96, 96)
+            )
+            self.widget.iconLabel.setPixmap(mainImage)
+        #
+        self.setLayout(layout)
+
+
+class SearchResultItemEditor(QFrame):
     def __init__(self, curation):
         super().__init__()
         self.curation_detail = curation
@@ -84,7 +114,6 @@ class SearchResultItem(QFrame):
         if not webbrowser.open(url):
             logger.warn(f"Failed to open {url} in the browser")
 
-
 class SearchResultWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -94,7 +123,7 @@ class SearchResultWidget(QWidget):
 
     def load_search_results(self, resulting_curations):
         for curation in resulting_curations:
-            item = SearchResultItem(curation)
+            item = SearchResultItemEditor(curation)
             self.children.append(item)
             self.scrollLayout.addWidget(self.children[-1])
 
@@ -109,7 +138,7 @@ class SearchResultWidget(QWidget):
         self.children = []
 
 
-class SearchResultScrollArea(QScrollArea):
+class SearchResultScrollArea(QListView):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.widget = QWidget()

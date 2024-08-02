@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from models.nav_ref import NavRef
 from models.file_summary import FileSummary_CurationLimited
 from typing import Optional
+from PySide.QtCore import Qt, QAbstractListModel, QModelIndex
 
 
 @dataclass(order=True)
@@ -61,3 +62,17 @@ class Curation:
                 if k in inspect.signature(cls).parameters
             }
         )
+
+
+class CurationListModel(QAbstractListModel):
+    def __init__(self, *args, curations=None, **kwargs):
+        super(CurationListModel, self).__init__(*args, **kwargs)
+        self.curation_list = curations or []
+
+    def data(self, index, role):
+        if role == Qt.DisplayRole:
+            return self.curation_list[index.row()].name
+
+    def rowCount(self, index):
+        return len(self.curation_list)
+
