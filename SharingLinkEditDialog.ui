@@ -17,9 +17,19 @@
    <item>
     <layout class="QVBoxLayout" name="verticalLayout_2">
      <item>
+      <widget class="QLabel" name="titleLabel">
+       <property name="text">
+        <string>Title</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="linkTitle"/>
+     </item>
+     <item>
       <widget class="QLabel" name="label">
        <property name="text">
-        <string>Link Name</string>
+        <string>Private Note</string>
        </property>
       </widget>
      </item>
@@ -31,9 +41,123 @@
       </widget>
      </item>
      <item>
+      <widget class="QComboBox" name="protectionComboBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <item>
+        <property name="text">
+         <string>Listed: visible and promoted to the public</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Unlisted: visible to public but you need to know the URL</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Pin: only visible when the PIN is entered</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
+      <widget class="QFrame" name="pinFrame">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>0</width>
+         <height>20</height>
+        </size>
+       </property>
+       <property name="frameShape">
+        <enum>QFrame::NoFrame</enum>
+       </property>
+       <property name="frameShadow">
+        <enum>QFrame::Plain</enum>
+       </property>
+       <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <item>
+         <widget class="QLabel" name="pinLabel">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="text">
+           <string>PIN (6 digits)</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLineEdit" name="pinLineEdit">
+          <property name="enabled">
+           <bool>true</bool>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>96</width>
+            <height>16777215</height>
+           </size>
+          </property>
+          <property name="maxLength">
+           <number>6</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <spacer name="horizontalSpacer_4">
+          <property name="orientation">
+           <enum>Qt::Horizontal</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>40</width>
+            <height>20</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="versionFollowingComboBox">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <item>
+        <property name="text">
+         <string>Locked: share this specific version of the file</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Active: always show the file version that is active</string>
+        </property>
+       </item>
+      </widget>
+     </item>
+     <item>
       <widget class="QCheckBox" name="canViewModelCheckBox">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="text">
         <string>Can view model</string>
+       </property>
+       <property name="checkable">
+        <bool>true</bool>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
        </property>
       </widget>
      </item>
@@ -51,13 +175,6 @@
        </property>
       </widget>
      </item>
-     <item>
-      <widget class="QCheckBox" name="canDownloadOriginalCheckBox">
-       <property name="text">
-        <string>Can download original model</string>
-       </property>
-      </widget>
-     </item>
     </layout>
    </item>
    <item>
@@ -69,31 +186,178 @@
        </property>
        <layout class="QVBoxLayout" name="verticalLayout">
         <item>
-         <widget class="QCheckBox" name="canExportFCStdCheckBox">
-          <property name="text">
-           <string>.FCStd</string>
+         <widget class="QFrame" name="upperDownloadOptionFrame">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
+          <property name="frameShape">
+           <enum>QFrame::NoFrame</enum>
+          </property>
+          <property name="frameShadow">
+           <enum>QFrame::Plain</enum>
+          </property>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <property name="spacing">
+            <number>1</number>
+           </property>
+           <property name="topMargin">
+            <number>1</number>
+           </property>
+           <property name="bottomMargin">
+            <number>1</number>
+           </property>
+           <item>
+            <widget class="QCheckBox" name="canDownloadOriginalCheckBox">
+             <property name="minimumSize">
+              <size>
+               <width>128</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>172</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>original file</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="canExportFCStdCheckBox">
+             <property name="minimumSize">
+              <size>
+               <width>128</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>172</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>as .FCStd</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="canExportSTEPCheckBox">
+             <property name="minimumSize">
+              <size>
+               <width>128</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>172</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>as .step</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_2">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
          </widget>
         </item>
         <item>
-         <widget class="QCheckBox" name="canExportSTEPCheckBox">
-          <property name="text">
-           <string>.step</string>
+         <widget class="QFrame" name="lowerDownloadOptionFrame">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCheckBox" name="canExportSTLCheckBox">
-          <property name="text">
-           <string>.Stl</string>
+          <property name="frameShape">
+           <enum>QFrame::NoFrame</enum>
           </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QCheckBox" name="canExportOBJCheckBox">
-          <property name="text">
-           <string>.Obj</string>
+          <property name="frameShadow">
+           <enum>QFrame::Plain</enum>
           </property>
+          <layout class="QHBoxLayout" name="horizontalLayout_2">
+           <property name="spacing">
+            <number>1</number>
+           </property>
+           <property name="topMargin">
+            <number>1</number>
+           </property>
+           <property name="bottomMargin">
+            <number>1</number>
+           </property>
+           <item>
+            <widget class="QCheckBox" name="canExportSTLCheckBox">
+             <property name="minimumSize">
+              <size>
+               <width>128</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>172</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>as .Stl</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="canExportOBJCheckBox">
+             <property name="minimumSize">
+              <size>
+               <width>128</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="maximumSize">
+              <size>
+               <width>172</width>
+               <height>16777215</height>
+              </size>
+             </property>
+             <property name="text">
+              <string>as .Obj</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="horizontalSpacer_3">
+             <property name="orientation">
+              <enum>Qt::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
          </widget>
         </item>
        </layout>
