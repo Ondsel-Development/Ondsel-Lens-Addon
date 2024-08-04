@@ -93,10 +93,10 @@ class ShareLinkModel(QAbstractListModel):
             canExport = sm.get("canExportModel", True)
             link = {
                 "_id": sm["_id"],
+                "isActive": sm["isActive"],
                 "title": sm["title"],
                 "description": sm.get("description", ""),
                 "protection": sm["protection"],
-                "pin": "",
                 "versionFollowing": sm["versionFollowing"],
                 "canViewModel": sm["canViewModel"],
                 "canViewModelAttributes": sm["canViewModelAttributes"],
@@ -117,6 +117,8 @@ class ShareLinkModel(QAbstractListModel):
                 # make a singular query to get that detail.
                 fullSharedModel = self.apiClient.getSharedModel(sm["_id"])
                 link["pin"] = fullSharedModel.get("pin", "")
+            else:
+                link["pin"] = ""
 
             self._add_link(link)
         self.endResetModel()

@@ -459,6 +459,9 @@ class APIClient:
         if "pin" in sharedModelData:
             if sharedModelData["pin"] == "":
                 del sharedModelData["pin"]
+        if "dummyModelId" in sharedModelData:
+            if sharedModelData["dummyModelId"] is None:
+                del sharedModelData["dummyModelId"]
         headers = self._set_content_type()
         result = self._update(endpoint, headers=headers, data=json.dumps(sharedModelData))
         return result

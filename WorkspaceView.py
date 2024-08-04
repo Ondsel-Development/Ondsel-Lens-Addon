@@ -94,8 +94,7 @@ iconsPath = f"{modPath}/Resources/icons/"
 # Test server
 # baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
 # Prod server
-baseUrl = "http://127.0.0.1:3030/"
-# baseUrl = "https://lens-api.ondsel.com/"
+baseUrl = "https://lens-api.ondsel.com/"
 lensUrl = "https://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
 
@@ -2497,9 +2496,13 @@ class SharingLinkEditDialog(QtGui.QDialog):
         self.dialog.protectionComboBox.currentIndexChanged.connect(
             self.protection_changed
         )
+        self.dialog.versionFollowingComboBox.currentIndexChanged.connect(
+            self.version_following_changed
+        )
 
         if linkProperties is None:
             self.linkProperties = {
+                "isActive": True,
                 "title": "",
                 "description": "",
                 "protection": "Listed",
@@ -2521,6 +2524,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
             self.creationAction = False  # we are editing an existing share link
         if self.creationAction:
             self.setWindowTitle("Create ShareLink")
+            self.dialog.enabledCheckBox.setVisible(False)
         else:
             self.setWindowTitle("Edit ShareLink")
             # once created, you can NEVER change versionFollowing
@@ -2528,6 +2532,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
 
         self.setLinkProperties()
         self.protection_changed()  # do this to set initial PIN visibility
+        self.version_following_changed()
 
     def protection_changed(self):
         protectionIndex = self.dialog.protectionComboBox.currentIndex()
@@ -2543,6 +2548,23 @@ class SharingLinkEditDialog(QtGui.QDialog):
         else:
             self.dialog.pinLabel.setVisible(False)
             self.dialog.pinLineEdit.setVisible(False)
+
+    def version_following_changed(self):
+        vfIndex = self.dialog.versionFollowingComboBox.currentIndex()
+        if vfIndex == VERSION_FOLLOWING_COMBO_BOX_ACTIVE:
+            self.dialog.canExportFCStdCheckBox.setChecked(False)
+            self.dialog.canExportFCStdCheckBox.setEnabled(False)
+            self.dialog.canExportSTEPCheckBox.setChecked(False)
+            self.dialog.canExportSTEPCheckBox.setEnabled(False)
+            self.dialog.canExportSTLCheckBox.setChecked(False)
+            self.dialog.canExportSTLCheckBox.setEnabled(False)
+            self.dialog.canExportOBJCheckBox.setChecked(False)
+            self.dialog.canExportOBJCheckBox.setEnabled(False)
+        else:
+            self.dialog.canExportFCStdCheckBox.setEnabled(True)
+            self.dialog.canExportSTEPCheckBox.setEnabled(True)
+            self.dialog.canExportSTLCheckBox.setEnabled(True)
+            self.dialog.canExportOBJCheckBox.setEnabled(True)
 
     def setLinkProperties(self):
         self.dialog.linkTitle.setText(self.linkProperties["title"])
@@ -2582,6 +2604,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
         )
         self.dialog.canExportSTLCheckBox.setChecked(self.linkProperties["canExportSTL"])
         self.dialog.canExportOBJCheckBox.setChecked(self.linkProperties["canExportOBJ"])
+        self.dialog.enabledCheckBox.setChecked(self.linkProperties["isActive"])
 
     def getLinkProperties(self):
         self.linkProperties["title"] = self.dialog.linkTitle.text()
@@ -2622,6 +2645,9 @@ class SharingLinkEditDialog(QtGui.QDialog):
         )
         self.linkProperties["canDownloadDefaultModel"] = (
             self.dialog.canDownloadOriginalCheckBox.isChecked()
+        )
+        self.linkProperties["isActive"] = (
+            self.dialog.enabledCheckBox.isChecked()
         )
 
         return self.linkProperties
