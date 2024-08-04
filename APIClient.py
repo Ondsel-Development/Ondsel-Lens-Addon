@@ -439,8 +439,10 @@ class APIClient:
     @authRequired
     def createSharedModel(self, params):
         endpoint = "shared-models"
-
         headers = self._set_content_type()
+        if "pin" in params:
+            if params["pin"] == "":
+                del params["pin"]
         result = self._post(endpoint, headers, data=json.dumps(params))
         return result
 
@@ -452,12 +454,13 @@ class APIClient:
         return result
 
     @authRequired
-    def updateSharedModel(self, fileData):
-        endpoint = f"shared-models/{fileData['_id']}"
-
+    def updateSharedModel(self, sharedModelData):
+        endpoint = f"shared-models/{sharedModelData['_id']}"
+        if "pin" in sharedModelData:
+            if sharedModelData["pin"] == "":
+                del sharedModelData["pin"]
         headers = self._set_content_type()
-        result = self._update(endpoint, headers=headers, data=json.dumps(fileData))
-
+        result = self._update(endpoint, headers=headers, data=json.dumps(sharedModelData))
         return result
 
     @authRequired

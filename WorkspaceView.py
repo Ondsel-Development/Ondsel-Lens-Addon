@@ -2502,6 +2502,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
                 "title": "",
                 "description": "",
                 "protection": "Listed",
+                "pin": "",
                 "versionFollowing": "Locked",
                 "canViewModelAttributes": True,
                 "canUpdateModel": True,
@@ -2553,6 +2554,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
             )
         elif self.linkProperties["protection"] == "Pin":
             self.dialog.protectionComboBox.setCurrentIndex(PROTECTION_COMBO_BOX_PIN)
+        self.dialog.pinLineEdit.setText(self.linkProperties["pin"])
         if self.linkProperties["versionFollowing"] == "Locked":
             self.dialog.versionFollowingComboBox.setCurrentIndex(
                 VERSION_FOLLOWING_COMBO_BOX_LOCKED
@@ -2591,6 +2593,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
             self.linkProperties["protection"] = "Pin"
         else:
             self.linkProperties["protection"] = "Listed"  # the default
+        self.linkProperties["pin"] = self.dialog.pinLineEdit.text()
         versionFollowingIndex = self.dialog.versionFollowingComboBox.currentIndex()
         if versionFollowingIndex == VERSION_FOLLOWING_COMBO_BOX_ACTIVE:
             self.linkProperties["versionFollowing"] = "Active"
