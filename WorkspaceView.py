@@ -94,7 +94,8 @@ iconsPath = f"{modPath}/Resources/icons/"
 # Test server
 # baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
 # Prod server
-baseUrl = "https://lens-api.ondsel.com/"
+baseUrl = "http://127.0.0.1:3030/"
+# baseUrl = "https://lens-api.ondsel.com/"
 lensUrl = "https://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
 
@@ -2573,7 +2574,6 @@ class SharingLinkEditDialog(QtGui.QDialog):
         self.dialog.canDownloadOriginalCheckBox.setChecked(
             self.linkProperties["canDownloadDefaultModel"]
         )
-
         self.dialog.canExportFCStdCheckBox.setChecked(
             self.linkProperties["canExportFCStd"]
         )
@@ -2619,6 +2619,9 @@ class SharingLinkEditDialog(QtGui.QDialog):
         )
         self.linkProperties["canExportOBJ"] = (
             self.dialog.canExportOBJCheckBox.isChecked()
+        )
+        self.linkProperties["canDownloadDefaultModel"] = (
+            self.dialog.canDownloadOriginalCheckBox.isChecked()
         )
 
         return self.linkProperties

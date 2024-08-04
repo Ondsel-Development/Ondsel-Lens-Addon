@@ -96,7 +96,7 @@ class ShareLinkModel(QAbstractListModel):
                 "title": sm["title"],
                 "description": sm.get("description", ""),
                 "protection": sm["protection"],
-                "pin": sm.get("pin", ""),
+                "pin": "",
                 "versionFollowing": sm["versionFollowing"],
                 "canViewModel": sm["canViewModel"],
                 "canViewModelAttributes": sm["canViewModelAttributes"],
@@ -112,6 +112,11 @@ class ShareLinkModel(QAbstractListModel):
                 ),
                 "cloneModelId": sm.get("cloneModelId"),
             }
+            if link["protection"] == "Pin":
+                # a "find" never returns a PIN for security reasons, so
+                # make a singular query to get that detail.
+                fullSharedModel = self.apiClient.getSharedModel(sm["_id"])
+                link["pin"] = fullSharedModel.get("pin", "")
 
             self._add_link(link)
         self.endResetModel()
