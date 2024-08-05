@@ -36,7 +36,6 @@ from PySide.QtCore import QByteArray, Qt, QSize
 from PySide.QtWidgets import QTreeView
 from PySide2.QtUiTools import loadUiType
 import FreeCADGui as Gui
-from views.oflowlayout import OFlowLayout
 
 logger = Utils.getLogger(__name__)
 
@@ -114,56 +113,56 @@ class SearchResultItemEditor(QFrame):
         if not webbrowser.open(url):
             logger.warn(f"Failed to open {url} in the browser")
 
-class SearchResultWidget(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.scrollLayout = OFlowLayout(parent)
-        self.setLayout(self.scrollLayout)
-        self.children = []
+# class SearchResultWidget(QWidget):
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
+#         self.scrollLayout = OFlowLayout(parent)
+#         self.setLayout(self.scrollLayout)
+#         self.children = []
 
-    def load_search_results(self, resulting_curations):
-        for curation in resulting_curations:
-            item = SearchResultItemEditor(curation)
-            self.children.append(item)
-            self.scrollLayout.addWidget(self.children[-1])
+#     def load_search_results(self, resulting_curations):
+#         for curation in resulting_curations:
+#             item = SearchResultItemEditor(curation)
+#             self.children.append(item)
+#             self.scrollLayout.addWidget(self.children[-1])
 
-    def remove_all_results(self):
-        while self.scrollLayout.count():
-            item = self.scrollLayout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.deleteLater()
-            else:
-                self.clearLayout(item.layout())
-        self.children = []
+#     def remove_all_results(self):
+#         while self.scrollLayout.count():
+#             item = self.scrollLayout.takeAt(0)
+#             widget = item.widget()
+#             if widget is not None:
+#                 widget.deleteLater()
+#             else:
+#                 self.clearLayout(item.layout())
+#         self.children = []
 
 
-class SearchResultScrollArea(QListView):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.widget = QWidget()
-        self.vbox = QVBoxLayout()
-        self.resultWidget = SearchResultWidget(self)
-        self.vbox.addWidget(
-            self.resultWidget
-        )  # Yes, only one item: the resulting widget, which is flowing
-        self.widget.setLayout(self.vbox)
-        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setWidgetResizable(True)
-        self.setWidget(self.widget)
+# class SearchResultScrollArea(QListView):
+#     def __init__(self, parent=None):
+#         super().__init__(parent)
+#         self.widget = QWidget()
+#         self.vbox = QVBoxLayout()
+#         self.resultWidget = SearchResultWidget(self)
+#         self.vbox.addWidget(
+#             self.resultWidget
+#         )  # Yes, only one item: the resulting widget, which is flowing
+#         self.widget.setLayout(self.vbox)
+#         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+#         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+#         self.setWidgetResizable(True)
+#         self.setWidget(self.widget)
 
-    def load_search_results(self, resulting_curations):
-        self.vbox.removeWidget(self.resultWidget)
-        # yes, we are completedly relying on python's memory manager clean up all those SearchResultItems()
-        self.resultWidget.remove_all_results()
-        del self.resultWidget
-        self.resultWidget = SearchResultWidget()
-        self.resultWidget.load_search_results(resulting_curations)
-        self.vbox.addWidget(self.resultWidget)
+#     def load_search_results(self, resulting_curations):
+#         self.vbox.removeWidget(self.resultWidget)
+#         # yes, we are completedly relying on python's memory manager clean up all those SearchResultItems()
+#         self.resultWidget.remove_all_results()
+#         del self.resultWidget
+#         self.resultWidget = SearchResultWidget()
+#         self.resultWidget.load_search_results(resulting_curations)
+#         self.vbox.addWidget(self.resultWidget)
 
-    def sizeHint(self):
-        return QtCore.QSize(1200, 400)
+#     def sizeHint(self):
+#         return QtCore.QSize(1200, 400)
 
 
 def _get_pixmap_from_url(thumbnailUrl):

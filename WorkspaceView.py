@@ -59,8 +59,11 @@ from models.curation import (
 from delegates.curation import (
     CurationDelegate
 )
-from views.search import (
-    SearchResultScrollArea,
+# from views.search import (
+#     SearchResultScrollArea,
+# )
+from qflowview.qflowview import (
+    QFlowView
 )
 
 from PySide.QtGui import (
@@ -495,8 +498,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def initializeSearch(self):
         self.form.curationListModel = CurationListModel()
-        # self.form.searchResultScrollArea = SearchResultScrollArea()
-        self.form.searchResultScrollArea = QListView()
+        self.form.searchResultScrollArea = QFlowView()
         self.form.searchResultScrollArea.setItemDelegate(CurationDelegate())
         self.form.searchResultScrollArea.setModel(self.form.curationListModel)
         self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)

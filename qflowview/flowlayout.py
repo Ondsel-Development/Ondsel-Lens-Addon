@@ -4,10 +4,9 @@
 from PySide.QtCore import Qt, QSize, QRect, QPoint
 from PySide.QtGui import QLayout, QSizePolicy
 
-
-class OFlowLayout(QLayout):
+class FlowLayout(QLayout):
     def __init__(self, parent=None, margin=0, spacing=1):
-        super(OFlowLayout, self).__init__(parent)
+        super(FlowLayout, self).__init__(parent)
         if parent is not None:
             self.setContentsMargins(margin, margin, margin, margin)
         self.setSpacing(spacing)
@@ -45,7 +44,7 @@ class OFlowLayout(QLayout):
         return height
 
     def setGeometry(self, rect):
-        super(OFlowLayout, self).setGeometry(rect)
+        super(FlowLayout, self).setGeometry(rect)
         self.doLayout(rect, False)
 
     def sizeHint(self):
