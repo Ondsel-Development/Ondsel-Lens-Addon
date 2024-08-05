@@ -2646,9 +2646,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
         self.linkProperties["canDownloadDefaultModel"] = (
             self.dialog.canDownloadOriginalCheckBox.isChecked()
         )
-        self.linkProperties["isActive"] = (
-            self.dialog.enabledCheckBox.isChecked()
-        )
+        self.linkProperties["isActive"] = self.dialog.enabledCheckBox.isChecked()
 
         return self.linkProperties
 

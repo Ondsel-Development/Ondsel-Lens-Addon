@@ -107,9 +107,7 @@ class ShareLinkModel(QAbstractListModel):
                 "canExportOBJ": sm.get("canExportOBJ", canExport),
                 "isActive": sm.get("isActive", True),
                 "dummyModelId": sm.get("dummyModelId", None),
-                "canDownloadDefaultModel": sm.get(
-                    "canDownloadDefaultModel", canExport
-                ),
+                "canDownloadDefaultModel": sm.get("canDownloadDefaultModel", canExport),
                 "cloneModelId": sm.get("cloneModelId"),
             }
             if link["protection"] == "Pin":
