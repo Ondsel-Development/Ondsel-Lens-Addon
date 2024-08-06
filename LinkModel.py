@@ -12,7 +12,11 @@ class ShareLinkModel(QAbstractListModel):
     Manages a list of ShareLinks.  Links have the following attributes
     link = {
         "cloneModelId": "string",
+        "title": "string",
         "description": "string",
+        "protection": string(enum),
+        "pin": optional(string),
+        "versionFollowing": string(enum),
         "canViewModel": true,
         "canViewModelAttributes": false,
         "canUpdateModel": false,
@@ -46,7 +50,7 @@ class ShareLinkModel(QAbstractListModel):
         rowdata = self.links[index.row()]
 
         if role == Qt.DisplayRole:
-            return f"{rowdata['description']}"
+            return f"{rowdata['title']} ({rowdata['description']})"
         elif role == self.UrlRole:
             return rowdata["_id"]
         elif role == self.ActiveRole:
@@ -85,25 +89,34 @@ class ShareLinkModel(QAbstractListModel):
         params = {"cloneModelId": self.model_id}
         shared_models = self.apiClient.getSharedModels(params=params)
 
-        for model in shared_models:
-            canExport = model.get("canExportModel", True)
+        for sm in shared_models:
+            canExport = sm.get("canExportModel", True)
             link = {
-                "_id": model["_id"],
-                "description": model.get("description", ""),
-                "canViewModel": model["canViewModel"],
-                "canViewModelAttributes": model["canViewModelAttributes"],
-                "canUpdateModel": model["canUpdateModel"],
-                "canExportFCStd": model.get("canExportFCStd", canExport),
-                "canExportSTEP": model.get("canExportSTEP", canExport),
-                "canExportSTL": model.get("canExportSTL", canExport),
-                "canExportOBJ": model.get("canExportOBJ", canExport),
-                "isActive": model.get("isActive", True),
-                "dummyModelId": model.get("dummyModelId", None),
-                "canDownloadDefaultModel": model.get(
-                    "canDownloadDefaultModel", canExport
-                ),
-                "cloneModelId": model.get("cloneModelId"),
+                "_id": sm["_id"],
+                "isActive": sm["isActive"],
+                "title": sm["title"],
+                "description": sm.get("description", ""),
+                "protection": sm["protection"],
+                "versionFollowing": sm["versionFollowing"],
+                "canViewModel": sm["canViewModel"],
+                "canViewModelAttributes": sm["canViewModelAttributes"],
+                "canUpdateModel": sm["canUpdateModel"],
+                "canExportFCStd": sm.get("canExportFCStd", canExport),
+                "canExportSTEP": sm.get("canExportSTEP", canExport),
+                "canExportSTL": sm.get("canExportSTL", canExport),
+                "canExportOBJ": sm.get("canExportOBJ", canExport),
+                "isActive": sm.get("isActive", True),
+                "dummyModelId": sm.get("dummyModelId", None),
+                "canDownloadDefaultModel": sm.get("canDownloadDefaultModel", canExport),
+                "cloneModelId": sm.get("cloneModelId"),
             }
+            if link["protection"] == "Pin":
+                # a "find" never returns a PIN for security reasons, so
+                # make a singular query to get that detail.
+                fullSharedModel = self.apiClient.getSharedModel(sm["_id"])
+                link["pin"] = fullSharedModel.get("pin", "")
+            else:
+                link["pin"] = ""
 
             self._add_link(link)
         self.endResetModel()
