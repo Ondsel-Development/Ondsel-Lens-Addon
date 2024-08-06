@@ -593,8 +593,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             "",
             baseUrl,
             lensUrl,
-            self.get_source(),
-            self.get_version(),
+            Utils.get_source_api_request(),
+            Utils.get_version_source_api_request(),
             None,
             None,
         )
@@ -623,8 +623,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     "",
                     baseUrl,
                     lensUrl,
-                    self.get_source(),
-                    self.get_version(),
+                    Utils.get_source_api_request(),
+                    Utils.get_version_source_api_request(),
                     access_token,
                     user,
                 )
@@ -646,8 +646,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                         password,
                         baseUrl,
                         lensUrl,
-                        self.get_source(),
-                        self.get_version(),
+                        Utils.get_source_api_request(),
+                        Utils.get_version_source_api_request(),
                     )
                     self.set_ui_connectionStatus()
                     self.workspacesModel.set_api(self.api)
@@ -2138,102 +2138,16 @@ class WorkspaceView(QtWidgets.QScrollArea):
     #         #     workspaceUrl = dialog.externalServerEdit.text()
     #         # Update workspaceListWidget with new workspace
 
-    def get_server_package_file(self):
-        response = requests.get(remote_package_url, timeout=5)
-        if response.status_code == 200:
-            return response.text
-        return None
-
-    def get_local_package_file(self):
-        try:
-            with open(Utils.local_package_path, "r") as file_:
-                return file_.read()
-        except FileNotFoundError:
-            pass
-        return None
-
-    def get_version_from_package_file(self, packageFileStr):
-        if packageFileStr is None:
-            return None
-        lines = packageFileStr.split("\n")
-        for line in lines:
-            if "<version>" in line:
-                version = line.strip().lstrip("<version>").rstrip("</version>")
-                return version
-
-    def get_latest_version_ondsel_es(self):
-        # raises a ReqestException
-        response = requests.get(
-            "https://api.github.com/repos/Ondsel-Development/FreeCAD/releases/latest"
-        )
-
-        if response.status_code == requests.codes.ok:
-            json = response.json()
-            return json.get("tag_name")
-
-        return None
-
-    def get_freecad_version_number(self):
-        version = FreeCAD.Version()
-        return f"{version[0]}.{version[1]}.{version[2]}"
-
-    def get_current_version_number_ondsel_es(self):
-        if self.get_source() == "ondseles":
-            return self.get_freecad_version_number()
-
-        return None
-
-    def get_current_version_freecad(self):
-        version = FreeCAD.Version()
-
-        return ", ".join([self.get_freecad_version_number()] + version[3:])
-
-    def get_source(self):
-        vendor = FreeCAD.ConfigGet("ExeVendor")
-        if vendor == "Ondsel":
-            return "ondseles"
-        elif vendor == "FreeCAD":
-            return "freecad"
-        else:
-            return "unknown"
-
-    def get_version(self):
-        return (
-            self.get_current_version_freecad() + ", addon: " + Utils.get_addon_version()
-        )
-
     def openDownloadPage(self):
         url = f"{self.api.get_base_url()}download-and-explore"
         self.open_url(url)
 
-    def toVersionNumber(self, version):
-        return [int(n) for n in version.split(".")]
-
-    def version_greater_than(self, latestVersion, currentVersion):
-        latestV = self.toVersionNumber(latestVersion)
-        currentV = self.toVersionNumber(currentVersion)
-        if len(latestV) != len(currentV):
-            return False  # don't report
-
-        for i in range(len(latestV)):
-            if latestV[i] > currentV[i]:
-                return True
-            elif latestV[i] < currentV[i]:
-                return False
-            else:
-                # these version numbers are the same, so look at the next
-                # version number
-                pass
-
-        # All are the same
-        return False
-
     def check_for_update_ondsel_es(self):
         # raises a RequestException
-        currentVersion = self.get_current_version_number_ondsel_es()
+        currentVersion = Utils.get_current_version_number_ondsel_es()
         if currentVersion:
-            latestVersion = self.get_latest_version_ondsel_es()
-            if latestVersion and self.version_greater_than(
+            latestVersion = Utils.get_latest_version_ondsel_es()
+            if latestVersion and Utils.version_greater_than(
                 latestVersion, currentVersion
             ):
                 self.set_frame_update("Ondsel ES", latestVersion, self.openDownloadPage)
@@ -2246,11 +2160,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def check_for_update(self):
         # raises a RequestException
-        local_version = self.get_version_from_package_file(
-            self.get_local_package_file()
+        local_version = Utils.get_version_from_package_file(
+            Utils.get_local_package_file()
         )
-        remote_version = self.get_version_from_package_file(
-            self.get_server_package_file()
+        remote_version = Utils.get_version_from_package_file(
+            Utils.get_server_package_file()
         )
 
         if local_version and remote_version and local_version != remote_version:
