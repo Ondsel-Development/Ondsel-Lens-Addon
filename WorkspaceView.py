@@ -98,8 +98,7 @@ p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 # Test server
 # baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
 # Prod server
-# baseUrl = "https://lens-api.ondsel.com/"
-baseUrl = "http://127.0.0.1:3030/"
+baseUrl = "https://lens-api.ondsel.com/"
 lensUrl = "https://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
 
