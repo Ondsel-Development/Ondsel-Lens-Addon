@@ -3,6 +3,7 @@ import sys
 
 import platform
 
+import FreeCAD
 import FreeCADGui as Gui
 
 import Utils
@@ -111,7 +112,23 @@ def get_path_macro():
     return Utils.joinPath(Utils.get_dir_mod(), "lens_handler.FCMacro")
 
 
+def is_version_supported():
+    vendor = FreeCAD.ConfigGet("ExeVendor")
+    version_number = Utils.get_current_version_number_ondsel_es()
+    revision = Utils.get_current_revision_freecad()
+
+    return (
+        vendor == "Ondsel"
+        and Utils.version_greater_than(version_number, "2024.2.2")
+        and revision >= 38430
+    )
+
+
 def register_lens_handler():
+    if not is_version_supported():
+        return
+
+    logger.debug("Registering URL handlers")
     name_os = platform.system()
     if name_os == "Linux":
         path_executable = get_path_appimage() if is_app_image() else sys.argv[0]
