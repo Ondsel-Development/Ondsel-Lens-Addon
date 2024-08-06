@@ -12,6 +12,7 @@ import logging
 import zipfile
 import shutil
 from urllib.parse import urlparse
+import requests
 
 from PySide.QtGui import QPixmap
 from PySide.QtCore import Qt
@@ -173,6 +174,16 @@ def get_dir_mod():
     return os.path.dirname(os.path.abspath(__file__))
 
 
+# ========================
+# Versions
+# ========================
+
+REMOTE_PACKAGE_URL = (
+    "https://raw.githubusercontent.com/Ondsel-Development/"
+    "Ondsel-Lens/master/package.xml"
+)
+
+
 def get_addon_version():
     current_dir = get_dir_mod()
     package_xml_file = "package.xml"
@@ -182,3 +193,98 @@ def get_addon_version():
         package_xml_content = file.read()
 
     return re.search(r"<version>(.*?)<\/version>", package_xml_content).group(1)
+
+
+def get_server_package_file():
+    response = requests.get(REMOTE_PACKAGE_URL, timeout=5)
+    if response.status_code == 200:
+        return response.text
+    return None
+
+
+def get_local_package_file():
+    try:
+        with open(local_package_path, "r") as file_:
+            return file_.read()
+    except FileNotFoundError:
+        pass
+    return None
+
+
+def get_version_from_package_file(packageFileStr):
+    if packageFileStr is None:
+        return None
+    lines = packageFileStr.split("\n")
+    for line in lines:
+        if "<version>" in line:
+            version = line.strip().lstrip("<version>").rstrip("</version>")
+            return version
+
+
+def get_latest_version_ondsel_es():
+    # raises a RequestException
+    response = requests.get(
+        "https://api.github.com/repos/Ondsel-Development/FreeCAD/releases/latest"
+    )
+
+    if response.status_code == requests.codes.ok:
+        json = response.json()
+        return json.get("tag_name")
+
+    return None
+
+
+def get_freecad_version_number():
+    version = FreeCAD.Version()
+    return f"{version[0]}.{version[1]}.{version[2]}"
+
+
+def get_current_version_number_ondsel_es():
+    if get_source_api_request() == "ondseles":
+        return get_freecad_version_number()
+
+    return None
+
+
+def get_current_version_freecad():
+    version = FreeCAD.Version()
+
+    return ", ".join([get_freecad_version_number()] + version[3:])
+
+
+def get_source_api_request():
+    vendor = FreeCAD.ConfigGet("ExeVendor")
+    if vendor == "Ondsel":
+        return "ondseles"
+    elif vendor == "FreeCAD":
+        return "freecad"
+    else:
+        return "unknown"
+
+
+def get_version_source_api_request():
+    return get_current_version_freecad() + ", addon: " + get_addon_version()
+
+
+def to_version_number(version):
+    return [int(n) for n in version.split(".")]
+
+
+def version_greater_than(latestVersion, currentVersion):
+    latestV = to_version_number(latestVersion)
+    currentV = to_version_number(currentVersion)
+    if len(latestV) != len(currentV):
+        return False  # don't report
+
+    for i in range(len(latestV)):
+        if latestV[i] > currentV[i]:
+            return True
+        elif latestV[i] < currentV[i]:
+            return False
+        else:
+            # these version numbers are the same, so look at the next
+            # version number
+            pass
+
+    # All are the same
+    return False
