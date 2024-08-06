@@ -270,6 +270,10 @@ def to_version_number(version):
     return [int(n) for n in version.split(".")]
 
 
+def get_current_revision_freecad():
+    return int(FreeCAD.Version()[3][:5])
+
+
 def version_greater_than(latestVersion, currentVersion):
     latestV = to_version_number(latestVersion)
     currentV = to_version_number(currentVersion)
