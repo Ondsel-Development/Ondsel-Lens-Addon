@@ -2545,6 +2545,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
         )
         self.dialog.canExportSTLCheckBox.setChecked(self.linkProperties["canExportSTL"])
         self.dialog.canExportOBJCheckBox.setChecked(self.linkProperties["canExportOBJ"])
+        self.dialog.enabledCheckBox.setChecked(self.linkProperties["isActive"])
 
     def getLinkProperties(self):
         self.linkProperties["title"] = self.dialog.linkTitle.text()
