@@ -94,7 +94,7 @@ class ShareLinkModel(QAbstractListModel):
             canExport = sm.get("canExportModel", True)
             link = {
                 "_id": sm["_id"],
-                "isActive": sm["isActive"],
+                "isActive": sm.get("isActive", True),
                 "isSystemGenerated": sm.get("isSystemGenerated", False),
                 "title": sm["title"],
                 "description": sm.get("description", ""),
@@ -107,7 +107,6 @@ class ShareLinkModel(QAbstractListModel):
                 "canExportSTEP": sm.get("canExportSTEP", canExport),
                 "canExportSTL": sm.get("canExportSTL", canExport),
                 "canExportOBJ": sm.get("canExportOBJ", canExport),
-                "isActive": sm.get("isActive", True),
                 "dummyModelId": sm.get("dummyModelId", None),
                 "canDownloadDefaultModel": sm.get("canDownloadDefaultModel", canExport),
                 "cloneModelId": sm.get("cloneModelId"),
