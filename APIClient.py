@@ -509,7 +509,7 @@ class APIClient:
             if sharedModelData["dummyModelId"] is None:
                 del sharedModelData["dummyModelId"]
         if "isSystemGenerated" in sharedModelData:
-            if sharedModelData["isSystemGenerated"] == True:
+            if sharedModelData["isSystemGenerated"]:
                 del sharedModelData["isActive"]
             del sharedModelData["isSystemGenerated"]
 

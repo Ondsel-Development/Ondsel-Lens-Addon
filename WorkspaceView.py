@@ -2463,7 +2463,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
             self.dialog.enabledCheckBox.setVisible(False)
         else:
             self.setWindowTitle("Edit ShareLink")
-        if self.linkProperties["isSystemGenerated"] == True:
+        if self.linkProperties["isSystemGenerated"]:
             # cannot enable/disable a sys generated link
             self.dialog.enabledCheckBox.setEnabled(False)
             # once created, you can NEVER change versionFollowing
