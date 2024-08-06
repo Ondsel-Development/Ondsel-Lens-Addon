@@ -98,7 +98,8 @@ p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 # Test server
 # baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
 # Prod server
-baseUrl = "https://lens-api.ondsel.com/"
+# baseUrl = "https://lens-api.ondsel.com/"
+baseUrl = "http://127.0.0.1:3030/"
 lensUrl = "https://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
 
@@ -2437,6 +2438,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
         if linkProperties is None:
             self.linkProperties = {
                 "isActive": True,
+                "isSystemGenerated": False,
                 "title": "",
                 "description": "",
                 "protection": "Listed",
@@ -2450,7 +2452,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
                 "canExportOBJ": True,
                 "isActive": True,
                 "canViewModel": True,
-                "canDownloadDefaultModel": True,
+                "canDownloadDefaultModel": True
             }
             self.creationAction = True  # we are creating a new share link
         else:
@@ -2462,11 +2464,15 @@ class SharingLinkEditDialog(QtGui.QDialog):
             self.dialog.enabledCheckBox.setVisible(False)
         else:
             self.setWindowTitle("Edit ShareLink")
+        if self.linkProperties["isSystemGenerated"] == True:
+            # cannot enable/disable a sys generated link
+            self.dialog.enabledCheckBox.setEnabled(False)
             # once created, you can NEVER change versionFollowing
             self.dialog.versionFollowingComboBox.setEnabled(False)
         self.setLinkProperties()
         self.protection_changed()  # do this to set initial PIN edit visibility
         self.version_following_changed()
+
 
     def protection_changed(self):
         protectionIndex = self.dialog.protectionComboBox.currentIndex()
@@ -2494,11 +2500,14 @@ class SharingLinkEditDialog(QtGui.QDialog):
             self.dialog.canExportSTLCheckBox.setEnabled(False)
             self.dialog.canExportOBJCheckBox.setChecked(False)
             self.dialog.canExportOBJCheckBox.setEnabled(False)
+            self.dialog.canUpdateModelAttributesCheckBox.setChecked(False)
+            self.dialog.canUpdateModelAttributesCheckBox.setEnabled(False)
         else:
             self.dialog.canExportFCStdCheckBox.setEnabled(True)
             self.dialog.canExportSTEPCheckBox.setEnabled(True)
             self.dialog.canExportSTLCheckBox.setEnabled(True)
             self.dialog.canExportOBJCheckBox.setEnabled(True)
+            self.dialog.canUpdateModelAttributesCheckBox.setEnabled(True)
 
     def setLinkProperties(self):
         self.dialog.linkTitle.setText(self.linkProperties["title"])
