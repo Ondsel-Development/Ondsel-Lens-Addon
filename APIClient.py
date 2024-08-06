@@ -508,6 +508,10 @@ class APIClient:
         if "dummyModelId" in sharedModelData:
             if sharedModelData["dummyModelId"] is None:
                 del sharedModelData["dummyModelId"]
+        if "isSystemGenerated" in sharedModelData:
+            if sharedModelData["isSystemGenerated"] == True:
+                del sharedModelData["isActive"]
+            del sharedModelData["isSystemGenerated"]
 
         headers = self._set_content_type()
         result = self._update(
