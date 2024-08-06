@@ -94,7 +94,7 @@ class ShareLinkModel(QAbstractListModel):
             canExport = sm.get("canExportModel", True)
             link = {
                 "_id": sm["_id"],
-                "isActive": sm.get("isActive", True),
+                "isActive": sm["isActive"],
                 "isSystemGenerated": sm.get("isSystemGenerated", False),
                 "title": sm["title"],
                 "description": sm.get("description", ""),
