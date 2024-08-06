@@ -2452,7 +2452,7 @@ class SharingLinkEditDialog(QtGui.QDialog):
                 "canExportOBJ": True,
                 "isActive": True,
                 "canViewModel": True,
-                "canDownloadDefaultModel": True
+                "canDownloadDefaultModel": True,
             }
             self.creationAction = True  # we are creating a new share link
         else:
@@ -2472,7 +2472,6 @@ class SharingLinkEditDialog(QtGui.QDialog):
         self.setLinkProperties()
         self.protection_changed()  # do this to set initial PIN edit visibility
         self.version_following_changed()
-
 
     def protection_changed(self):
         protectionIndex = self.dialog.protectionComboBox.currentIndex()
