@@ -2463,11 +2463,11 @@ class SharingLinkEditDialog(QtGui.QDialog):
             self.dialog.enabledCheckBox.setVisible(False)
         else:
             self.setWindowTitle("Edit ShareLink")
+            # once created, you can NEVER change versionFollowing
+            self.dialog.versionFollowingComboBox.setEnabled(False)
         if self.linkProperties["isSystemGenerated"]:
             # cannot enable/disable a sys generated link
             self.dialog.enabledCheckBox.setEnabled(False)
-            # once created, you can NEVER change versionFollowing
-            self.dialog.versionFollowingComboBox.setEnabled(False)
         self.setLinkProperties()
         self.protection_changed()  # do this to set initial PIN edit visibility
         self.version_following_changed()
@@ -2553,11 +2553,13 @@ class SharingLinkEditDialog(QtGui.QDialog):
         protectionIndex = self.dialog.protectionComboBox.currentIndex()
         if protectionIndex == PROTECTION_COMBO_BOX_UNLISTED:
             self.linkProperties["protection"] = "Unlisted"
+            self.linkProperties["pin"] = ""
         elif protectionIndex == PROTECTION_COMBO_BOX_PIN:
             self.linkProperties["protection"] = "Pin"
+            self.linkProperties["pin"] = self.dialog.pinLineEdit.text()
         else:
             self.linkProperties["protection"] = "Listed"  # the default
-        self.linkProperties["pin"] = self.dialog.pinLineEdit.text()
+            self.linkProperties["pin"] = ""
         versionFollowingIndex = self.dialog.versionFollowingComboBox.currentIndex()
         if versionFollowingIndex == VERSION_FOLLOWING_COMBO_BOX_ACTIVE:
             self.linkProperties["versionFollowing"] = "Active"
