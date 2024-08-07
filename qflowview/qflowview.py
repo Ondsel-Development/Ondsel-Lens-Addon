@@ -80,8 +80,8 @@ class QFlowView(QScrollArea):
     margin=n and spacing=n parameters on creation.
     """
 
-    def __init__(self, parent=None, margin=0, spacing=1):
-        super(QFlowView, self).__init__(parent, margin, spacing)
+    def __init__(self, parent=None):
+        super(QFlowView, self).__init__(parent)
         self.fv_delegate_class = None
         self.fv_model = None
         self.widget = None
