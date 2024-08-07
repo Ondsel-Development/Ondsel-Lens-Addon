@@ -2463,8 +2463,9 @@ class SharingLinkEditDialog(QtGui.QDialog):
             self.dialog.enabledCheckBox.setVisible(False)
         else:
             self.setWindowTitle("Edit ShareLink")
-            # once created, you can NEVER change versionFollowing
+            # once created, you can NEVER change versionFollowing or protection
             self.dialog.versionFollowingComboBox.setEnabled(False)
+            self.dialog.protectionComboBox.setEnabled(False)
         if self.linkProperties["isSystemGenerated"]:
             # cannot enable/disable a sys generated link
             self.dialog.enabledCheckBox.setEnabled(False)
