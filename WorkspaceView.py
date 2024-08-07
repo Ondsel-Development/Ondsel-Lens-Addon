@@ -47,6 +47,7 @@ from APIClient import (
     APIClientException,
     APIClientAuthenticationException,
     APIClientConnectionError,
+    APIClientTierException,
     APIClientRequestException,
     ConnStatus,
     API_Call_Result,
@@ -929,6 +930,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             logger.warn(e)
             logger.warn("Logging out")
             self.logout()
+        except APIClientTierException as e:
+            self.show_tier_dialog(str(e))
         except APIClientException as e:
             logger.error("Uncaught exception:")
             logger.error(e)
@@ -936,6 +939,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
             self.logout()
         self.set_ui_connectionStatus()
         return True
+
+    def show_tier_dialog(self, message):
+        dialog = QMessageBox()
+        dialog.setWindowTitle("Please upgrade your tier")
+        dialog.setTextFormat(QtCore.Qt.RichText)
+        dialog.setText(f"{message} Please upgrade your tier:")
+        dialog.setInformativeText(
+            "<a href='https://ondsel.com/pricing'>Ondsel Pricing</a>"
+        )
+        dialog.setStandardButtons(QMessageBox.Ok)
+
+        dialog.exec()
 
     def tryOpenPathFile(self, pathFile):
         if Utils.isOpenableByFreeCAD(pathFile):
