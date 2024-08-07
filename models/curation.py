@@ -65,6 +65,9 @@ class Curation:
 
 
 class CurationListModel(QAbstractListModel):
+
+    CurationRole = Qt.UserRole + 1
+
     def __init__(self, *args, curations=None, **kwargs):
         super(CurationListModel, self).__init__(*args, **kwargs)
         self.curation_list = curations or []
@@ -72,6 +75,8 @@ class CurationListModel(QAbstractListModel):
     def data(self, index, role):
         if role == Qt.DisplayRole:
             return self.curation_list[index.row()].name
+        elif role == self.CurationRole:
+            return self.curation_list[index.row()]
 
     def rowCount(self, index):
         return len(self.curation_list)

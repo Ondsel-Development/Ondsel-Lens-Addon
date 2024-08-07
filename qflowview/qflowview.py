@@ -2,19 +2,24 @@
 # https://github.com/baoboa/pyqt5/blob/master/examples/layouts/flowlayout.py
 
 from PySide.QtCore import Qt, QSize, QRect, QPoint, QAbstractListModel
-from PySide.QtGui import QScrollArea, QSizePolicy
+from PySide.QtGui import QScrollArea, QSizePolicy, QWidget, QVBoxLayout
+
+from qflowview.flowlayout import FlowLayout
 
 class _QFlowViewFace(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent):
         super().__init__(parent)
         self.parent = parent
-        self.scrollLayout = OFlowLayout(parent)
+        self.scrollLayout = FlowLayout(parent)
         self.setLayout(self.scrollLayout)
         self.children = []
 
-    def load_results(self, item_list):
-        for item in item_list:
-            new_delegate = parent.fv_delegate(item)
+    def load_results(self):
+        item_list_model = self.parent.fv_model
+        count = item_list_model.rowCount(0) # see documentation for QFlowView
+        for indexInt in range(0, count):
+            index = item_list_model.createIndex(indexInt, 0)
+            new_delegate = self.parent.fv_delegate_class(index)
             self.children.append(new_delegate)
             self.scrollLayout.addWidget(self.children[-1])
 
@@ -30,15 +35,54 @@ class _QFlowViewFace(QWidget):
 
 
 class QFlowView(QScrollArea):
+    '''
+        QFlowView is a Model-View-Delegate-style View class. However, it expands
+        to be as wide as possible and place a toolbar on the right. Items are
+        added horizontally from left to right. After one row is full, the next
+        item is added to the next row. The items need not be of the same size.
+
+        It has the benefit of behaving like the QTreeView/QListView/QTableView
+        built-in classes in regards to data handling. It does not, however, use
+        the high-speed C-level paint caching invoked by those three classes. So
+        don't expect it to be crazy fast like QTreeView.
+
+        The model in `setModel` is expected to inherit from QAbstractListModel
+        The data in this model should all be in "column 0" and provide a
+        `rowCount(0)` answer. It also needs a `data` response with any or
+        all roles desired.
+
+        The delegate in `setItemDelegate` MUST be set before anything displays.
+        Rather than a `QStyledItemDelegate` with a c-centric "paint" method, 
+        use ANY type of viewable widget and support passing a `index` of type
+        `QModelIndex` on initialization.
+
+        So, for example, if:
+
+            liveModel = MyFancyListModel()
+            myArea = QFlowView()
+            myArea.setItemDelegate(MyFancyDelegateWidget) # not an instance
+            myArea.setModel(liveModel)
+
+        then QFlowArea will create entry:
+
+            MyFancyDelegateWidget(index)
+
+        The "roles" are independent of QFlowView. Only the model and delegate
+        need to match up.
+
+        Because QFlowView is a superset of QScrollArea, you can also pass
+        margin=n and spacing=n parameters on creation.
+    '''
+
     def __init__(self, parent=None, margin=0, spacing=1):
         super(QFlowView, self).__init__(parent)
-        self.fv_delegate = None
+        self.fv_delegate_class = None
         self.fv_model = None
         self.widget = None
 
     def _consider_setup(self):
         if self.widget is None:
-            if self.fv_delegate is not None:
+            if self.fv_delegate_class is not None:
                 if self.fv_model is not None:
                     self._live_setup()
 
@@ -56,31 +100,27 @@ class QFlowView(QScrollArea):
         self.setWidgetResizable(True)
         self.setWidget(self.widget)
 
-    def setItemDelegate(self, delegate):
-        self.fv_delegate = delegate
-        _consider_setup()
+    def setItemDelegate(self, delegate_class):
+        self.fv_delegate_class = delegate_class
+        self._consider_setup()
 
     def setModel(self, model: QAbstractListModel):
         self.fv_model = model
         self.fv_model.layoutChanged.connect(self.onLayoutChange)
-        _consider_setup()
+        self._consider_setup()
 
     def onLayoutChange(self):
         if self.widget is not None:
-            print("layout change!")
             self.resultWidget
-
-            da_list = [] # TODO using fv_model
-
             self.vbox.removeWidget(self.resultWidget)
             # yes, we are completedly relying on python's memory manager clean up all those SearchResultItems()
             self.resultWidget.remove_all_results()
             del self.resultWidget
             self.resultWidget = _QFlowViewFace(self) # note: just added self in param
-            self.resultWidget.load_results(da_list)
+            self.resultWidget.load_results()
             self.vbox.addWidget(self.resultWidget)
         else:
             print("QFlowView class not fully setup. Is delegate or model not set yet?")
 
     def sizeHint(self):
-        return QtCore.QSize(1200, 400)
+        return QSize(1200, 400)
