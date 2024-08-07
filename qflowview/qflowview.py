@@ -6,6 +6,8 @@ from PySide.QtGui import QScrollArea, QSizePolicy, QWidget, QVBoxLayout
 
 from qflowview.flowlayout import FlowLayout
 
+from inspect import isclass
+
 
 class _QFlowViewFace(QWidget):
     def __init__(self, parent):
@@ -53,15 +55,18 @@ class QFlowView(QScrollArea):
     all roles desired.
 
     The delegate in `setItemDelegate` MUST be set before anything displays.
-    Rather than a `QStyledItemDelegate` with a c-centric "paint" method,
-    use ANY type of viewable widget and support passing a `index` of type
-    `QModelIndex` on initialization.
+    The parameter to `setItemDelegate` can either be the class or an instance
+    of the class. If an instance, only the class is stored and the instance
+    discarded. The delegate class, rather than be a `QStyledItemDelegate` with
+    a c-centric "paint" method, you can inherit from ANY type of viewable
+    widget and support passing a `index` of type `QModelIndex` on
+    initialization.
 
     So, for example, if:
 
         liveModel = MyFancyListModel()
         myArea = QFlowView()
-        myArea.setItemDelegate(MyFancyDelegateWidget) # not an instance
+        myArea.setItemDelegate(MyFancyDelegateWidget)
         myArea.setModel(liveModel)
 
     then QFlowArea will create entry:
@@ -102,7 +107,10 @@ class QFlowView(QScrollArea):
         self.setWidget(self.widget)
 
     def setItemDelegate(self, delegate_class):
-        self.fv_delegate_class = delegate_class
+        if isclass(delegate_class):
+            self.fv_delegate_class = delegate_class
+        else:
+            self.fv_delegate_class = delegate_class.__class__
         self._consider_setup()
 
     def setModel(self, model: QAbstractListModel):

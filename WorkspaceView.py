@@ -494,7 +494,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def initializeSearch(self):
         self.form.curationListModel = CurationListModel()
         self.form.searchResultScrollArea = QFlowView()
-        self.form.searchResultScrollArea.setItemDelegate(SearchResultItemView)
+        self.form.searchResultScrollArea.setItemDelegate(SearchResultItemView())
         self.form.searchResultScrollArea.setModel(self.form.curationListModel)
         self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
         self.form.searchBtn.clicked.connect(self.perform_search)
