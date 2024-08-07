@@ -53,18 +53,13 @@ from Workspace import (
     ServerWorkspaceModel,
     FileStatus,
 )
-from models.curation import (
-    CurationListModel
-)
-from delegates.search import (
-    SearchResultItemView
-)
+from models.curation import CurationListModel
+from delegates.search import SearchResultItemView
+
 # from views.search import (
 #     SearchResultScrollArea,
 # )
-from qflowview.qflowview import (
-    QFlowView
-)
+from qflowview.qflowview import QFlowView
 
 from PySide.QtGui import (
     QStyledItemDelegate,

@@ -80,4 +80,3 @@ class CurationListModel(QAbstractListModel):
 
     def rowCount(self, index):
         return len(self.curation_list)
-

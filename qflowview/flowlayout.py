@@ -4,6 +4,7 @@
 from PySide.QtCore import Qt, QSize, QRect, QPoint
 from PySide.QtGui import QLayout, QSizePolicy
 
+
 class FlowLayout(QLayout):
     def __init__(self, parent=None, margin=0, spacing=1):
         super(FlowLayout, self).__init__(parent)

@@ -41,8 +41,10 @@ from models.curation import CurationListModel
 
 logger = Utils.getLogger(__name__)
 
+
 class SearchResultItemView(QFrame):
-    ''' delegate for search results '''
+    """delegate for search results"""
+
     def __init__(self, index):
         super().__init__()
 
@@ -86,6 +88,7 @@ class SearchResultItemView(QFrame):
         logger.info(f"open {url}")
         if not webbrowser.open(url):
             logger.warn(f"Failed to open {url} in the browser")
+
 
 def _get_pixmap_from_url(thumbnailUrl):
     try:
