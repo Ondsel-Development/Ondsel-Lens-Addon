@@ -12,6 +12,7 @@ import os
 import shutil
 import uuid
 import requests
+import APIClient
 
 from enum import Enum, auto
 
@@ -20,6 +21,8 @@ from inspect import cleandoc
 from DataModels import CACHE_PATH
 
 from VersionModel import VersionModel
+
+import check_links
 
 logger = Utils.getLogger(__name__)
 
@@ -638,11 +641,20 @@ class ServerWorkspaceModel(WorkspaceModel):
 
         # raises APIClientException
 
+        file_path = Utils.joinPath(self.getFullPath(), fileName)
+        if (
+            check_links.find_paths_links_file(file_path)
+            and self.apiClient.is_user_solo()
+        ):
+            raise APIClient.APIClientTierException(
+                "This document contains links to parts in another document. Only "
+                "single-document files are supported in your current lens account. "
+            )
+
         logger.info(f"Uploading file {fileName}")
         base, extension = os.path.splitext(fileName)
         uniqueName = f"{str(uuid.uuid4())}.fcstd"  # TODO replace .fcstd by {extension}
 
-        file_path = Utils.joinPath(self.getFullPath(), fileName)
         fileUpdateDate = Utils.getFileUpdatedAt(file_path)
 
         self.apiClient.uploadFileToServer(uniqueName, file_path)

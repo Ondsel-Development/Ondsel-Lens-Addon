@@ -55,6 +55,10 @@ class APIClientOfflineException(APIClientException):
     pass
 
 
+class APIClientTierException(APIClientException):
+    pass
+
+
 class ConnStatus(Enum):
     LOGGED_OUT = 1  # no connection, user logged out
     CONNECTED = 2  # connection, user logged in
@@ -351,6 +355,10 @@ class APIClient:
     @authRequired
     def get_user(self):
         return self.user
+
+    @authRequired
+    def is_user_solo(self):
+        return self.user["tier"] == "Solo"
 
     # @authRequired
     # def logout(self):
