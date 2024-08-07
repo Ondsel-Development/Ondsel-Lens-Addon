@@ -53,13 +53,8 @@ from Workspace import (
     ServerWorkspaceModel,
     FileStatus,
 )
-from models.curation import CurationListModel
-from delegates.search import SearchResultItemView
 
-# from views.search import (
-#     SearchResultScrollArea,
-# )
-from qflowview.qflowview import QFlowView
+from views.search_results_view import SearchResultsView
 
 from PySide.QtGui import (
     QStyledItemDelegate,
@@ -432,7 +427,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.txtExplain.hide()
 
         self.initializeBookmarks()
-        self.initializeSearch()
+
+        # initialize search
+        self.form.searchResultScrollArea = SearchResultsView(self)
+        self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
+
         self.initializeUpdateLens()
 
         self.try_login()
@@ -472,33 +471,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
         bookmarkView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
-
-    def perform_search(self):
-        QApplication.setOverrideCursor(
-            QtGui.QCursor(QtCore.Qt.WaitCursor)
-        )  # sets the hourglass, etc.
-        searchTargetIndex = self.form.searchTargetComboBox.currentIndex()
-        searchTarget = [
-            None,  # All
-            "shared-models",  # Share Links
-            "workspaces",  # Workspaces
-            "users",  # Users
-            "organizations",  # Organizations
-        ][searchTargetIndex]
-        searchText = self.form.searchLineEdit.text()
-        resulting_curations = self.api.get_search_results(searchText, searchTarget)
-        self.form.curationListModel.curation_list = resulting_curations
-        self.form.curationListModel.layoutChanged.emit()
-        QApplication.restoreOverrideCursor()
-
-    def initializeSearch(self):
-        self.form.curationListModel = CurationListModel()
-        self.form.searchResultScrollArea = QFlowView()
-        self.form.searchResultScrollArea.setItemDelegate(SearchResultItemView())
-        self.form.searchResultScrollArea.setModel(self.form.curationListModel)
-        self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
-        self.form.searchBtn.clicked.connect(self.perform_search)
-        self.form.searchLineEdit.returnPressed.connect(self.perform_search)
 
     def initializeUpdateLens(self):
         self.form.frameUpdate.hide()

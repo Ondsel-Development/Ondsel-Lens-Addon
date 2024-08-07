@@ -42,13 +42,13 @@ from models.curation import CurationListModel
 logger = Utils.getLogger(__name__)
 
 
-class SearchResultItemView(QFrame):
+class SearchResultDelegate(QFrame):
     """delegate for search results"""
 
     def __init__(self, index=None):
         super().__init__()
         if index is None:
-            return # if none, this is a dummy object
+            return  # if none, this is a dummy object
 
         curation = index.data(CurationListModel.CurationRole)
         self.curation = curation

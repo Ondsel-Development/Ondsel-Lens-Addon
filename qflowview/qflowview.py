@@ -81,7 +81,7 @@ class QFlowView(QScrollArea):
     """
 
     def __init__(self, parent=None, margin=0, spacing=1):
-        super(QFlowView, self).__init__(parent)
+        super(QFlowView, self).__init__(parent, margin, spacing)
         self.fv_delegate_class = None
         self.fv_model = None
         self.widget = None
