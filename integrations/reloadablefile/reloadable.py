@@ -22,9 +22,24 @@
 
 import os
 import datetime
+
+import requests
+import tempfile
+
 import Utils
 
 from PySide import QtCore, QtGui
+from PySide.QtWidgets import (
+    QLineEdit,
+    QVBoxLayout,
+    QLabel,
+    QDialog,
+    QFileDialog,
+    QDialogButtonBox,
+    QPushButton,
+    QGridLayout,
+    QApplication,
+)
 
 import FreeCAD as App
 import FreeCADGui as Gui
@@ -35,6 +50,7 @@ logger = Utils.getLogger(__name__)
 
 NAME_COMMAND = "OndselLens_AddReloadableObject"
 PROP_FILEPATH = "FilePath"
+PROP_URL = "Url"
 PROP_IMPORT_TIME = "ImportDateTime"
 
 
@@ -51,15 +67,26 @@ class ReloadableObject:
         ).FilePath = ""
 
         obj.addProperty(
+            "App::PropertyString", PROP_URL, self.group, "URL to a file"
+        ).Url = ""
+
+        obj.addProperty(
             "App::PropertyString",
             PROP_IMPORT_TIME,
             self.group,
             "The time when object was imported",
         )
-        obj.setEditorMode(
-            PROP_IMPORT_TIME,
-            App.PropertyType.Prop_Hidden | App.PropertyType.Prop_ReadOnly,
-        )
+
+        # obj.addProperty(
+        #     "App::PropertyString", PROP_ETAG, self.group, "The ETag of a URL"
+        # )
+
+        # for prop in [PROP_IMPORT_TIME, PROP_ETAG]:
+        for prop in [PROP_IMPORT_TIME]:
+            obj.setEditorMode(
+                prop,
+                App.PropertyType.Prop_Hidden | App.PropertyType.Prop_ReadOnly,
+            )
 
     def has_step_extension(self, path_file):
         lowered = path_file.lower()
@@ -67,13 +94,11 @@ class ReloadableObject:
 
     def onChanged(self, obj, prop):
         if prop == PROP_FILEPATH:
-            filepath = obj.FilePath
-            if self.has_step_extension(filepath):
-                self.load_file(obj)
-
-                # update the label
-                label = os.path.splitext(os.path.basename(obj.FilePath))[0]
-                obj.Label = label
+            path_file = obj.FilePath
+            self.set_object_to_file(obj, path_file)
+        elif prop == PROP_URL:
+            url = obj.Url
+            self.set_object_to_url(obj, url)
 
     def execute(self, obj):
         self.state = self.has_file_changed(obj)
@@ -90,6 +115,37 @@ class ReloadableObject:
 
         return LastModified > time_string_mtime
 
+    def set_object_to_file(self, obj, path_file):
+        if self.has_step_extension(path_file):
+            self.load_file(obj, path_file)
+
+            # update the label
+            label = os.path.splitext(os.path.basename(path_file))[0]
+            obj.Label = label
+        else:
+            logger.warn(f"{path_file} is not a STEP file")
+
+    def set_object_to_url(self, obj, url):
+        try:
+            response = requests.get(url)
+            response.raise_for_status()
+            content_type = response.headers.get("Content-Type")
+            if content_type != "text/plain; charset=utf-8":
+                logger.warn(f"URL {url} does not point to a STEP file")
+                return
+
+            name_file = os.path.basename(url)
+
+            with tempfile.TemporaryDirectory() as temp_dir:
+                path_file = os.path.join(temp_dir, name_file)
+
+                with open(path_file, "wb") as temp_file:
+                    temp_file.write(response.content)
+
+                self.set_object_to_file(obj, path_file)
+        except requests.exceptions.RequestException as e:
+            logger.error(f"An error occurred while downloading: {e}")
+
     def is_valid_step_file(self, path_file):
         return (
             path_file != ""
@@ -98,16 +154,16 @@ class ReloadableObject:
             and self.has_step_extension(path_file)
         )
 
-    def load_file(self, obj):
-        if self.is_valid_step_file(obj.FilePath):
-            shape = self.import_step_file(obj)
+    def load_file(self, obj, path_file):
+        if self.is_valid_step_file(path_file):
+            shape = self.import_step_file(obj, path_file)
             obj.Shape = shape
             obj.ImportDateTime = QtCore.QDateTime.currentDateTime().toString()
 
-    def import_step_file(self, obj):
+    def import_step_file(self, obj, path_file):
         # Import the STEP file and create a shape
         shape = Part.Shape()
-        shape.read(obj.FilePath)
+        shape.read(path_file)
         return shape
 
     def dumps(self):
@@ -170,33 +226,117 @@ class TaskPanel:
         )
 
         self.form.lineEditFilePath.setText(obj.FilePath)
-        self.form.buttonBrowse.clicked.connect(self.open_file_dialog)
+        self.form.lineEditUrl.setText(obj.Url)
+        self.form.buttonBrowse.clicked.connect(self.browse_file)
         self.form.lineEditFilePath.setText(self.obj.FilePath)
 
         # set the refresh button state
-        self.form.buttonRefresh.setEnabled(self.obj.Proxy.has_file_changed(self.obj))
+        self.form.buttonRefresh.setEnabled(self.is_refresh_enabled())
 
         self.form.buttonRefresh.clicked.connect(self.refresh)
         App.ActiveDocument.openTransaction("update Reloadable Object")
 
-    def refresh(self):
-        self.obj.Proxy.load_file(self.obj)
-
-    def open_file_dialog(self):
-        filename, _ = QtGui.QFileDialog.getOpenFileName(
-            None, "Open STEP File", "", "STEP Files (*.step *.stp)"
+    def is_refresh_enabled(self):
+        return bool(
+            (self.obj.FilePath and self.obj.Proxy.has_file_changed(self.obj))
+            or self.obj.Url
         )
-        if filename:
-            self.form.lineEditFilePath.setText(filename)
-            self.obj.FilePath = filename
+
+    def get_values(self):
+        file_path = self.form.lineEditFilePath.text()
+        url = self.form.lineEditUrl.text()
+        return file_path, url
+
+    def refresh(self):
+        file_path, url = self.get_values()
+        if file_path:
+            self.obj.Proxy.set_object_to_file(self.obj, file_path)
+        elif url:
+            self.obj.Proxy.set_object_to_url(self.obj, url)
+
+    def browse_file(self):
+        dialog = create_file_dialog(self.form)
+
+        if dialog.exec():
+            file_path = dialog.selectedFiles()[0]
+            if file_path:
+                self.form.lineEditFilePath.setText(file_path)
+                self.obj.FilePath = file_path
 
     def accept(self):
+        file_path, url = self.get_values()
+        self.obj.FilePath = file_path
+        self.obj.Url = url
         App.ActiveDocument.commitTransaction()
         Gui.Control.closeDialog()
 
     def reject(self):
         App.ActiveDocument.abortTransaction()
         Gui.Control.closeDialog()
+
+
+class FileOrURLDialog(QtGui.QDialog):
+    def __init__(self, parent=None):
+        super(FileOrURLDialog, self).__init__(parent)
+        self.setWindowTitle("Select a File or Enter a URL:")
+
+        self.info_label = QLabel("Select either a file or a URL")
+
+        self.file_label = QLabel("File Path:", self)
+        self.file_input = QLineEdit(self)
+        self.browse_button = QPushButton("...", self)
+        self.browse_button.clicked.connect(self.browse_file)
+
+        self.url_label = QLabel("URL:", self)
+        self.url_input = QLineEdit(self)
+
+        # Check clipboard for URL
+        clipboard = QApplication.clipboard()
+        if clipboard.mimeData().hasText():
+            self.url_input.setText(clipboard.text())
+
+        layout = QGridLayout()
+
+        # Add widgets to layout
+        layout.addWidget(self.file_label, 0, 0)
+        layout.addWidget(self.file_input, 0, 1)
+        layout.addWidget(self.browse_button, 0, 2)
+
+        layout.addWidget(self.url_label, 1, 0)
+        layout.addWidget(self.url_input, 1, 1, 1, 2)  # Span across two columns
+
+        # Dialog buttons
+        self.button_box = QDialogButtonBox(
+            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
+        )
+        self.button_box.accepted.connect(self.accept)
+        self.button_box.rejected.connect(self.reject)
+
+        # Main layout
+        main_layout = QVBoxLayout(self)
+        main_layout.addWidget(self.info_label)
+        main_layout.addLayout(layout)
+        main_layout.addWidget(self.button_box)
+
+        self.setLayout(main_layout)
+
+    def browse_file(self):
+        dialog = create_file_dialog(self)
+
+        if dialog.exec():
+            file_path = dialog.selectedFiles()[0]
+            self.file_input.setText(file_path)
+
+    def get_inputs(self):
+        return self.file_input.text(), self.url_input.text()
+
+
+def create_file_dialog(parent):
+    dialog = QFileDialog(parent, "Select a STEP file")
+    dialog.setFileMode(QFileDialog.ExistingFile)
+    dialog.setNameFilters(["STEP files (*.step *.stp)"])
+
+    return dialog
 
 
 class ReloadableObjectCommand:
@@ -209,22 +349,35 @@ class ReloadableObjectCommand:
         }
 
     def Activated(self):
-        App.ActiveDocument.openTransaction("Add Reloadable Object")
+        doc = App.ActiveDocument
+        doc.openTransaction("Add Reloadable Object")
 
-        filename, _ = QtGui.QFileDialog.getOpenFileName(
-            None, "Open STEP File", "", "STEP Files (*.step *.stp)"
-        )
-        if not filename:
+        dialog = FileOrURLDialog()
+        if dialog.exec() == QDialog.Accepted:
+            file_path, url = dialog.get_inputs()
+        else:
+            doc.abortTransaction()
             return
 
-        label = os.path.splitext(os.path.basename(filename))[0]
+        if file_path:
+            step = file_path
+        elif url:
+            step = url
+        else:
+            doc.abortTransaction()
+            return
+
+        label = os.path.splitext(os.path.basename(step))[0]
 
         doc = App.ActiveDocument
         obj = doc.addObject("Part::FeaturePython", f"{label}")
 
         ReloadableObject(obj)
         ReloadableObjectViewProvider(obj.ViewObject)
-        obj.FilePath = filename
+        if file_path:
+            obj.FilePath = file_path
+        else:
+            obj.Url = url
 
         doc.recompute()
         App.ActiveDocument.commitTransaction()
