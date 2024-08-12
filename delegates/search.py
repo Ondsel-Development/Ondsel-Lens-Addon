@@ -31,6 +31,7 @@ from PySide.QtGui import (
     QVBoxLayout,
     QLabel,
     QFrame,
+    QCursor,
 )
 from PySide.QtCore import QByteArray, Qt, QSize
 from PySide.QtWidgets import QTreeView
@@ -61,13 +62,16 @@ class SearchResultDelegate(QFrame):
         #
         self.widget.collectionLabel.setText(curation.nav.user_friendly_target_name())
         self.widget.titleLabel.setText(curation.name)
-        webIcon = QtGui.QIcon(Utils.icon_path + "link.svg")
-        self.widget.webToolButton.setIcon(webIcon)
-        self.widget.webToolButton.clicked.connect(self._goto_url)
+        # webIcon = QtGui.QIcon(Utils.icon_path + "link.svg")
+        # self.widget.webToolButton.setIcon(webIcon)
+        # self.widget.webToolButton.clicked.connect(self._goto_url)
         # downloadIcon = QtGui.QIcon(Utils.icon_path + "cloud_download.svg")
         # self.widget.downloadToolButton.setIcon(downloadIcon)
         # if curation.is_downloadable():
         #     self.widget.downloadToolButton.setEnabled(True)
+        # self.mousePressEvent = lambda event: print("ssss")
+        self.mousePressEvent = lambda event: self._goto_url()
+        self.setCursor(QCursor(Qt.PointingHandCursor))
         self.image_url = curation.get_thumbnail_url()
         if self.image_url is None:
             print("checkout ", curation.nav)
