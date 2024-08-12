@@ -20,7 +20,12 @@
    <bool>false</bool>
   </property>
   <property name="styleSheet">
-   <string notr="true">background-color: rgb(94, 92, 100);</string>
+   <string notr="true">QFrame {
+background-color: rgb(94, 92, 100);
+}
+#SearchResultItem:hover {
+border: 5px solid black;
+}</string>
   </property>
   <property name="frameShape">
    <enum>QFrame::StyledPanel</enum>
