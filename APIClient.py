@@ -3,9 +3,10 @@ import os
 
 import requests
 import json
+import urllib
 
 import Utils
-
+from models.curation import Curation
 
 logger = Utils.getLogger(__name__)
 
@@ -724,6 +725,19 @@ class APIClient:
 
         result = self._request(endpoint)
         return result
+
+    def get_search_results(self, search_text, target=None):
+        params = {"text": urllib.parse.quote_plus(search_text)}
+        if target is not None:
+            params["target"] = target
+        result = self._request("keywords", params=params)
+        data = result["data"]
+        scored_items = data[0]["sortedMatches"]
+        curations = []
+        for item in scored_items:
+            new_curation = Curation.from_json(item["curation"])
+            curations.append(new_curation)
+        return curations
 
 
 class APIHelper:
