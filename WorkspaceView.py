@@ -56,6 +56,8 @@ from Workspace import (
     FileStatus,
 )
 
+from views.search_results_view import SearchResultsView
+
 from PySide.QtGui import (
     QStyledItemDelegate,
     QStyle,
@@ -67,6 +69,7 @@ from PySide.QtGui import (
     QMenu,
     QSizePolicy,
     QPixmap,
+    QListView,
 )
 
 from PySide.QtCore import QByteArray
@@ -330,8 +333,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.setObjectName("workspaceView")
         self.form = Gui.PySideUic.loadUi(f"{Utils.mod_path}/WorkspaceView.ui")
 
+        tabWidget = self.form.findChildren(QtGui.QTabWidget)[0]
+        tabBar = tabWidget.tabBar()
+        wsIcon = QtGui.QIcon(Utils.icon_path + "folder-multiple-outline.svg")
+        tabBar.setTabIcon(0, wsIcon)
+        bookmarkIcon = QtGui.QIcon(Utils.icon_path + "bookmark-outline.svg")
+        tabBar.setTabIcon(1, bookmarkIcon)
+        searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
+        tabBar.setTabIcon(2, searchIcon)
+        # settingsIcon = QtGui.QIcon(Utils.icon_path + "settings.svg")
+        # tabBar.setTabIcon(3, settingsIcon)
+
         self.setWidget(self.form)
-        # self.setWidgetResizable(True)
         self.setWindowTitle("Ondsel Lens")
 
         self.createOndselButtonMenus()
@@ -416,6 +429,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.txtExplain.hide()
 
         self.initializeBookmarks()
+
+        # initialize search
+        self.form.searchResultScrollArea = SearchResultsView(self)
+        self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
+
         self.initializeUpdateLens()
 
         self.try_login()

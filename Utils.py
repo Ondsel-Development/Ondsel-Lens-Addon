@@ -41,6 +41,34 @@ class FreeCADHandler(logging.Handler):
             c.PrintMessage(msg)
 
 
+class __OndselEnv:
+    """
+    this class allows for specific OS environments, such as in docker images, to
+    have special operating parameters. It is also useful for testing as one
+    can SET these vars locally on your own machine.
+    However, typical users will NOT have the `ONDSEL_` variables set, so make sure
+    the ".get" defaults are what you expect for production end-user usage.
+
+    In Linux, a local .env file can be used with:
+
+        set -a; . ./.env; set +a
+
+    prior to launching FreeCAD / OndselES.
+
+    For consistency, please use the `env` singleton declared just below. aka:
+
+        lens_site_base = Utils.env.lens_url
+    """
+
+    def __init__(self):
+        self.lens_url = os.environ.get("ONDSEL_LENS_URL", "https://lens.ondsel.com/")
+        self.api_url = os.environ.get("ONDSEL_API_URL", "https://lens-api.ondsel.com/")
+        self.about_url = os.environ.get("ONDSEL_ABOUT_URL", "https://www.ondsel.com/")
+
+
+env = __OndselEnv()
+
+
 def joinPath(first, second):
     return os.path.join(first, second).replace("\\", "/")
     # return os.path.normpath(os.path.join(first, second))
