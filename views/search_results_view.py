@@ -3,7 +3,6 @@ from PySide.QtGui import (
     QApplication,
     QCursor,
 )
-
 from qflowview.qflowview import QFlowView
 
 from models.curation import CurationListModel
@@ -24,18 +23,20 @@ class SearchResultsView(QFlowView):
         QApplication.setOverrideCursor(
             QCursor(Qt.WaitCursor)
         )  # sets the hourglass, etc.
-        searchTargetIndex = self.parent.form.searchTargetComboBox.currentIndex()
-        searchTarget = [
-            None,  # All
-            "shared-models",  # Share Links
-            "workspaces",  # Workspaces
-            "users",  # Users
-            "organizations",  # Organizations
-        ][searchTargetIndex]
-        searchText = self.parent.form.searchLineEdit.text()
-        resulting_curations = self.parent.api.get_search_results(
-            searchText, searchTarget
-        )
-        self.curationListModel.curation_list = resulting_curations
-        self.curationListModel.layoutChanged.emit()
-        QApplication.restoreOverrideCursor()
+        try:
+            searchTargetIndex = self.parent.form.searchTargetComboBox.currentIndex()
+            searchTarget = [
+                None,  # All
+                "shared-models",  # Share Links
+                "workspaces",  # Workspaces
+                "users",  # Users
+                "organizations",  # Organizations
+            ][searchTargetIndex]
+            searchText = self.parent.form.searchLineEdit.text()
+            resulting_curations = self.parent.api.get_search_results(
+                searchText, searchTarget
+            )
+            self.curationListModel.curation_list = resulting_curations
+            self.curationListModel.layoutChanged.emit()
+        finally:
+            QApplication.restoreOverrideCursor()

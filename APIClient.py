@@ -41,6 +41,7 @@ UNAUTHORIZED = requests.codes.unauthorized
 class APIClient:
     def __init__(
         self,
+        parent,
         email,
         password,
         api_url,
@@ -54,19 +55,25 @@ class APIClient:
         self.lens_url = lens_url
         self.source = source
         self.version = version
+        self.parent = parent
+        self.status = ConnStatus.DISCONNECTED
 
         if access_token is None:
             self.email = email
             self.password = password
             self.access_token = None
             self.user = None
-            self.status = ConnStatus.LOGGED_OUT
+            self.setStatus(ConnStatus.LOGGED_OUT)
         else:
             self.email = None
             self.password = None
             self.access_token = access_token
             self.user = user
-            self.status = ConnStatus.CONNECTED
+            self.setStatus(ConnStatus.CONNECTED)
+
+    def setStatus(self, newStatus):
+        self.status = newStatus
+        self.parent.set_ui_connectionStatus()
 
     def getNameUser(self):
         if self.user and "name" in self.user:
@@ -79,7 +86,7 @@ class APIClient:
         self.password = None
         self.access_token = None
         self.user = None
-        self.status = ConnStatus.LOGGED_OUT
+        self.setStatus(ConnStatus.LOGGED_OUT)
 
     def is_logged_in(self):
         """Whether a user is logged in.
@@ -88,7 +95,7 @@ class APIClient:
         return self.access_token is not None and self.user is not None
 
     def disconnect(self):
-        self.status = ConnStatus.DISCONNECTED
+        self.setStatus(ConnStatus.DISCONNECTED)
 
     def is_connected(self):
         """Whether a user is connected.
@@ -120,7 +127,7 @@ class APIClient:
         data = self._post(endpoint, headers=headers, data=json.dumps(payload))
         self.access_token = data["accessToken"]
         self.user = data["user"]
-        self.status = ConnStatus.CONNECTED
+        self.setStatus(ConnStatus.CONNECTED)
 
     def _raiseException(self, response, **kwargs):
         "Raise a generic exception based on the status code"
@@ -154,7 +161,7 @@ class APIClient:
             raise APIClientConnectionError(e)
 
         if response.status_code == OK:
-            self.status = ConnStatus.CONNECTED
+            self.setStatus(ConnStatus.CONNECTED)
             return response.json()
         else:
             self._raiseException(
@@ -171,7 +178,7 @@ class APIClient:
             raise APIClientConnectionError(e)
 
         if response.status_code == OK:
-            self.status = ConnStatus.CONNECTED
+            self.setStatus(ConnStatus.CONNECTED)
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
@@ -196,7 +203,7 @@ class APIClient:
         # should be handled differently for the _authenticate function (for
         # example give the user another try to log in).
         if response.status_code in [CREATED, OK]:
-            self.status = ConnStatus.CONNECTED
+            self.setStatus(ConnStatus.CONNECTED)
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
@@ -216,7 +223,7 @@ class APIClient:
             raise APIClientConnectionError(e)
 
         if response.status_code in [CREATED, OK]:
-            self.status = ConnStatus.CONNECTED
+            self.setStatus(ConnStatus.CONNECTED)
             return response.json()
         else:
             self._raiseException(
@@ -233,7 +240,7 @@ class APIClient:
             # Save file to workspace directory under the user name not the unique name
             with open(filename, "wb") as f:
                 f.write(response.content)
-            self.status = ConnStatus.CONNECTED
+            self.setStatus(ConnStatus.CONNECTED)
             return True
         else:
             self._raiseException(response, url=url, filename=filename)
