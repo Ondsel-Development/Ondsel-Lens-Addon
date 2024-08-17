@@ -26,6 +26,9 @@ class APIClientConnectionError(APIClientException):
 class APIClientRequestException(APIClientException):
     pass
 
+class APIClientOfflineException(APIClientException):
+    pass
+
 
 class ConnStatus(Enum):
     LOGGED_OUT = 1  # no connection, user logged out
@@ -150,6 +153,31 @@ class APIClient:
         headers = {"Content-Type": "application/json"}
         return headers
 
+    def _confirm_online(self):
+        '''calls lens api root to simply check if online. if not online, updates status'''
+        try:
+            response = requests.get(
+                f"{self.base_url}/"
+            )
+            if self.is_logged_in():
+                self.setStatus(ConnStatus.CONNECTED)
+            else:
+                self.setStatus(ConnStatus.LOGGED_OUT)
+        except requests.exceptions.RequestException as e:
+            if e.response is None:
+                self.setStatus(ConnStatus.DISCONNECTED)
+
+    def _confirm_online_after_exception(self):
+        self._confirm_online()
+        if self.status == ConnStatus.DISCONNECTED:
+            raise APIClientOfflineException("Safely offline")
+
+    def _properly_throw_if_offline(self):
+        if self.status == ConnStatus.DISCONNECTED:
+            self._confirm_online() # try to connect again
+            if self.status == ConnStatus.DISCONNECTED:
+                raise APIClientOfflineException("Safely offline")
+
     def _delete(self, endpoint, headers={}, params=None):
         headers = self._set_default_headers(headers)
 
@@ -158,6 +186,7 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", params=params, headers=headers
             )
         except requests.exceptions.RequestException as e:
+            self._confirm_online_after_exception()
             raise APIClientConnectionError(e)
 
         if response.status_code == OK:
@@ -169,12 +198,14 @@ class APIClient:
             )
 
     def _request(self, endpoint, headers={}, params=None):
+        self._properly_throw_if_offline()
         headers = self._set_default_headers(headers)
         try:
             response = requests.get(
                 f"{self.base_url}/{endpoint}", headers=headers, params=params
             )
         except requests.exceptions.RequestException as e:
+            self._confirm_online_after_exception()
             raise APIClientConnectionError(e)
 
         if response.status_code == OK:
@@ -188,6 +219,7 @@ class APIClient:
             )
 
     def _post(self, endpoint, headers={}, params=None, data=None, files=None):
+        self._properly_throw_if_offline()
         headers = self._set_default_headers(headers)
         if endpoint == "authentication":
             headers.pop("Authorization")
@@ -196,6 +228,7 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
         except requests.exceptions.RequestException as e:
+            self._confirm_online_after_exception()
             raise APIClientConnectionError(e)
 
         # only _post makes a distinction between the general error and
@@ -213,6 +246,7 @@ class APIClient:
             )
 
     def _update(self, endpoint, headers={}, data=None, files=None):
+        self._properly_throw_if_offline()
         headers = self._set_default_headers(headers)
 
         try:
@@ -220,6 +254,7 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
         except requests.exceptions.RequestException as e:
+            self._confirm_online_after_exception()
             raise APIClientConnectionError(e)
 
         if response.status_code in [CREATED, OK]:
@@ -231,6 +266,7 @@ class APIClient:
             )
 
     def _download(self, url, filename):
+        self._properly_throw_if_offline()
         try:
             response = requests.get(url)
         except requests.exceptions.RequestException as e:
@@ -734,13 +770,13 @@ class APIClient:
         return result
 
     def get_search_results(self, search_text, target=None):
+        curations = []
         params = {"text": urllib.parse.quote_plus(search_text)}
         if target is not None:
             params["target"] = target
         result = self._request("keywords", params=params)
         data = result["data"]
         scored_items = data[0]["sortedMatches"]
-        curations = []
         for item in scored_items:
             new_curation = Curation.from_json(item["curation"])
             curations.append(new_curation)
