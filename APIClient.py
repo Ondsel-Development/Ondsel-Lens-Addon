@@ -76,13 +76,13 @@ class APIClient:
 
     def setStatus(self, newStatus):
         self.status = newStatus
-        self.parent.set_ui_connectionStatus()
+        if hasattr(self.parent, "api"): # during parent startup; don't set status yet.
+            self.parent.set_ui_connectionStatus()
 
     def getNameUser(self):
         if self.user and "name" in self.user:
             return self.user["name"]
-
-        return ""
+        return "Local"
 
     def logout(self):
         self.email = None
@@ -97,8 +97,8 @@ class APIClient:
         The user may be disconnected."""
         return self.access_token is not None and self.user is not None
 
-    def disconnect(self):
-        self.setStatus(ConnStatus.DISCONNECTED)
+    # def disconnect(self):
+    #     self.setStatus(ConnStatus.DISCONNECTED)
 
     def is_connected(self):
         """Whether a user is connected.
@@ -190,7 +190,6 @@ class APIClient:
             raise APIClientConnectionError(e)
 
         if response.status_code == OK:
-            self.setStatus(ConnStatus.CONNECTED)
             return response.json()
         else:
             self._raiseException(
@@ -209,7 +208,6 @@ class APIClient:
             raise APIClientConnectionError(e)
 
         if response.status_code == OK:
-            self.setStatus(ConnStatus.CONNECTED)
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
@@ -236,7 +234,6 @@ class APIClient:
         # should be handled differently for the _authenticate function (for
         # example give the user another try to log in).
         if response.status_code in [CREATED, OK]:
-            self.setStatus(ConnStatus.CONNECTED)
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
@@ -258,7 +255,6 @@ class APIClient:
             raise APIClientConnectionError(e)
 
         if response.status_code in [CREATED, OK]:
-            self.setStatus(ConnStatus.CONNECTED)
             return response.json()
         else:
             self._raiseException(
@@ -276,7 +272,6 @@ class APIClient:
             # Save file to workspace directory under the user name not the unique name
             with open(filename, "wb") as f:
                 f.write(response.content)
-            self.setStatus(ConnStatus.CONNECTED)
             return True
         else:
             self._raiseException(response, url=url, filename=filename)
