@@ -16,6 +16,13 @@ class APIClientException(Exception):
 
 
 class APIClientAuthenticationException(APIClientException):
+    '''
+    User logged in, but you are now allowed access to something.
+    This error implies the user is trying to reach something that
+    the user should not be trying to reach.
+    If the user is not logged in at all, see the APIClientLoggedOutException
+    below as the error that should be thrown.
+    '''
     pass
 
 
@@ -24,9 +31,18 @@ class APIClientConnectionError(APIClientException):
 
 
 class APIClientRequestException(APIClientException):
+    ''' Something about the request was not acceptable to the API '''
+    pass
+
+class APIClientLoggedOutException(APIClientException):
+    '''
+    When not logged in, but the endpoint requires user credentials.
+    This is caught early, before the query is ever actually sent to the API.
+    '''
     pass
 
 class APIClientOfflineException(APIClientException):
+    ''' Network access is not currently available (apparently) '''
     pass
 
 
@@ -119,6 +135,10 @@ class APIClient:
 
     def authenticate(self):
         endpoint = "authentication"
+        if not self.email:
+            # if you get here, it is because you are calling a service
+            # that explictely requires auth when purposefully logged out
+            raise APIClientLoggedOutException("not logged in")
 
         payload = {
             "strategy": "local",
@@ -825,3 +845,45 @@ class APIHelper:
             ]
         else:
             return data
+
+class API_Call_Result(Enum):
+    OK = 1  # all is good
+    DISCONNECTED = 2  # all is good but not online
+    NOT_LOGGED_IN = 3  # not logged in, so _this_ query is not possible
+    PERMISSION_ISSUE = 4 # not good; you don't have permission
+    GENERAL_ERROR = 5 # not good; and we don't have a useful reason to act on
+
+def fancy_handle(func):
+    """
+    Handle a function that raises an APICLientException. It is very similar to
+    the 'handle' function found in WorkspaceView.py. The return type is simply
+    more expressive so that the calling code can see more.
+
+    Storing the results is expected of the called `func`.
+
+    Warning messages are never issued.
+
+    Returns an API_Call_Result enum value. It is expected that the caller
+    handles all the possible return states.
+    """
+    try:
+        func()
+        return API_Call_Result.OK
+    except APIClientOfflineException as e:
+        return API_Call_Result.DISCONNECTED
+    except APIClientLoggedOutException as e:
+        return API_Call_Result.NOT_LOGGED_IN
+    except APIClientRequestException as e:
+        logger.error(e)
+        return API_Call_Result.GENERAL_ERROR
+    except APIClientAuthenticationException as e:
+        logger.error(e)
+        return API_Call_Result.PERMISSION_ISSUE
+    except APIClientException as e:
+        logger.error(e)
+        return API_Call_Result.GENERAL_ERROR
+    except Exception as e:
+        logger.error(e)
+        return API_Call_Result.GENERAL_ERROR        
+    self.set_ui_connectionStatus()
+    return True

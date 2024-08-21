@@ -49,6 +49,8 @@ from APIClient import (
     APIClientConnectionError,
     APIClientRequestException,
     ConnStatus,
+    API_Call_Result,
+    fancy_handle,
 )
 from Workspace import (
     WorkspaceModel,
@@ -456,6 +458,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def initializeBookmarks(self):
         tabWidget = self.form.tabWidget
+        self.form.bookmarkStatusLabel = QtGui.QLabel("hello")
+        self.form.tabBookmarks.layout().addWidget(self.form.bookmarkStatusLabel)
         self.form.viewBookmarks = BookmarkView(tabWidget)
         bookmarkView = self.form.viewBookmarks
         self.form.tabBookmarks.layout().addWidget(bookmarkView)
@@ -2258,7 +2262,16 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 viewBookmarks.setModel(bookmarkModel)
                 viewBookmarks.expandAll()
 
-            self.handle(tryRefresh)
+            api_result = fancy_handle(tryRefresh)
+            match api_result:
+                case API_Call_Result.OK:
+                    self.form.bookmarkStatusLabel.setText("")
+                case API_Call_Result.DISCONNECTED:
+                    self.form.bookmarkStatusLabel.setText("offline")
+                case API_Call_Result.NOT_LOGGED_IN:
+                    self.form.bookmarkStatusLabel.setText("you must be logged in to see bookmarks")
+                case _:
+                    self.form.bookmarkStatusLabel.setText("see report log")
 
     def downloadBookmarkFile(self, idSharedModel):
         # throws an APIClientException
