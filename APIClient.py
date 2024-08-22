@@ -17,11 +17,11 @@ class APIClientException(Exception):
 
 class APIClientAuthenticationException(APIClientException):
     """
-    User logged in, but you are now allowed access to something.
+    User logged in, but you are not allowed access to something.
     This error implies the user is trying to reach something that
     the user should not be trying to reach.
     If the user is not logged in at all, see the APIClientLoggedOutException
-    below as the error that should be thrown.
+    below as that is the error that should be thrown.
     """
 
     pass
@@ -39,15 +39,18 @@ class APIClientRequestException(APIClientException):
 
 class APIClientLoggedOutException(APIClientException):
     """
-    When not logged in, but the endpoint requires user credentials.
-    This is caught early, before the query is ever actually sent to the API.
+    When user is not logged in, but the endpoint requires user credentials.
+    This is raised before the query is ever actually sent to the API.
     """
 
     pass
 
 
 class APIClientOfflineException(APIClientException):
-    """Network access is not currently available (apparently)"""
+    """
+    Network access is not currently available. This is measured
+    by a call to the Lens API root.
+    """
 
     pass
 
