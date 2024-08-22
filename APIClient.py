@@ -16,13 +16,14 @@ class APIClientException(Exception):
 
 
 class APIClientAuthenticationException(APIClientException):
-    '''
+    """
     User logged in, but you are now allowed access to something.
     This error implies the user is trying to reach something that
     the user should not be trying to reach.
     If the user is not logged in at all, see the APIClientLoggedOutException
     below as the error that should be thrown.
-    '''
+    """
+
     pass
 
 
@@ -31,18 +32,23 @@ class APIClientConnectionError(APIClientException):
 
 
 class APIClientRequestException(APIClientException):
-    ''' Something about the request was not acceptable to the API '''
+    """Something about the request was not acceptable to the API"""
+
     pass
+
 
 class APIClientLoggedOutException(APIClientException):
-    '''
+    """
     When not logged in, but the endpoint requires user credentials.
     This is caught early, before the query is ever actually sent to the API.
-    '''
+    """
+
     pass
 
+
 class APIClientOfflineException(APIClientException):
-    ''' Network access is not currently available (apparently) '''
+    """Network access is not currently available (apparently)"""
+
     pass
 
 
@@ -92,7 +98,7 @@ class APIClient:
 
     def setStatus(self, newStatus):
         self.status = newStatus
-        if hasattr(self.parent, "api"): # during parent startup; don't set status yet.
+        if hasattr(self.parent, "api"):  # during parent startup; don't set status yet.
             self.parent.set_ui_connectionStatus()
 
     def getNameUser(self):
@@ -174,11 +180,9 @@ class APIClient:
         return headers
 
     def _confirm_online(self):
-        '''calls lens api root to simply check if online. if not online, updates status'''
+        """calls lens api root to simply check if online. if not online, updates status"""
         try:
-            response = requests.get(
-                f"{self.base_url}/"
-            )
+            response = requests.get(f"{self.base_url}/")
             if self.is_logged_in():
                 self.setStatus(ConnStatus.CONNECTED)
             else:
@@ -194,7 +198,7 @@ class APIClient:
 
     def _properly_throw_if_offline(self):
         if self.status == ConnStatus.DISCONNECTED:
-            self._confirm_online() # try to connect again
+            self._confirm_online()  # try to connect again
             if self.status == ConnStatus.DISCONNECTED:
                 raise APIClientOfflineException("Safely offline")
 
@@ -846,12 +850,14 @@ class APIHelper:
         else:
             return data
 
+
 class API_Call_Result(Enum):
     OK = 1  # all is good
     DISCONNECTED = 2  # all is good but not online
     NOT_LOGGED_IN = 3  # not logged in, so _this_ query is not possible
-    PERMISSION_ISSUE = 4 # not good; you don't have permission
-    GENERAL_ERROR = 5 # not good; and we don't have a useful reason to act on
+    PERMISSION_ISSUE = 4  # not good; you don't have permission
+    GENERAL_ERROR = 5  # not good; and we don't have a useful reason to act on
+
 
 def fancy_handle(func):
     """
@@ -884,6 +890,6 @@ def fancy_handle(func):
         return API_Call_Result.GENERAL_ERROR
     except Exception as e:
         logger.error(e)
-        return API_Call_Result.GENERAL_ERROR        
+        return API_Call_Result.GENERAL_ERROR
     self.set_ui_connectionStatus()
     return True

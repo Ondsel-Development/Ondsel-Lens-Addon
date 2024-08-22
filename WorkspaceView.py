@@ -322,6 +322,7 @@ class BookmarkDelegate(QStyledItemDelegate):
         else:
             return super().sizeHint(option, index)
 
+
 class WorkspaceView(QtWidgets.QScrollArea):
 
     def __init__(self, mw):
@@ -332,7 +333,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.toolBarItemAction = None
 
         self.setObjectName("workspaceView")
-        self.form =FreeCADGui.PySideUic.loadUi(f"{Utils.mod_path}/WorkspaceView.ui")
+        self.form = FreeCADGui.PySideUic.loadUi(f"{Utils.mod_path}/WorkspaceView.ui")
 
         tabWidget = self.form.findChildren(QtGui.QTabWidget)[0]
         tabBar = tabWidget.tabBar()
@@ -351,8 +352,12 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.createOndselButtonMenus()
 
         self.ondselIcon = QIcon(Utils.icon_path + "OndselWorkbench.svg")
-        self.ondselIconDisconnected = QIcon(Utils.icon_path + "OndselWorkbench-disconnected.svg")
-        self.ondselIconLoggedOut = QIcon(Utils.icon_path + "OndselWorkbench-loggedout.svg")
+        self.ondselIconDisconnected = QIcon(
+            Utils.icon_path + "OndselWorkbench-disconnected.svg"
+        )
+        self.ondselIconLoggedOut = QIcon(
+            Utils.icon_path + "OndselWorkbench-loggedout.svg"
+        )
         self.form.userBtn.setIconSize(QtCore.QSize(32, 32))
         self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.form.userBtn.clicked.connect(self.form.userBtn.showMenu)
@@ -454,7 +459,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
         self.handle(tryRefresh)
         self.handleRequest(self.check_for_update)
-
 
     def initializeBookmarks(self):
         tabWidget = self.form.tabWidget
@@ -671,7 +675,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 break  # Exit the login loop if the dialog is canceled
         self.set_ui_connectionStatus()
 
-
     def disconnect(self):
         self.api.disconnect()
         self.set_ui_connectionStatus()
@@ -728,7 +731,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
             self.logout()
             self.set_ui_connectionStatus()
             logger.error(e)
-
 
     def token_expired_handler(self):
         QMessageBox.information(
@@ -795,10 +797,10 @@ class WorkspaceView(QtWidgets.QScrollArea):
         if status is None:
             self.form.userBtn.setText("(starting)")
         elif status == ConnStatus.LOGGED_OUT:
-            self.form.userBtn.setText(name) # api says "Local" when logged out
+            self.form.userBtn.setText(name)  # api says "Local" when logged out
         elif status == ConnStatus.CONNECTED:
             self.form.userBtn.setText(name)
-        else: # DISCONNECTED
+        else:  # DISCONNECTED
             self.form.userBtn.setText(name + " (disconnected)")
         self.form.userBtn.setIcon(icon)
         self.form.userBtn.setMenu(menu)
@@ -1458,7 +1460,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         args = QtWidgets.QApplication.arguments()[1:]
         # delay restoring the window state as much as possible to make sure
         # that the panels are at the right location
-        mw =FreeCADGui.getMainWindow()
+        mw = FreeCADGui.getMainWindow()
         mw.restoreState(mainWindowState)
         if mw.close():
             QtCore.QProcess.startDetached(
@@ -1989,7 +1991,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def addCurrentFile(self):
         # Save current file on the server.
         doc = FreeCAD.ActiveDocument
-        gui_doc =FreeCADGui.ActiveDocument
+        gui_doc = FreeCADGui.ActiveDocument
 
         if doc is None:
             QMessageBox.information(
@@ -2269,7 +2271,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 case API_Call_Result.DISCONNECTED:
                     self.form.bookmarkStatusLabel.setText("offline")
                 case API_Call_Result.NOT_LOGGED_IN:
-                    self.form.bookmarkStatusLabel.setText("you must be logged in to see bookmarks")
+                    self.form.bookmarkStatusLabel.setText(
+                        "you must be logged in to see bookmarks"
+                    )
                 case _:
                     self.form.bookmarkStatusLabel.setText("see report log")
 
@@ -2331,8 +2335,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def find_our_toolbaritem_action(self):
         import PySide.QtWidgets as QtWidgets
         import WorkspaceView
+
         if self.toolBarItemAction is None:
-            main_window =FreeCADGui.getMainWindow()
+            main_window = FreeCADGui.getMainWindow()
             fileToolBar = main_window.findChild(QtWidgets.QToolBar, "File")
             if fileToolBar:
                 allButtons = fileToolBar.findChildren(QtWidgets.QToolButton)
@@ -2474,7 +2479,9 @@ class SharingLinkEditDialog(QtGui.QDialog):
         super(SharingLinkEditDialog, self).__init__(parent)
 
         # Load the UI from the .ui file
-        self.dialog =FreeCADGui.PySideUic.loadUi(Utils.mod_path + "/SharingLinkEditDialog.ui")
+        self.dialog = FreeCADGui.PySideUic.loadUi(
+            Utils.mod_path + "/SharingLinkEditDialog.ui"
+        )
 
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.dialog)
@@ -2824,10 +2831,9 @@ class LoginDialog(QtGui.QDialog):
         return email, password
 
 
-
 wsv = None
+
 
 def runsAfterLaunch():
     if wsv:
         wsv.set_ui_connectionStatus()
-
