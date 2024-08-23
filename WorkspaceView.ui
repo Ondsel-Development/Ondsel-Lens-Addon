@@ -482,6 +482,22 @@
         </widget>
        </item>
        <item>
+        <widget class="QLabel" name="searchResultMessageLabel">
+         <property name="maximumSize">
+          <size>
+           <width>16777215</width>
+           <height>25</height>
+          </size>
+         </property>
+         <property name="text">
+          <string>TextLabel</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QFrame" name="searchResultFrame">
          <property name="frameShape">
           <enum>QFrame::StyledPanel</enum>

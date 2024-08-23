@@ -16,6 +16,14 @@ class APIClientException(Exception):
 
 
 class APIClientAuthenticationException(APIClientException):
+    """
+    User logged in, but you are not allowed access to something.
+    This error implies the user is trying to reach something that
+    the user should not be trying to reach.
+    If the user is not logged in at all, see the APIClientLoggedOutException
+    below as that is the error that should be thrown.
+    """
+
     pass
 
 
@@ -24,6 +32,26 @@ class APIClientConnectionError(APIClientException):
 
 
 class APIClientRequestException(APIClientException):
+    """Something about the request was not acceptable to the API"""
+
+    pass
+
+
+class APIClientLoggedOutException(APIClientException):
+    """
+    When user is not logged in, but the endpoint requires user credentials.
+    This is raised before the query is ever actually sent to the API.
+    """
+
+    pass
+
+
+class APIClientOfflineException(APIClientException):
+    """
+    Network access is not currently available. This is measured
+    by a call to the Lens API root.
+    """
+
     pass
 
 
@@ -41,6 +69,7 @@ UNAUTHORIZED = requests.codes.unauthorized
 class APIClient:
     def __init__(
         self,
+        parent,
         email,
         password,
         api_url,
@@ -54,32 +83,38 @@ class APIClient:
         self.lens_url = lens_url
         self.source = source
         self.version = version
+        self.parent = parent
+        self.status = ConnStatus.DISCONNECTED
 
         if access_token is None:
             self.email = email
             self.password = password
             self.access_token = None
             self.user = None
-            self.status = ConnStatus.LOGGED_OUT
+            self.setStatus(ConnStatus.LOGGED_OUT)
         else:
             self.email = None
             self.password = None
             self.access_token = access_token
             self.user = user
-            self.status = ConnStatus.CONNECTED
+            self.setStatus(ConnStatus.CONNECTED)
+
+    def setStatus(self, newStatus):
+        self.status = newStatus
+        if hasattr(self.parent, "api"):  # during parent startup; don't set status yet.
+            self.parent.set_ui_connectionStatus()
 
     def getNameUser(self):
         if self.user and "name" in self.user:
             return self.user["name"]
-
-        return ""
+        return "Local"
 
     def logout(self):
         self.email = None
         self.password = None
         self.access_token = None
         self.user = None
-        self.status = ConnStatus.LOGGED_OUT
+        self.setStatus(ConnStatus.LOGGED_OUT)
 
     def is_logged_in(self):
         """Whether a user is logged in.
@@ -87,8 +122,8 @@ class APIClient:
         The user may be disconnected."""
         return self.access_token is not None and self.user is not None
 
-    def disconnect(self):
-        self.status = ConnStatus.DISCONNECTED
+    # def disconnect(self):
+    #     self.setStatus(ConnStatus.DISCONNECTED)
 
     def is_connected(self):
         """Whether a user is connected.
@@ -109,6 +144,10 @@ class APIClient:
 
     def authenticate(self):
         endpoint = "authentication"
+        if not self.email:
+            # if you get here, it is because you are calling a service
+            # that explictely requires auth when purposefully logged out
+            raise APIClientLoggedOutException("not logged in")
 
         payload = {
             "strategy": "local",
@@ -120,7 +159,7 @@ class APIClient:
         data = self._post(endpoint, headers=headers, data=json.dumps(payload))
         self.access_token = data["accessToken"]
         self.user = data["user"]
-        self.status = ConnStatus.CONNECTED
+        self.setStatus(ConnStatus.CONNECTED)
 
     def _raiseException(self, response, **kwargs):
         "Raise a generic exception based on the status code"
@@ -143,6 +182,29 @@ class APIClient:
         headers = {"Content-Type": "application/json"}
         return headers
 
+    def _confirm_online(self):
+        """calls lens api root to simply check if online. if not online, updates status"""
+        try:
+            response = requests.get(f"{self.base_url}/")
+            if self.is_logged_in():
+                self.setStatus(ConnStatus.CONNECTED)
+            else:
+                self.setStatus(ConnStatus.LOGGED_OUT)
+        except requests.exceptions.RequestException as e:
+            if e.response is None:
+                self.setStatus(ConnStatus.DISCONNECTED)
+
+    def _confirm_online_after_exception(self):
+        self._confirm_online()
+        if self.status == ConnStatus.DISCONNECTED:
+            raise APIClientOfflineException("Safely offline")
+
+    def _properly_throw_if_offline(self):
+        if self.status == ConnStatus.DISCONNECTED:
+            self._confirm_online()  # try to connect again
+            if self.status == ConnStatus.DISCONNECTED:
+                raise APIClientOfflineException("Safely offline")
+
     def _delete(self, endpoint, headers={}, params=None):
         headers = self._set_default_headers(headers)
 
@@ -151,10 +213,10 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", params=params, headers=headers
             )
         except requests.exceptions.RequestException as e:
+            self._confirm_online_after_exception()
             raise APIClientConnectionError(e)
 
         if response.status_code == OK:
-            self.status = ConnStatus.CONNECTED
             return response.json()
         else:
             self._raiseException(
@@ -162,16 +224,17 @@ class APIClient:
             )
 
     def _request(self, endpoint, headers={}, params=None):
+        self._properly_throw_if_offline()
         headers = self._set_default_headers(headers)
         try:
             response = requests.get(
                 f"{self.base_url}/{endpoint}", headers=headers, params=params
             )
         except requests.exceptions.RequestException as e:
+            self._confirm_online_after_exception()
             raise APIClientConnectionError(e)
 
         if response.status_code == OK:
-            self.status = ConnStatus.CONNECTED
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
@@ -181,6 +244,7 @@ class APIClient:
             )
 
     def _post(self, endpoint, headers={}, params=None, data=None, files=None):
+        self._properly_throw_if_offline()
         headers = self._set_default_headers(headers)
         if endpoint == "authentication":
             headers.pop("Authorization")
@@ -189,6 +253,7 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
         except requests.exceptions.RequestException as e:
+            self._confirm_online_after_exception()
             raise APIClientConnectionError(e)
 
         # only _post makes a distinction between the general error and
@@ -196,7 +261,6 @@ class APIClient:
         # should be handled differently for the _authenticate function (for
         # example give the user another try to log in).
         if response.status_code in [CREATED, OK]:
-            self.status = ConnStatus.CONNECTED
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
@@ -206,6 +270,7 @@ class APIClient:
             )
 
     def _update(self, endpoint, headers={}, data=None, files=None):
+        self._properly_throw_if_offline()
         headers = self._set_default_headers(headers)
 
         try:
@@ -213,10 +278,10 @@ class APIClient:
                 f"{self.base_url}/{endpoint}", headers=headers, data=data, files=files
             )
         except requests.exceptions.RequestException as e:
+            self._confirm_online_after_exception()
             raise APIClientConnectionError(e)
 
         if response.status_code in [CREATED, OK]:
-            self.status = ConnStatus.CONNECTED
             return response.json()
         else:
             self._raiseException(
@@ -224,6 +289,7 @@ class APIClient:
             )
 
     def _download(self, url, filename):
+        self._properly_throw_if_offline()
         try:
             response = requests.get(url)
         except requests.exceptions.RequestException as e:
@@ -233,7 +299,6 @@ class APIClient:
             # Save file to workspace directory under the user name not the unique name
             with open(filename, "wb") as f:
                 f.write(response.content)
-            self.status = ConnStatus.CONNECTED
             return True
         else:
             self._raiseException(response, url=url, filename=filename)
@@ -727,13 +792,13 @@ class APIClient:
         return result
 
     def get_search_results(self, search_text, target=None):
+        curations = []
         params = {"text": urllib.parse.quote_plus(search_text)}
         if target is not None:
             params["target"] = target
         result = self._request("keywords", params=params)
         data = result["data"]
         scored_items = data[0]["sortedMatches"]
-        curations = []
         for item in scored_items:
             new_curation = Curation.from_json(item["curation"])
             curations.append(new_curation)
@@ -787,3 +852,47 @@ class APIHelper:
             ]
         else:
             return data
+
+
+class API_Call_Result(Enum):
+    OK = 1  # all is good
+    DISCONNECTED = 2  # all is good but not online
+    NOT_LOGGED_IN = 3  # not logged in, so _this_ query is not possible
+    PERMISSION_ISSUE = 4  # not good; you don't have permission
+    GENERAL_ERROR = 5  # not good; and we don't have a useful reason to act on
+
+
+def fancy_handle(func):
+    """
+    Handle a function that raises an APICLientException. It is very similar to
+    the 'handle' function found in WorkspaceView.py. The return type is simply
+    more expressive so that the calling code can see more.
+
+    Storing the results is expected of the called `func`.
+
+    Warning messages are never issued.
+
+    Returns an API_Call_Result enum value. It is expected that the caller
+    handles all the possible return states.
+    """
+    try:
+        func()
+        return API_Call_Result.OK
+    except APIClientOfflineException as e:
+        return API_Call_Result.DISCONNECTED
+    except APIClientLoggedOutException as e:
+        return API_Call_Result.NOT_LOGGED_IN
+    except APIClientRequestException as e:
+        logger.error(e)
+        return API_Call_Result.GENERAL_ERROR
+    except APIClientAuthenticationException as e:
+        logger.error(e)
+        return API_Call_Result.PERMISSION_ISSUE
+    except APIClientException as e:
+        logger.error(e)
+        return API_Call_Result.GENERAL_ERROR
+    except Exception as e:
+        logger.error(e)
+        return API_Call_Result.GENERAL_ERROR
+    self.set_ui_connectionStatus()
+    return True
