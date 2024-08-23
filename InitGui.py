@@ -4,8 +4,17 @@
 # *                                                                     *
 # ***********************************************************************
 
+import Utils
+from lens_command import LensCommand, LensWorkbenchManipulator, start_mdi_tab
 import FreeCAD
-import lens_command
+import FreeCADGui as Gui
+
+import WorkspaceView
 
 
-lens_command.open_mdi_view()
+Gui.addCommand("OndselLens_OndselLens", LensCommand())
+Gui.addWorkbenchManipulator(LensWorkbenchManipulator())
+
+start_mdi_tab()
+
+QtCore.QTimer.singleShot(3000, WorkspaceView.runsAfterLaunch)

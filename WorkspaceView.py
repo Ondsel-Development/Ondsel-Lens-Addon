@@ -26,7 +26,7 @@ from jwt.exceptions import ExpiredSignatureError
 from PySide import QtCore, QtGui, QtWidgets
 
 import FreeCAD
-import FreeCADGui as Gui
+import FreeCADGui
 import AddonManager
 
 import Utils
@@ -48,6 +48,9 @@ from APIClient import (
     APIClientAuthenticationException,
     APIClientConnectionError,
     APIClientRequestException,
+    ConnStatus,
+    API_Call_Result,
+    fancy_handle,
 )
 from Workspace import (
     WorkspaceModel,
@@ -95,7 +98,6 @@ IDX_TAB_BOOKMARKS = 1
 
 PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
 
-mw = Gui.getMainWindow()
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 
 # Test server
@@ -323,15 +325,15 @@ class BookmarkDelegate(QStyledItemDelegate):
 
 class WorkspaceView(QtWidgets.QScrollArea):
 
-    def __init__(self):
+    def __init__(self, mw):
         super(WorkspaceView, self).__init__(mw)
 
         self.current_workspace = None
         self.currentWorkspaceModel = None
-        self.api = None
+        self.toolBarItemAction = None
 
         self.setObjectName("workspaceView")
-        self.form = Gui.PySideUic.loadUi(f"{Utils.mod_path}/WorkspaceView.ui")
+        self.form = FreeCADGui.PySideUic.loadUi(f"{Utils.mod_path}/WorkspaceView.ui")
 
         tabWidget = self.form.findChildren(QtGui.QTabWidget)[0]
         tabBar = tabWidget.tabBar()
@@ -350,13 +352,20 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.createOndselButtonMenus()
 
         self.ondselIcon = QIcon(Utils.icon_path + "OndselWorkbench.svg")
-        self.ondselIconOff = QIcon(Utils.icon_path + "OndselWorkbench-off.svg")
+        self.ondselIconDisconnected = QIcon(
+            Utils.icon_path + "OndselWorkbench-disconnected.svg"
+        )
+        self.ondselIconLoggedOut = QIcon(
+            Utils.icon_path + "OndselWorkbench-loggedout.svg"
+        )
         self.form.userBtn.setIconSize(QtCore.QSize(32, 32))
         self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
         self.form.userBtn.clicked.connect(self.form.userBtn.showMenu)
         self.form.backToStartBtn.hide()
 
         self.form.buttonBack.clicked.connect(self.backClicked)
+
+        self.set_anonymous_client()
 
         self.workspacesModel = WorkspaceListModel(api=self.api)
         self.workspacesDelegate = WorkspaceListDelegate(self)
@@ -451,10 +460,10 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.handle(tryRefresh)
         self.handleRequest(self.check_for_update)
 
-        # linksView.setModel(self.linksModel)
-
     def initializeBookmarks(self):
         tabWidget = self.form.tabWidget
+        self.form.bookmarkStatusLabel = QtGui.QLabel("hello")
+        self.form.tabBookmarks.layout().addWidget(self.form.bookmarkStatusLabel)
         self.form.viewBookmarks = BookmarkView(tabWidget)
         bookmarkView = self.form.viewBookmarks
         self.form.tabBookmarks.layout().addWidget(bookmarkView)
@@ -570,11 +579,30 @@ class WorkspaceView(QtWidgets.QScrollArea):
         """
         return self.api is not None and self.api.is_connected()
 
-    def try_login(self):
-        # Check if user is already logged in.
+    def set_anonymous_client(self):
+        self.api = APIClient(
+            self,
+            "",
+            "",
+            baseUrl,
+            lensUrl,
+            self.get_source(),
+            self.get_version(),
+            None,
+            None,
+        )
+
+    def get_login_data(self):
         login_data_str = p.GetString("loginData", "")
         if login_data_str != "":
             login_data = json.loads(login_data_str)
+            return login_data
+        return {}
+
+    def try_login(self):
+        # Check if user is already logged in.
+        login_data = self.get_login_data()
+        if login_data:
             access_token = login_data["accessToken"]
             # access_token = self.generate_expired_token()
 
@@ -582,25 +610,21 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 self.logout()
             else:
                 user = login_data["user"]
-                self.set_ui_logged_in(True, user)
-
-                if self.api is None:
-                    self.api = APIClient(
-                        "",
-                        "",
-                        baseUrl,
-                        lensUrl,
-                        self.get_source(),
-                        self.get_version(),
-                        access_token,
-                        user,
-                    )
-
+                self.api = APIClient(
+                    self,
+                    "",
+                    "",
+                    baseUrl,
+                    lensUrl,
+                    self.get_source(),
+                    self.get_version(),
+                    access_token,
+                    user,
+                )
                 # Set a timer to logout when token expires.
                 # we know that the token is not expired
                 self.set_token_expiration_timer(access_token)
-        else:
-            self.set_ui_logged_in(False)
+        self.set_ui_connectionStatus()
 
     def login_btn_clicked(self):
         while True:
@@ -610,6 +634,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 email, password = dialog.get_credentials()
                 try:
                     self.api = APIClient(
+                        self,
                         email,
                         password,
                         baseUrl,
@@ -617,6 +642,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                         self.get_source(),
                         self.get_version(),
                     )
+                    self.set_ui_connectionStatus()
                     self.workspacesModel.set_api(self.api)
                     self.api.authenticate()
                 except APIClientAuthenticationException as e:
@@ -624,7 +650,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     continue  # Present the login dialog again if authentication fails
                 except APIClientException as e:
                     logger.error(e)
-                    self.api = None
+                    self.set_anonymous_client()
                     self.workspacesModel.set_api(None)
                     break
                 # Check if the request was successful (201 status code)
@@ -634,12 +660,10 @@ class WorkspaceView(QtWidgets.QScrollArea):
                         "user": self.api.user,
                     }
                     p.SetString("loginData", json.dumps(loginData))
-
-                    self.set_ui_logged_in(True, self.api.user)
+                    self.set_ui_connectionStatus()
                     self.leaveWorkspace()
                     self.handle(self.workspacesModel.refreshModel)
                     self.switchView()
-
                     # Set a timer to logout when token expires.  since we've
                     # just received the access token, it is very unlikely that
                     # it is expired.
@@ -649,19 +673,20 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 break
             else:
                 break  # Exit the login loop if the dialog is canceled
+        self.set_ui_connectionStatus()
 
     def disconnect(self):
-        self.set_ui_disconnected()
         self.api.disconnect()
+        self.set_ui_connectionStatus()
         if self.currentWorkspaceModel:
             self.setWorkspaceModel()
 
         self.hideFileDetails()
 
     def logout(self):
-        self.set_ui_logged_in(False)
         p.SetString("loginData", "")
         self.api.logout()
+        self.set_ui_connectionStatus()
 
         if self.currentWorkspaceModel:
             self.setWorkspaceModel()
@@ -704,7 +729,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         except ExpiredSignatureError as e:
             # unexpected
             self.logout()
-            self.set_ui_logged_in(False)
+            self.set_ui_connectionStatus()
             logger.error(e)
 
     def token_expired_handler(self):
@@ -735,35 +760,50 @@ class WorkspaceView(QtWidgets.QScrollArea):
             raise e
         except Exception as e:
             self.logout()
-
-            self.set_ui_logged_in(False)
+            self.set_ui_connectionStatus()
             logger.error(e)
             raise e
         return datetime.fromtimestamp(decoded_token["exp"])
 
-    def set_ui_disconnected(self):
-        self.form.userBtn.setText(self.api.getNameUser() + " (disconnected)")
+    def get_status_name_menu_and_icon(self):
+        status = self.api.status
+        status_txt = "Starting Up"
+        name = self.api.getNameUser()
+        menu = self.guestMenu
+        icon = self.ondselIconDisconnected
+        if self.toolBarItemAction is None:
+            self.find_our_toolbaritem_action()
+        if status == ConnStatus.CONNECTED:
+            icon = self.ondselIcon
+            menu = self.userMenu
+            login_data = self.get_login_data()
+            user = login_data.get("user", {})
+            users_name = user.get("name", "?")
+            users_username = user.get("username", "?")
+            status_txt = f"Logged in as {users_name} [<code>{users_username}</code>]"
+        elif status == ConnStatus.LOGGED_OUT:
+            icon = self.ondselIconLoggedOut
+            status_txt = "Logged Out"
+        elif status == ConnStatus.DISCONNECTED:
+            status_txt = "No Network Service"
+        return status, status_txt, name, menu, icon
 
-    def set_ui_connected(self):
-        logger.debug("set_ui_connected")
-        self.form.userBtn.setText(self.api.getNameUser())
-
-    def set_ui_logged_in(self, loggedIn, user=None):
-        """Toggle the visibility of UI elements based on if user is logged in"""
-
-        logger.debug("set_ui_logged_in")
-        if loggedIn:
-            userBtnText = ""
-            if "name" in user:
-                userBtnText = user["name"]
-
-            self.form.userBtn.setText(userBtnText)
-            self.form.userBtn.setIcon(self.ondselIcon)
-            self.form.userBtn.setMenu(self.userMenu)
-        else:
-            self.form.userBtn.setText("Local")
-            self.form.userBtn.setIcon(self.ondselIconOff)
-            self.form.userBtn.setMenu(self.guestMenu)
+    def set_ui_connectionStatus(self):
+        status, status_txt, name, menu, icon = self.get_status_name_menu_and_icon()
+        if self.toolBarItemAction is not None:
+            tool_tip = f"<p style='white-space:pre; margin-bottom:0.5em;'><b>Ondsel Lens Addon</b> (Ctrl+L)</p><p style='white-space:pre; margin:0;'>Show the Ondsel Lens Addon in an MDI view.</p><p>{status_txt}</p><p style='white-space:pre; margin-top:0.5em;'><i>OndselLens_OndselLens</i></p>"
+            self.toolBarItemAction.setToolTip(tool_tip)
+            self.toolBarItemAction.setIcon(icon)
+        if status is None:
+            self.form.userBtn.setText("(starting)")
+        elif status == ConnStatus.LOGGED_OUT:
+            self.form.userBtn.setText(name)  # api says "Local" when logged out
+        elif status == ConnStatus.CONNECTED:
+            self.form.userBtn.setText(name)
+        else:  # DISCONNECTED
+            self.form.userBtn.setText(name + " (disconnected)")
+        self.form.userBtn.setIcon(icon)
+        self.form.userBtn.setMenu(menu)
 
     def enterWorkspace(self, index):
         logger.debug("entering workspace")
@@ -786,32 +826,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             self.currentWorkspaceModel = LocalWorkspaceModel(
                 self.current_workspace, subPath=subPath
             )
-
-        # Create a workspace model and set it to the list
-        # if self.api is None and self.access_token is None:
-        #     logger.debug("You need to login first")
-        #     self.login_btn_clicked()
-        #     self.enterWorkspace(index)
-        #     return
-        # if self.api is None and self.access_token is not None:
-        #     self.api = APIClient(
-        #         "", "", baseUrl, lensUrl, self.access_token, self.user
-        #     )
-
-        #     self.currentWorkspaceModel = ServerWorkspaceModel(
-        #         self.current_workspace, API_Client=self.api
-        #     )
-        # else:
-        #     self.currentWorkspaceModel = LocalWorkspaceModel(self.current_workspace)
-
         self.setWorkspaceNameLabel()
-
         self.form.fileList.setModel(self.currentWorkspaceModel)
-        # self.synchronizeAction.triggered.connect(
-        #     self.currentWorkspaceModel.refreshModel
-        # )
-        # self.newWorkspaceAction.setVisible(False)
-
         self.switchView()
 
     def leaveWorkspace(self):
@@ -897,7 +913,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 if self.is_connected():
                     # check if we are connected right now
                     logger.info("The connection to the Lens service is restored.")
-                    self.set_ui_connected()
             return False
         except APIClientConnectionError as e:
             if connected_before_call:
@@ -905,14 +920,12 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     logger.warn(e)
                 else:
                     logger.warn("Disconnected from the Lens service.")
-                self.disconnect()
         except APIClientRequestException as e:
             if connected_before_call:
                 if logger.level <= logging.DEBUG:
                     logger.warn(e)
                 else:
-                    logger.warn("Disconnected from the Lens service.")
-                self.disconnect()
+                    logger.warn("Error encountered from the Lens service.")
         except APIClientAuthenticationException as e:
             logger.warn(e)
             logger.warn("Logging out")
@@ -922,6 +935,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
             logger.error(e)
             logger.warn("Logging out")
             self.logout()
+        self.set_ui_connectionStatus()
         return True
 
     def tryOpenPathFile(self, pathFile):
@@ -1446,6 +1460,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         args = QtWidgets.QApplication.arguments()[1:]
         # delay restoring the window state as much as possible to make sure
         # that the panels are at the right location
+        mw = FreeCADGui.getMainWindow()
         mw.restoreState(mainWindowState)
         if mw.close():
             QtCore.QProcess.startDetached(
@@ -1976,7 +1991,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def addCurrentFile(self):
         # Save current file on the server.
         doc = FreeCAD.ActiveDocument
-        gui_doc = Gui.ActiveDocument
+        gui_doc = FreeCADGui.ActiveDocument
 
         if doc is None:
             QMessageBox.information(
@@ -2249,7 +2264,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 viewBookmarks.setModel(bookmarkModel)
                 viewBookmarks.expandAll()
 
-            self.handle(tryRefresh)
+            api_result = fancy_handle(tryRefresh)
+            match api_result:
+                case API_Call_Result.OK:
+                    self.form.bookmarkStatusLabel.setText("")
+                case API_Call_Result.DISCONNECTED:
+                    self.form.bookmarkStatusLabel.setText("offline")
+                case API_Call_Result.NOT_LOGGED_IN:
+                    self.form.bookmarkStatusLabel.setText(
+                        "you must be logged in to see bookmarks"
+                    )
+                case _:
+                    self.form.bookmarkStatusLabel.setText("see report log")
 
     def downloadBookmarkFile(self, idSharedModel):
         # throws an APIClientException
@@ -2305,6 +2331,22 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     self.handle(lambda: self.openBookmark(idShareModel))
                 elif action == viewAction:
                     self.openShareLinkOnline(idShareModel)
+
+    def find_our_toolbaritem_action(self):
+        import PySide.QtWidgets as QtWidgets
+        import WorkspaceView
+
+        if self.toolBarItemAction is None:
+            main_window = FreeCADGui.getMainWindow()
+            fileToolBar = main_window.findChild(QtWidgets.QToolBar, "File")
+            if fileToolBar:
+                allButtons = fileToolBar.findChildren(QtWidgets.QToolButton)
+                if allButtons:
+                    for button in allButtons:
+                        allActions = button.actions()
+                        if len(allActions) > 0:
+                            if allActions[0].text() == Utils.LENS_TOOLBARITEM_TEXT:
+                                self.toolBarItemAction = allActions[0]
 
 
 # class NewWorkspaceDialog(QtGui.QDialog):
@@ -2437,7 +2479,9 @@ class SharingLinkEditDialog(QtGui.QDialog):
         super(SharingLinkEditDialog, self).__init__(parent)
 
         # Load the UI from the .ui file
-        self.dialog = Gui.PySideUic.loadUi(Utils.mod_path + "/SharingLinkEditDialog.ui")
+        self.dialog = FreeCADGui.PySideUic.loadUi(
+            Utils.mod_path + "/SharingLinkEditDialog.ui"
+        )
 
         layout = QtGui.QVBoxLayout()
         layout.addWidget(self.dialog)
@@ -2788,3 +2832,8 @@ class LoginDialog(QtGui.QDialog):
 
 
 wsv = None
+
+
+def runsAfterLaunch():
+    if wsv:
+        wsv.set_ui_connectionStatus()

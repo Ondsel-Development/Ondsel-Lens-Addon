@@ -21,9 +21,15 @@ import FreeCAD
 mod_path = os.path.dirname(__file__).replace("\\", "/")
 icon_path = f"{mod_path}/Resources/icons/"
 local_package_path = f"{mod_path}/package.xml"
-icon_ondsel = icon_path + "OndselWorkbench.svg"
+icon_ondsel_path_connected = icon_path + "OndselWorkbench.svg"
+icon_ondsel_path_disconnected = icon_path + "OndselWorkbench-disconnected.svg"
 
 DEBUG_LEVEL = logging.INFO
+
+NAME_COMMAND = "OndselLens_OndselLens"
+ACCEL = "Ctrl+L"
+NAME_COMMAND_START = "Start_Start"
+LENS_TOOLBARITEM_TEXT = "Ondsel Lens Addon"
 
 
 class FreeCADHandler(logging.Handler):
