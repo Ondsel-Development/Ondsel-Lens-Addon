@@ -20,30 +20,17 @@
 # *                                                                         *
 # ***************************************************************************
 
-import os
-import datetime
-
-import requests
-import tempfile
-
-import Utils
-
 from PySide import QtCore, QtGui
-from PySide.QtWidgets import (
-    QLineEdit,
-    QVBoxLayout,
-    QLabel,
-    QDialog,
-    QFileDialog,
-    QDialogButtonBox,
-    QPushButton,
-    QGridLayout,
-    QApplication,
-)
-
+from PySide.QtWidgets import QFileDialog
+from urllib.parse import urlparse
 import FreeCAD as App
 import FreeCADGui as Gui
 import Part
+import Utils
+import datetime
+import os
+import requests
+import tempfile
 
 logger = Utils.getLogger(__name__)
 
@@ -52,12 +39,11 @@ NAME_COMMAND = "OndselLens_AddReloadableObject"
 PROP_FILEPATH = "FilePath"
 PROP_URL = "Url"
 PROP_IMPORT_TIME = "ImportDateTime"
+PROP_SOURCE_TYPE = "SourceType"
 
 
 class ReloadableObject:
-
     def __init__(self, obj):
-        obj.Proxy = self
 
         self.group = "Source"
         self.state = False
@@ -77,35 +63,79 @@ class ReloadableObject:
             "The time when object was imported",
         )
 
-        # obj.addProperty(
-        #     "App::PropertyString", PROP_ETAG, self.group, "The ETag of a URL"
-        # )
+        obj.addProperty(
+            "App::PropertyEnumeration",
+            PROP_SOURCE_TYPE,
+            self.group,
+            "The source type of the imported object",
+        )
 
-        # for prop in [PROP_IMPORT_TIME, PROP_ETAG]:
+        obj.SourceType = ["FilePath", "URL"]
+
         for prop in [PROP_IMPORT_TIME]:
             obj.setEditorMode(
                 prop,
                 App.PropertyType.Prop_Hidden | App.PropertyType.Prop_ReadOnly,
             )
 
+        obj.Proxy = self
+
+    def is_valid_url(self, url):
+        parsed_url = urlparse(url)
+        return bool(parsed_url.scheme) and bool(parsed_url.netloc)
+
+    def is_valid_step_file(self, path_file):
+        return (
+            path_file != ""
+            and os.path.exists(path_file)
+            and os.path.isfile(path_file)
+            and self.has_step_extension(path_file)
+        )
+
     def has_step_extension(self, path_file):
         lowered = path_file.lower()
         return lowered.endswith(".stp") or lowered.endswith(".step")
 
     def onChanged(self, obj, prop):
-        if prop == PROP_FILEPATH:
-            path_file = obj.FilePath
-            self.set_object_to_file(obj, path_file)
-        elif prop == PROP_URL:
-            url = obj.Url
-            self.set_object_to_url(obj, url)
+
+        # take no action unless it's a property we care about
+        if prop not in [PROP_FILEPATH, PROP_URL, PROP_SOURCE_TYPE]:
+            return
+
+        # User has either changed the source or the source type
+        if prop == PROP_FILEPATH and self.is_valid_step_file(obj.FilePath):
+            self.state = True
+            self.IMPORT_DATE_TIME = ""
+        elif prop == PROP_URL and self.is_valid_url(obj.Url):
+            self.state = True
+            self.IMPORT_DATE_TIME = ""
+        elif prop == PROP_SOURCE_TYPE:
+            self.state = True
+
+        # Something has changed and we should reload the source
+        if self.state:
+            self.load_source(obj)
 
     def execute(self, obj):
-        self.state = self.has_file_changed(obj)
+
+        if obj.SourceType == "FilePath":
+            return self.has_file_changed(obj)
+
+    def load_source(self, obj):
+        if obj.SourceType == "URL":
+            self.set_object_to_url(obj)
+
+        elif obj.SourceType == "FilePath":  # and self.has_file_changed(obj):
+            self.set_object_to_file(obj, obj.FilePath)
+
+        self.state = False
 
     def has_file_changed(self, obj):
         if not self.is_valid_step_file(obj.FilePath):
             return False
+
+        if obj.ImportDateTime == "":
+            return True
 
         LastModified = os.path.getmtime(obj.FilePath)
         dt_object = datetime.datetime.strptime(
@@ -116,16 +146,21 @@ class ReloadableObject:
         return LastModified > time_string_mtime
 
     def set_object_to_file(self, obj, path_file):
-        if self.has_step_extension(path_file):
+        if self.is_valid_step_file(path_file):
             self.load_file(obj, path_file)
 
             # update the label
             label = os.path.splitext(os.path.basename(path_file))[0]
             obj.Label = label
         else:
-            logger.warn(f"{path_file} is not a STEP file")
+            pass
 
-    def set_object_to_url(self, obj, url):
+    def set_object_to_url(self, obj):
+        url = obj.Url
+
+        if not self.is_valid_url(url):
+            return
+
         try:
             response = requests.get(url)
             response.raise_for_status()
@@ -143,22 +178,17 @@ class ReloadableObject:
                     temp_file.write(response.content)
 
                 self.set_object_to_file(obj, path_file)
+
+        except requests.exceptions.ConnectionError as e:
+            pass
+
         except requests.exceptions.RequestException as e:
             logger.error(f"An error occurred while downloading: {e}")
 
-    def is_valid_step_file(self, path_file):
-        return (
-            path_file != ""
-            and os.path.exists(path_file)
-            and os.path.isfile(path_file)
-            and self.has_step_extension(path_file)
-        )
-
     def load_file(self, obj, path_file):
-        if self.is_valid_step_file(path_file):
-            shape = self.import_step_file(obj, path_file)
-            obj.Shape = shape
-            obj.ImportDateTime = QtCore.QDateTime.currentDateTime().toString()
+        shape = self.import_step_file(obj, path_file)
+        obj.Shape = shape
+        obj.ImportDateTime = QtCore.QDateTime.currentDateTime().toString()
 
     def import_step_file(self, obj, path_file):
         # Import the STEP file and create a shape
@@ -181,9 +211,10 @@ class ReloadableObjectViewProvider:
         self.Object = vobj.Object
 
     def doubleClicked(self, vobj):
-        return self.setEditPanel(vobj)
+        App.ActiveDocument.openTransaction("update Reloadable Object")
+        return self.setEdit(vobj)
 
-    def setEditPanel(self, vobj):
+    def setEdit(self, vobj=None, mode=0):
         obj = vobj.Object
         if not Gui.Control.activeDialog():
             panel = TaskPanel(obj)
@@ -201,9 +232,9 @@ class ReloadableObjectViewProvider:
     def getIcon(self):
         current_directory = os.path.dirname(os.path.realpath(__file__))
         if self.Object.Proxy.has_file_changed(self.Object):
-            icon = f"{current_directory}{os.path.sep}reloadable-update.svg"
+            icon = f"{current_directory}{os.path.sep}/resources/reloadable-update-blue-arrow.svg"
         else:
-            icon = f"{current_directory}{os.path.sep}reloadable.svg"
+            icon = f"{current_directory}{os.path.sep}/resources/reloadable.svg"
 
         return icon
 
@@ -225,34 +256,48 @@ class TaskPanel:
             current_directory + os.path.sep + "taskpanel.ui"
         )
 
+        self.form.radioButtonURL.setChecked(True)
+        self.form.buttonBrowse.clicked.connect(self.browse_file)
+
+        self.form.radioButtonURL.toggled.connect(lambda: self.dirty())
+        self.form.radioButtonFile.toggled.connect(lambda: self.dirty())
+        self.form.lineEditFilePath.textChanged.connect(lambda: self.dirty())
+        self.form.lineEditUrl.textChanged.connect(lambda: self.dirty())
+
+        self.get_values(obj)
+
+    def get_values(self, obj):
+
         self.form.lineEditFilePath.setText(obj.FilePath)
         self.form.lineEditUrl.setText(obj.Url)
-        self.form.buttonBrowse.clicked.connect(self.browse_file)
-        self.form.lineEditFilePath.setText(self.obj.FilePath)
 
-        # set the refresh button state
-        self.form.buttonRefresh.setEnabled(self.is_refresh_enabled())
+        if obj.SourceType == "URL":
+            self.form.radioButtonURL.setChecked(True)
 
-        self.form.buttonRefresh.clicked.connect(self.refresh)
-        App.ActiveDocument.openTransaction("update Reloadable Object")
+        elif obj.SourceType == "FilePath":
+            self.form.radioButtonFile.setChecked(True)
 
-    def is_refresh_enabled(self):
-        return bool(
-            (self.obj.FilePath and self.obj.Proxy.has_file_changed(self.obj))
-            or self.obj.Url
-        )
+        # check if we're dirty
+        if obj.SourceType == "URL" and obj.Url != "":
+            self.is_dirty = True
+        elif obj.SourceType == "FilePath":
+            self.is_dirty = obj.Proxy.has_file_changed(obj)
 
-    def get_values(self):
-        file_path = self.form.lineEditFilePath.text()
-        url = self.form.lineEditUrl.text()
-        return file_path, url
+    def dirty(self):
+        self.is_dirty = True
 
-    def refresh(self):
-        file_path, url = self.get_values()
-        if file_path:
-            self.obj.Proxy.set_object_to_file(self.obj, file_path)
-        elif url:
-            self.obj.Proxy.set_object_to_url(self.obj, url)
+    def set_values(self):
+        if not self.is_dirty:
+            return
+
+        if self.form.radioButtonURL.isChecked():
+            self.obj.SourceType = "URL"
+        else:
+            self.obj.SourceType = "FilePath"
+
+        self.obj.Url = self.form.lineEditUrl.text()
+        self.obj.FilePath = self.form.lineEditFilePath.text()
+        self.is_dirty = False
 
     def browse_file(self):
         dialog = create_file_dialog(self.form)
@@ -261,12 +306,9 @@ class TaskPanel:
             file_path = dialog.selectedFiles()[0]
             if file_path:
                 self.form.lineEditFilePath.setText(file_path)
-                self.obj.FilePath = file_path
 
     def accept(self):
-        file_path, url = self.get_values()
-        self.obj.FilePath = file_path
-        self.obj.Url = url
+        self.set_values()
         App.ActiveDocument.commitTransaction()
         Gui.Control.closeDialog()
 
@@ -274,61 +316,18 @@ class TaskPanel:
         App.ActiveDocument.abortTransaction()
         Gui.Control.closeDialog()
 
-
-class FileOrURLDialog(QtGui.QDialog):
-    def __init__(self, parent=None):
-        super(FileOrURLDialog, self).__init__(parent)
-        self.setWindowTitle("Select a File or Enter a URL:")
-
-        self.info_label = QLabel("Select either a file or a URL")
-
-        self.file_label = QLabel("File Path:", self)
-        self.file_input = QLineEdit(self)
-        self.browse_button = QPushButton("...", self)
-        self.browse_button.clicked.connect(self.browse_file)
-
-        self.url_label = QLabel("URL:", self)
-        self.url_input = QLineEdit(self)
-
-        # Check clipboard for URL
-        clipboard = QApplication.clipboard()
-        if clipboard.mimeData().hasText():
-            self.url_input.setText(clipboard.text())
-
-        layout = QGridLayout()
-
-        # Add widgets to layout
-        layout.addWidget(self.file_label, 0, 0)
-        layout.addWidget(self.file_input, 0, 1)
-        layout.addWidget(self.browse_button, 0, 2)
-
-        layout.addWidget(self.url_label, 1, 0)
-        layout.addWidget(self.url_input, 1, 1, 1, 2)  # Span across two columns
-
-        # Dialog buttons
-        self.button_box = QDialogButtonBox(
-            QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self
+    def getStandardButtons(self):
+        """getStandardButtons() ... returns the Buttons for the task panel."""
+        return (
+            QtGui.QDialogButtonBox.Ok
+            | QtGui.QDialogButtonBox.Apply
+            | QtGui.QDialogButtonBox.Cancel
         )
-        self.button_box.accepted.connect(self.accept)
-        self.button_box.rejected.connect(self.reject)
 
-        # Main layout
-        main_layout = QVBoxLayout(self)
-        main_layout.addWidget(self.info_label)
-        main_layout.addLayout(layout)
-        main_layout.addWidget(self.button_box)
-
-        self.setLayout(main_layout)
-
-    def browse_file(self):
-        dialog = create_file_dialog(self)
-
-        if dialog.exec():
-            file_path = dialog.selectedFiles()[0]
-            self.file_input.setText(file_path)
-
-    def get_inputs(self):
-        return self.file_input.text(), self.url_input.text()
+    def clicked(self, button):
+        """clicked(button) ... callback invoked when the user presses any of the task panel buttons."""
+        if button == QtGui.QDialogButtonBox.Apply:
+            self.set_values()
 
 
 def create_file_dialog(parent):
@@ -345,42 +344,19 @@ class ReloadableObjectCommand:
         return {
             "MenuText": "Add Reloadable Object",
             "ToolTip": "Create a ReloadableObject and import a STEP file",
-            "Pixmap": f"{current_directory}{os.path.sep}reloadable.svg",
+            "Pixmap": f"{current_directory}{os.path.sep}/resources/reloadable.svg",
         }
 
     def Activated(self):
         doc = App.ActiveDocument
         doc.openTransaction("Add Reloadable Object")
 
-        dialog = FileOrURLDialog()
-        if dialog.exec() == QDialog.Accepted:
-            file_path, url = dialog.get_inputs()
-        else:
-            doc.abortTransaction()
-            return
-
-        if file_path:
-            step = file_path
-        elif url:
-            step = url
-        else:
-            doc.abortTransaction()
-            return
-
-        label = os.path.splitext(os.path.basename(step))[0]
-
-        doc = App.ActiveDocument
+        label = "bogus"
         obj = doc.addObject("Part::FeaturePython", f"{label}")
 
         ReloadableObject(obj)
-        ReloadableObjectViewProvider(obj.ViewObject)
-        if file_path:
-            obj.FilePath = file_path
-        else:
-            obj.Url = url
-
-        doc.recompute()
-        App.ActiveDocument.commitTransaction()
+        obj.ViewObject.Proxy = ReloadableObjectViewProvider(obj.ViewObject)
+        obj.ViewObject.Proxy.setEdit(obj.ViewObject, 0)
 
     def IsActive(self):
         return App.ActiveDocument is not None
