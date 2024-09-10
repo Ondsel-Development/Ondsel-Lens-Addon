@@ -37,7 +37,7 @@ logger = Utils.getLogger(__name__)
 
 NAME_COMMAND = "OndselLens_AddReloadableObject"
 PROP_FILEPATH = "FilePath"
-PROP_URL = "Url"
+PROP_URL = "FileUrl"
 PROP_IMPORT_TIME = "ImportDateTime"
 PROP_SOURCE_TYPE = "SourceType"
 
@@ -49,12 +49,19 @@ class ReloadableObject:
         self.state = False
 
         obj.addProperty(
+            "App::PropertyEnumeration",
+            PROP_SOURCE_TYPE,
+            self.group,
+            "The source type of the imported object",
+        )
+
+        obj.addProperty(
             "App::PropertyFile", PROP_FILEPATH, self.group, "Path to a file"
         ).FilePath = ""
 
         obj.addProperty(
             "App::PropertyString", PROP_URL, self.group, "URL to a file"
-        ).Url = ""
+        ).FileUrl = ""
 
         obj.addProperty(
             "App::PropertyString",
@@ -63,12 +70,6 @@ class ReloadableObject:
             "The time when object was imported",
         )
 
-        obj.addProperty(
-            "App::PropertyEnumeration",
-            PROP_SOURCE_TYPE,
-            self.group,
-            "The source type of the imported object",
-        )
 
         obj.SourceType = ["FilePath", "URL"]
 
@@ -77,6 +78,9 @@ class ReloadableObject:
                 prop,
                 App.PropertyType.Prop_Hidden | App.PropertyType.Prop_ReadOnly,
             )
+
+        obj.setEditorMode("FileUrl", ["Hidden"])
+        obj.setEditorMode("ImportDateTime", ["Hidden"])
 
         obj.Proxy = self
 
@@ -106,10 +110,16 @@ class ReloadableObject:
         if prop == PROP_FILEPATH and self.is_valid_step_file(obj.FilePath):
             self.state = True
             self.IMPORT_DATE_TIME = ""
-        elif prop == PROP_URL and self.is_valid_url(obj.Url):
+        elif prop == PROP_URL and self.is_valid_url(obj.FileUrl):
             self.state = True
             self.IMPORT_DATE_TIME = ""
         elif prop == PROP_SOURCE_TYPE:
+            if obj.SourceType == "URL":
+                obj.setEditorMode("FilePath", ["Hidden"])
+                obj.setEditorMode("FileUrl", [])
+            else:
+                obj.setEditorMode("FileUrl", ["Hidden"])
+                obj.setEditorMode("FilePath", [])
             self.state = True
 
         # Something has changed and we should reload the source
@@ -156,7 +166,7 @@ class ReloadableObject:
             pass
 
     def set_object_to_url(self, obj):
-        url = obj.Url
+        url = obj.FileUrl
 
         if not self.is_valid_url(url):
             return
@@ -269,7 +279,7 @@ class TaskPanel:
     def get_values(self, obj):
 
         self.form.lineEditFilePath.setText(obj.FilePath)
-        self.form.lineEditUrl.setText(obj.Url)
+        self.form.lineEditUrl.setText(obj.FileUrl)
 
         if obj.SourceType == "URL":
             self.form.radioButtonURL.setChecked(True)
@@ -278,7 +288,7 @@ class TaskPanel:
             self.form.radioButtonFile.setChecked(True)
 
         # check if we're dirty
-        if obj.SourceType == "URL" and obj.Url != "":
+        if obj.SourceType == "URL" and obj.FileUrl != "":
             self.is_dirty = True
         elif obj.SourceType == "FilePath":
             self.is_dirty = obj.Proxy.has_file_changed(obj)
@@ -295,7 +305,7 @@ class TaskPanel:
         else:
             self.obj.SourceType = "FilePath"
 
-        self.obj.Url = self.form.lineEditUrl.text()
+        self.obj.FileUrl = self.form.lineEditUrl.text()
         self.obj.FilePath = self.form.lineEditFilePath.text()
         self.is_dirty = False
 
