@@ -97,12 +97,12 @@ lensUrl = "https://lens.ondsel.com/"
 ondselUrl = "https://www.ondsel.com/"
 
 remote_changelog_url = (
-    "https://github.com/Ondsel-Development/Ondsel-Lens/blob/master/changeLog.md"
+    "https://github.com/Ondsel-Development/Ondsel-Lens-Addon/blob/main/changeLog.md"
 )
 
 remote_package_url = (
     "https://raw.githubusercontent.com/Ondsel-Development/"
-    "Ondsel-Lens/master/package.xml"
+    "Ondsel-Lens-Addon/main/package.xml"
 )
 local_package_path = f"{modPath}/package.xml"
 

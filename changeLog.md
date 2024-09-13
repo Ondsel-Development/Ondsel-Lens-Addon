@@ -28,3 +28,6 @@ Fix small errors
 
 # 2024.09.13.01
 Update to renamed repository
+
+<version>
+Fix small errors
