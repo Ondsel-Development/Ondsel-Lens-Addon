@@ -37,19 +37,18 @@ class Curation:
             url = self.representativeFile.thumbnailUrlCache
         if url is None:
             # todo: get better defaults for the different target collections. A generic head, for example, for a user.
-            match self.nav.target:
-                case "workspaces":
-                    url = "folder.svg"
-                case "organizations":
-                    url = "group.svg"
-                case "users":
-                    url = "person.svg"
-                case "shared-models":
-                    url = "public.svg"
-                case "models":
-                    url = None
-                case "ondsel":
-                    url = None
+            if self.nav.target == "workspaces":
+                url = "folder.svg"
+            elif self.nav.target == "organizations":
+                url = "group.svg"
+            elif self.nav.target == "users":
+                url = "person.svg"
+            elif self.nav.target == "shared-models":
+                url = "public.svg"
+            elif self.nav.target == "models":
+                url = None
+            elif self.nav.target == "ondsel":
+                url = None
         return url
 
     @classmethod

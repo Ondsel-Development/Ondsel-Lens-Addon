@@ -41,21 +41,22 @@ class SearchResultsView(QFlowView):
 
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         api_result = fancy_handle(do_search)
-        match api_result:
-            case API_Call_Result.OK:
-                self.curationListModel.curation_list = resulting_curations
-                if len(resulting_curations) == 0:
-                    self.parent.form.searchResultMessageLabel.setText("no results")
-                else:
-                    self.parent.form.searchResultMessageLabel.setText("")
+        if api_result == API_Call_Result.OK:
+            self.curationListModel.curation_list = resulting_curations
+            if len(resulting_curations) == 0:
+                self.parent.form.searchResultMessageLabel.setText("no results")
+            else:
+                self.parent.form.searchResultMessageLabel.setText("")
                 self.curationListModel.layoutChanged.emit()
-            case API_Call_Result.DISCONNECTED:
-                self.parent.form.searchResultMessageLabel.setText("offline")
-                self.curationListModel.curation_list = []
-                self.curationListModel.layoutChanged.emit()
-            case _:
-                # because search is public, .NOT_LOGGED_IN will never happen
-                self.parent.form.searchResultMessageLabel.setText("unexpected error")
-                self.curationListModel.curation_list = []
-                self.curationListModel.layoutChanged.emit()
+
+        elif api_result == API_Call_Result.DISCONNECTED:
+            self.parent.form.searchResultMessageLabel.setText("offline")
+            self.curationListModel.curation_list = []
+            self.curationListModel.layoutChanged.emit()
+
+        else:
+            # because search is public, .NOT_LOGGED_IN will never happen
+            self.parent.form.searchResultMessageLabel.setText("unexpected error")
+            self.curationListModel.curation_list = []
+            self.curationListModel.layoutChanged.emit()
         QApplication.restoreOverrideCursor()
