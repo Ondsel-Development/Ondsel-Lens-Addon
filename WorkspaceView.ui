@@ -230,7 +230,7 @@
          <layout class="QVBoxLayout">
           <item>
            <layout class="QHBoxLayout">
-            <item>
+            <item alignment="Qt::AlignmentFlag::AlignTop">
              <widget class="QLabel" name="thumbnail_label">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -248,7 +248,7 @@
             </item>
             <item>
              <layout class="QVBoxLayout">
-              <item>
+              <item alignment="Qt::AlignmentFlag::AlignTop">
                <widget class="QLabel" name="fileNameLabel">
                 <property name="text">
                  <string>part.FCStd</string>
@@ -293,7 +293,7 @@
                 <item>
                  <spacer name="horizontalSpacer_4">
                   <property name="orientation">
-                   <enum>Qt::Vertical</enum>
+                   <enum>Qt::Orientation::Horizontal</enum>
                   </property>
                   <property name="sizeHint" stdset="0">
                    <size>
@@ -350,7 +350,7 @@
                <item>
                 <spacer name="horizontalSpacer_3">
                  <property name="orientation">
-                  <enum>Qt::Vertical</enum>
+                  <enum>Qt::Orientation::Horizontal</enum>
                  </property>
                  <property name="sizeHint" stdset="0">
                   <size>
@@ -521,7 +521,10 @@
       </sizepolicy>
      </property>
      <property name="frameShape">
-      <enum>QFrame::NoFrame</enum>
+      <enum>QFrame::Shape::NoFrame</enum>
+     </property>
+     <property name="frameShadow">
+      <enum>QFrame::Shadow::Plain</enum>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
@@ -547,7 +550,7 @@
       <item>
        <spacer name="horizontalSpacer">
         <property name="orientation">
-         <enum>Qt::Vertical</enum>
+         <enum>Qt::Orientation::Horizontal</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
