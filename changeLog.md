@@ -25,3 +25,6 @@ Fix creating share links.
 
 # 2024.07.05.02
 Fix small errors
+
+<version>
+Update to renamed repository
