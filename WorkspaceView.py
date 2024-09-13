@@ -2265,17 +2265,16 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 viewBookmarks.expandAll()
 
             api_result = fancy_handle(tryRefresh)
-            match api_result:
-                case API_Call_Result.OK:
-                    self.form.bookmarkStatusLabel.setText("")
-                case API_Call_Result.DISCONNECTED:
-                    self.form.bookmarkStatusLabel.setText("offline")
-                case API_Call_Result.NOT_LOGGED_IN:
-                    self.form.bookmarkStatusLabel.setText(
-                        "you must be logged in to see bookmarks"
-                    )
-                case _:
-                    self.form.bookmarkStatusLabel.setText("see report log")
+            if api_result == API_Call_Result.OK:
+                self.form.bookmarkStatusLabel.setText("")
+            elif api_result == API_Call_Result.DISCONNECTED:
+                self.form.bookmarkStatusLabel.setText("offline")
+            elif api_result == API_Call_Result.NOT_LOGGED_IN:
+                self.form.bookmarkStatusLabel.setText(
+                    "you must be logged in to see bookmarks"
+                )
+            else:
+                self.form.bookmarkStatusLabel.setText("see report log")
 
     def downloadBookmarkFile(self, idSharedModel):
         # throws an APIClientException
