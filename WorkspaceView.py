@@ -1926,7 +1926,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 lambda: self.form.linksView.model().add_new_link(link_properties)
             )
 
-    def openUrl(self, url):
+    def open_url(self, url):
         # doesn't work on platforms without `gio-launch-desktop` while Qt
         # tries to use this.
         # ret = QtGui.QDesktopServices.openUrl(QtCore.QUrl(url))
@@ -1946,7 +1946,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         if modelId is not None:
             url = f"{lensUrl}model/{modelId}"
             logger.debug(f"Opening {url}")
-        self.openUrl(url)
+        self.open_url(url)
 
     def makeActive(self):
         comboBox = self.form.versionsComboBox
@@ -1969,11 +1969,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def ondselAccount(self):
         url = f"{lensUrl}login"
-        self.openUrl(url)
+        self.open_url(url)
 
     def showOndselSignUpPage(self):
         url = f"{lensUrl}signup"
-        self.openurl(url)
+        self.open_url(url)
 
     def timerTick(self):
         def tryRefresh():
@@ -2197,7 +2197,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def openDownloadPage(self):
         url = f"{self.api.get_base_url()}download-and-explore"
-        self.openUrl(url)
+        self.open_url(url)
 
     def toVersionNumber(self, version):
         return [int(n) for n in version.split(".")]
@@ -2310,7 +2310,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def openShareLinkOnline(self, idShareModel):
         url = f"{self.api.get_base_url()}share/{idShareModel}"
-        self.openUrl(url)
+        self.open_url(url)
 
     def showBookmarkContextMenu(self, pos):
         viewBookmarks = self.form.viewBookmarks
