@@ -9,6 +9,7 @@ from lens_command import LensCommand, LensWorkbenchManipulator, start_mdi_tab
 import FreeCAD
 import FreeCADGui as Gui
 
+from PySide import QtCore
 import WorkspaceView
 
 

@@ -28,7 +28,8 @@
     <macro>
       <name>svgpost</name>
       <description>CAM Workbench Postprocessor for SVG export</description>
-      <filename>macros/svg_post.py</filename>
+      <subdirectory>macros</subdirectory>
+      <filename>svg_post.py</filename>
     </macro>
 
   </content>
