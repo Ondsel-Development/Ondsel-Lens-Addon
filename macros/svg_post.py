@@ -20,11 +20,9 @@
 # *                                                                         *
 # ***************************************************************************
 
-import os
 from Path.Post.Processor import PostProcessor
 import Path
 import FreeCAD
-from FreeCAD import Vector
 import math
 
 Path.Log.setLevel(Path.Log.Level.INFO, Path.Log.thisModule())
@@ -104,7 +102,11 @@ class Svg(PostProcessor):
 
             if use_layers:
                 layer_id = f"layer{idx}_{obj_idx}"
-                svg_content += f'<g id="{layer_id}" inkscape:label="{obj.Label}" inkscape:groupmode="layer">\n'
+                svg_content += (
+                    f'<g id="{layer_id}" '
+                    f'inkscape:label="{obj.Label}" '
+                    f'inkscape:groupmode="layer">\n'
+                )
 
             for wire in wires:
                 path_data = self.wire_to_svg_path(wire, width, height, xmin, ymin)
@@ -113,7 +115,10 @@ class Svg(PostProcessor):
                         f'  <path d="{path_data}" stroke="none" fill="{color}" />\n'
                     )
                 else:
-                    svg_content += f'  <path d="{path_data}" stroke="{color}" stroke-width="{width}" fill="none" />\n'
+                    svg_content += (
+                        f'  <path d="{path_data}" stroke="{color}" '
+                        f'stroke-width="{width}" fill="none" />\n'
+                    )
 
             if use_layers:
                 svg_content += "</g>\n"
@@ -124,7 +129,10 @@ class Svg(PostProcessor):
         return svg_content
 
     def wire_to_svg_path(self, wire, width, height, xmin, ymin):
-        """Convert FreeCAD wire to SVG path data with y-axis inversion and limited precision"""
+        """
+        Convert FreeCAD wire to SVG path data with y-axis inversion
+        and limited precision
+        """
         path_data = ""
         is_first_point = True
         vertices_info = []
@@ -140,7 +148,8 @@ class Svg(PostProcessor):
             end_point = edge.Vertexes[-1].Point
             Path.Log.debug(f"Edge Type: {edge.Curve.TypeId}")
             Path.Log.debug(
-                f"Start Point: ({format_coord(start_point.x)}, {format_coord(start_point.y)})"
+                f"Start Point: ({format_coord(start_point.x)}, "
+                f"{format_coord(start_point.y)})"
             )
             Path.Log.debug(
                 f"End Point: ({format_coord(end_point.x)}, {format_coord(end_point.y)})"
@@ -152,20 +161,30 @@ class Svg(PostProcessor):
                 continue
 
             if is_first_point:
-                path_data += f"M {format_coord(start_point.x - xmin)} {format_coord(height - (start_point.y - ymin))} "
+                path_data += (
+                    f"M {format_coord(start_point.x - xmin)} "
+                    f"{format_coord(height - (start_point.y - ymin))} "
+                )
                 vertices_info.append(
-                    f"M {format_coord(start_point.x - xmin)} {format_coord(height - (start_point.y - ymin))}"
+                    f"M {format_coord(start_point.x - xmin)} "
+                    f"{format_coord(height - (start_point.y - ymin))}"
                 )
                 is_first_point = False
 
             if edge.Curve.TypeId in ["Part::GeomLineSegment", "Part::GeomLine"]:
                 # Handle line segment without discretization
-                path_data += f"L {format_coord(end_point.x - xmin)} {format_coord(height - (end_point.y - ymin))} "
+                path_data += (
+                    f"L {format_coord(end_point.x - xmin)} "
+                    f"{format_coord(height - (end_point.y - ymin))} "
+                )
                 vertices_info.append(
-                    f"L {format_coord(end_point.x - xmin)} {format_coord(height - (end_point.y - ymin))}"
+                    f"L {format_coord(end_point.x - xmin)} "
+                    f"{format_coord(height - (end_point.y - ymin))}"
                 )
                 Path.Log.debug(
-                    f"Line segment from ({format_coord(start_point.x)}, {format_coord(start_point.y)}) to ({format_coord(end_point.x)}, {format_coord(end_point.y)})"
+                    f"Line segment from ({format_coord(start_point.x)}, "
+                    f"{format_coord(start_point.y)}) to ({format_coord(end_point.x)}, "
+                    f"{format_coord(end_point.y)})"
                 )
             elif edge.Curve.TypeId in ["Part::GeomCircle", "Part::GeomArcOfCircle"]:
                 # Handle circular arc using 'A' command
@@ -181,7 +200,7 @@ class Svg(PostProcessor):
                 if angle_diff > math.pi:
                     angle_diff -= 2 * math.pi
 
-                angle_diff_degrees = radians_to_degrees(angle_diff)
+                # angle_diff_degrees = radians_to_degrees(angle_diff)
                 Path.Log.debug(f"Angle difference: {angle_diff:.2f} radians")
 
                 # Determine the large_arc_flag and sweep_flag
@@ -193,12 +212,18 @@ class Svg(PostProcessor):
                 end_x = format_coord(end_point.x - xmin)
                 end_y = format_coord(height - (end_point.y - ymin))
 
-                path_data += f"A {format_coord(radius)} {format_coord(radius)} 0 {large_arc_flag} {sweep_flag} {end_x} {end_y} "
+                path_data += (
+                    f"A {format_coord(radius)} {format_coord(radius)} 0 "
+                    f"{large_arc_flag} {sweep_flag} {end_x} {end_y} "
+                )
                 vertices_info.append(
-                    f"A {format_coord(radius)} {format_coord(radius)} 0 {large_arc_flag} {sweep_flag} {end_x} {end_y}"
+                    f"A {format_coord(radius)} {format_coord(radius)} 0 "
+                    f"{large_arc_flag} {sweep_flag} {end_x} {end_y}"
                 )
                 Path.Log.debug(
-                    f"Circular arc with radius {format_coord(radius)} from ({start_x}, {start_y}) to ({end_x}, {end_y}) (large_arc_flag: {large_arc_flag}, sweep_flag: {sweep_flag})"
+                    f"Circular arc with radius {format_coord(radius)} "
+                    f"from ({start_x}, {start_y}) to ({end_x}, {end_y}) "
+                    f"(large_arc_flag: {large_arc_flag}, sweep_flag: {sweep_flag})"
                 )
                 Path.Log.debug(path_data)
             else:
@@ -211,9 +236,13 @@ class Svg(PostProcessor):
                 ):
                     continue
                 for vertex in vertices:
-                    path_data += f"L {format_coord(vertex.x - xmin)} {format_coord(height - (vertex.y - ymin))} "
+                    path_data += (
+                        f"L {format_coord(vertex.x - xmin)} "
+                        f"{format_coord(height - (vertex.y - ymin))} "
+                    )
                     vertices_info.append(
-                        f"L {format_coord(vertex.x - xmin)} {format_coord(height - (vertex.y - ymin))}"
+                        f"L {format_coord(vertex.x - xmin)} "
+                        f"{format_coord(height - (vertex.y - ymin))}"
                     )
                 Path.Log.debug(f"Discretized edge with {len(vertices)} points")
 
@@ -265,8 +294,9 @@ class Svg(PostProcessor):
         It will export a CAM job to an SVG file with colors and layers.
 
         Tool Controllers determine how the svg will be created and, thus, how the
-        laser will behave.  They must have a label containing a string from the list at the top of the post file.
-        (e.g. CUT, FILL, ENGRAVE). SVG Paths will be color coded similarly
+        laser will behave.  They must have a label containing a string from the list at
+        the top of the post file (e.g. CUT, FILL, ENGRAVE). SVG Paths will be color
+        coded similarly.
 
         Actual laser behavior will depend on how the laser controller is configured
         to process the colors / layers.
@@ -280,7 +310,8 @@ class Svg(PostProcessor):
     @property
     def tooltipArgs(self):
         argtooltip = """
-        --layers: Output will be written to different layers. Layer names are taken from the operation label
+        --layers: Output will be written to different layers. Layer names are taken
+        from the operation label
         """
         return argtooltip
 
