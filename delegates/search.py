@@ -35,7 +35,7 @@ from PySide.QtGui import (
 )
 from PySide.QtCore import QByteArray, Qt, QSize
 from PySide.QtWidgets import QTreeView
-from PySide2.QtUiTools import loadUiType
+from PySide.QtUiTools import loadUiType
 import FreeCADGui as Gui
 
 from models.curation import CurationListModel
