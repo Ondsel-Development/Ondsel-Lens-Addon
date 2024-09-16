@@ -9,7 +9,7 @@ class ChooseDownloadActionDialog(QDialog):
         self.quit_on_close = False
 
         self.setWindowTitle(name)
-        self.answer = 0        # 0 = cancel, 1 = open web, 2 = download to memory
+        self.answer = 0  # 0 = cancel, 1 = open web, 2 = download to memory
 
         message = QLabel(f"What should we do with '{name}'?")
 
@@ -36,4 +36,4 @@ class ChooseDownloadActionDialog(QDialog):
         rb = self.sender()
         if rb.isChecked():
             self.answer = rb.answer
-            print(f'You selected {rb.answer}')
+            print(f"You selected {rb.answer}")

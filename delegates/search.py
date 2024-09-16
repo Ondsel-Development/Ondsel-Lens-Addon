@@ -69,7 +69,7 @@ class SearchResultDelegate(QFrame):
         if self.curation.collection == "shared-models":
             dlg = ChooseDownloadActionDialog(self.curation.name, self)
             overall_response = dlg.exec()
-            if (overall_response != 0):
+            if overall_response != 0:
                 if dlg.answer == 1:
                     self._goto_url()
                 elif dlg.answer == 2:
