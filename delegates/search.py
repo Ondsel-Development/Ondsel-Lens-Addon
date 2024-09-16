@@ -93,7 +93,6 @@ class SearchResultDelegate(QFrame):
         else:
             self._goto_url()
 
-
     def _goto_url(self):
         base = Utils.env.lens_url
         url = self.curation.nav.generate_url(base)
