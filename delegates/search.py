@@ -38,6 +38,7 @@ from PySide.QtWidgets import QTreeView
 from PySide.QtUiTools import loadUiType
 import FreeCADGui as Gui
 
+from components.choose_download_action_dialog import ChooseDownloadActionDialog
 from models.curation import CurationListModel
 
 logger = Utils.getLogger(__name__)
@@ -62,15 +63,7 @@ class SearchResultDelegate(QFrame):
         #
         self.widget.collectionLabel.setText(curation.nav.user_friendly_target_name())
         self.widget.titleLabel.setText(curation.name)
-        # webIcon = QtGui.QIcon(Utils.icon_path + "link.svg")
-        # self.widget.webToolButton.setIcon(webIcon)
-        # self.widget.webToolButton.clicked.connect(self._goto_url)
-        # downloadIcon = QtGui.QIcon(Utils.icon_path + "cloud_download.svg")
-        # self.widget.downloadToolButton.setIcon(downloadIcon)
-        # if curation.is_downloadable():
-        #     self.widget.downloadToolButton.setEnabled(True)
-        # self.mousePressEvent = lambda event: print("ssss")
-        self.mousePressEvent = lambda event: self._goto_url()
+        self.mousePressEvent = lambda event: self._take_action()
         self.setCursor(QCursor(Qt.PointingHandCursor))
         self.image_url = curation.get_thumbnail_url()
         if self.image_url is None:
@@ -87,6 +80,19 @@ class SearchResultDelegate(QFrame):
             self.widget.iconLabel.setPixmap(mainImage)
         #
         self.setLayout(layout)
+
+    def _take_action(self):
+        if self.curation.collection == "shared-models":
+            dlg = ChooseDownloadActionDialog(self.curation.name, self)
+            overall_response = dlg.exec()
+            if overall_response != 0:
+                if dlg.answer == 1:
+                    self._goto_url()
+                elif dlg.answer == 2:
+                    print("download to memory")
+        else:
+            self._goto_url()
+
 
     def _goto_url(self):
         base = Utils.env.lens_url
