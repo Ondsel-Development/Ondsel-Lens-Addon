@@ -41,12 +41,15 @@ PROP_URL = "FileUrl"
 PROP_IMPORT_TIME = "ImportDateTime"
 PROP_SOURCE_TYPE = "SourceType"
 
+SOURCE_TYPE_FILEPATH = "FilePath"
+SOURCE_TYPE_URL = "URL"
+
 
 class ReloadableObject:
     def __init__(self, obj):
 
         self.group = "Source"
-        self.state = False
+        self.should_reload = False
 
         obj.addProperty(
             "App::PropertyEnumeration",
@@ -70,16 +73,10 @@ class ReloadableObject:
             "The time when object was imported",
         )
 
-        obj.SourceType = ["FilePath", "URL"]
+        obj.SourceType = [SOURCE_TYPE_FILEPATH, SOURCE_TYPE_URL]
 
-        for prop in [PROP_IMPORT_TIME]:
-            obj.setEditorMode(
-                prop,
-                App.PropertyType.Prop_Hidden | App.PropertyType.Prop_ReadOnly,
-            )
-
-        obj.setEditorMode("FileUrl", ["Hidden"])
-        obj.setEditorMode("ImportDateTime", ["Hidden"])
+        obj.setEditorMode(PROP_URL, App.PropertyType.Prop_Hidden)
+        obj.setEditorMode(PROP_IMPORT_TIME, App.PropertyType.Prop_Hidden)
 
         obj.Proxy = self
 
@@ -107,37 +104,34 @@ class ReloadableObject:
 
         # User has either changed the source or the source type
         if prop == PROP_FILEPATH and self.is_valid_step_file(obj.FilePath):
-            self.state = True
-            self.IMPORT_DATE_TIME = ""
+            self.should_reload = True
         elif prop == PROP_URL and self.is_valid_url(obj.FileUrl):
-            self.state = True
-            self.IMPORT_DATE_TIME = ""
+            self.should_reload = True
         elif prop == PROP_SOURCE_TYPE:
-            if obj.SourceType == "URL":
-                obj.setEditorMode("FilePath", ["Hidden"])
-                obj.setEditorMode("FileUrl", [])
+            if obj.SourceType == SOURCE_TYPE_URL:
+                obj.setEditorMode(PROP_URL, App.PropertyType.Prop_None)
+                obj.setEditorMode(PROP_FILEPATH, App.PropertyType.Prop_Hidden)
             else:
-                obj.setEditorMode("FileUrl", ["Hidden"])
-                obj.setEditorMode("FilePath", [])
-            self.state = True
+                obj.setEditorMode(PROP_FILEPATH, App.PropertyType.Prop_None)
+                obj.setEditorMode(PROP_URL, App.PropertyType.Prop_Hidden)
+            self.should_reload = True
 
         # Something has changed and we should reload the source
-        if self.state:
+        if self.should_reload:
             self.load_source(obj)
 
     def execute(self, obj):
-
-        if obj.SourceType == "FilePath":
+        if obj.SourceType == SOURCE_TYPE_FILEPATH:
             return self.has_file_changed(obj)
 
     def load_source(self, obj):
-        if obj.SourceType == "URL":
+        if obj.SourceType == SOURCE_TYPE_URL:
             self.set_object_to_url(obj)
 
-        elif obj.SourceType == "FilePath":  # and self.has_file_changed(obj):
+        elif obj.SourceType == SOURCE_TYPE_FILEPATH:  # and self.has_file_changed(obj):
             self.set_object_to_file(obj, obj.FilePath)
 
-        self.state = False
+        self.should_reload = False
 
     def has_file_changed(self, obj):
         if not self.is_valid_step_file(obj.FilePath):
@@ -186,7 +180,7 @@ class ReloadableObject:
 
                 self.set_object_to_file(obj, path_file)
 
-        except requests.exceptions.ConnectionError as e:
+        except requests.exceptions.ConnectionError:
             pass
 
         except requests.exceptions.RequestException as e:
@@ -241,7 +235,10 @@ class ReloadableObjectViewProvider:
     def getIcon(self):
         current_directory = os.path.dirname(os.path.realpath(__file__))
         if self.Object.Proxy.has_file_changed(self.Object):
-            icon = f"{current_directory}{os.path.sep}/resources/reloadable-update-blue-arrow.svg"
+            icon = (
+                f"{current_directory}{os.path.sep}/resources/"
+                "reloadable-update-blue-arrow.svg"
+            )
         else:
             icon = f"{current_directory}{os.path.sep}/resources/reloadable.svg"
 
@@ -280,16 +277,16 @@ class TaskPanel:
         self.form.lineEditFilePath.setText(obj.FilePath)
         self.form.lineEditUrl.setText(obj.FileUrl)
 
-        if obj.SourceType == "URL":
+        if obj.SourceType == SOURCE_TYPE_URL:
             self.form.radioButtonURL.setChecked(True)
 
-        elif obj.SourceType == "FilePath":
+        elif obj.SourceType == SOURCE_TYPE_FILEPATH:
             self.form.radioButtonFile.setChecked(True)
 
         # check if we're dirty
-        if obj.SourceType == "URL" and obj.FileUrl != "":
+        if obj.SourceType == SOURCE_TYPE_URL and obj.FileUrl != "":
             self.is_dirty = True
-        elif obj.SourceType == "FilePath":
+        elif obj.SourceType == SOURCE_TYPE_FILEPATH:
             self.is_dirty = obj.Proxy.has_file_changed(obj)
 
     def dirty(self):
@@ -300,9 +297,9 @@ class TaskPanel:
             return
 
         if self.form.radioButtonURL.isChecked():
-            self.obj.SourceType = "URL"
+            self.obj.SourceType = SOURCE_TYPE_URL
         else:
-            self.obj.SourceType = "FilePath"
+            self.obj.SourceType = SOURCE_TYPE_FILEPATH
 
         self.obj.FileUrl = self.form.lineEditUrl.text()
         self.obj.FilePath = self.form.lineEditFilePath.text()
@@ -334,7 +331,10 @@ class TaskPanel:
         )
 
     def clicked(self, button):
-        """clicked(button) ... callback invoked when the user presses any of the task panel buttons."""
+        """
+        clicked(button) ... callback invoked when the user presses any of the task
+        panel buttons.
+        """
         if button == QtGui.QDialogButtonBox.Apply:
             self.set_values()
 
@@ -360,7 +360,7 @@ class ReloadableObjectCommand:
         doc = App.ActiveDocument
         doc.openTransaction("Add Reloadable Object")
 
-        label = "bogus"
+        label = "Reloadable"
         obj = doc.addObject("Part::FeaturePython", f"{label}")
 
         ReloadableObject(obj)
