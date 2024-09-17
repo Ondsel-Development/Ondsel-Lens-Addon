@@ -70,7 +70,6 @@ class ReloadableObject:
             "The time when object was imported",
         )
 
-
         obj.SourceType = ["FilePath", "URL"]
 
         for prop in [PROP_IMPORT_TIME]:
@@ -148,9 +147,7 @@ class ReloadableObject:
             return True
 
         LastModified = os.path.getmtime(obj.FilePath)
-        dt_object = datetime.datetime.strptime(
-            obj.ImportDateTime, "%a %b %d %H:%M:%S %Y"
-        )
+        dt_object = datetime.datetime.fromisoformat(obj.ImportDateTime)
         time_string_mtime = dt_object.timestamp()
 
         return LastModified > time_string_mtime
@@ -198,7 +195,9 @@ class ReloadableObject:
     def load_file(self, obj, path_file):
         shape = self.import_step_file(obj, path_file)
         obj.Shape = shape
-        obj.ImportDateTime = QtCore.QDateTime.currentDateTime().toString()
+        obj.ImportDateTime = QtCore.QDateTime.currentDateTime().toString(
+            QtCore.Qt.ISODate
+        )
 
     def import_step_file(self, obj, path_file):
         # Import the STEP file and create a shape
