@@ -1,9 +1,7 @@
 import Utils
 import WorkspaceView
-import FreeCAD
 import FreeCADGui as Gui
-from PySide import QtGui
-from PySide import QtWidgets
+from PySide import QtGui, QtWidgets
 
 
 class LensCommand:
@@ -58,3 +56,8 @@ def start_mdi_tab():
             subwindow.setWindowTitle("Ondsel Lens")
             subwindow.setWindowIcon(QtGui.QIcon(Utils.icon_ondsel_path_connected))
             subwindow.showMaximized()
+
+
+def init_toolbar_icon():
+    if WorkspaceView.wsv:
+        WorkspaceView.wsv.init_toolbar_icon()
