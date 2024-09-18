@@ -72,7 +72,6 @@ from PySide.QtGui import (
     QMenu,
     QSizePolicy,
     QPixmap,
-    QListView,
 )
 
 from PySide.QtCore import QByteArray
@@ -323,6 +322,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.current_workspace = None
         self.currentWorkspaceModel = None
         self.toolBarItemAction = None
+        self.fileToolBar = None
 
         self.setObjectName("workspaceView")
         self.form = FreeCADGui.PySideUic.loadUi(f"{Utils.mod_path}/WorkspaceView.ui")
@@ -783,7 +783,14 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def set_ui_connectionStatus(self):
         status, status_txt, name, menu, icon = self.get_status_name_menu_and_icon()
         if self.toolBarItemAction is not None:
-            tool_tip = f"<p style='white-space:pre; margin-bottom:0.5em;'><b>Ondsel Lens Addon</b> (Ctrl+L)</p><p style='white-space:pre; margin:0;'>Show the Ondsel Lens Addon in an MDI view.</p><p>{status_txt}</p><p style='white-space:pre; margin-top:0.5em;'><i>OndselLens_OndselLens</i></p>"
+            tool_tip = (
+                "<p style='white-space:pre; margin-bottom:0.5em;'>"
+                "  <b>Ondsel Lens Addon</b> (Ctrl+L)</p>"
+                "<p style='white-space:pre; margin:0;'>"
+                "  Show the Ondsel Lens Addon in an MDI view.</p>"
+                f"<p>{status_txt}</p><p style='white-space:pre; margin-top:0.5em;'>"
+                "  <i>OndselLens_OndselLens</i></p>"
+            )
             self.toolBarItemAction.setToolTip(tool_tip)
             self.toolBarItemAction.setIcon(icon)
         if status is None:
@@ -2238,20 +2245,36 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     self.openShareLinkOnline(idShareModel)
 
     def find_our_toolbaritem_action(self):
-        import PySide.QtWidgets as QtWidgets
-        import WorkspaceView
-
-        if self.toolBarItemAction is None:
+        # first try to find and set the toolbar
+        if self.fileToolBar is None:
             main_window = FreeCADGui.getMainWindow()
-            fileToolBar = main_window.findChild(QtWidgets.QToolBar, "File")
-            if fileToolBar:
-                allButtons = fileToolBar.findChildren(QtWidgets.QToolButton)
+            self.fileToolBar = main_window.findChild(QtWidgets.QToolBar, "File")
+
+        if self.fileToolBar:
+            if self.toolBarItemAction:
+                return True
+            else:
+                # didn't find the action yet, try to find it in the toolbar
+                allButtons = self.fileToolBar.findChildren(QtWidgets.QToolButton)
                 if allButtons:
                     for button in allButtons:
                         allActions = button.actions()
                         if len(allActions) > 0:
                             if allActions[0].text() == Utils.LENS_TOOLBARITEM_TEXT:
                                 self.toolBarItemAction = allActions[0]
+                                return True
+        return False
+
+    def check_for_toolbar_item(self):
+        if self.find_our_toolbaritem_action():
+            self.timer.stop()
+            self.set_ui_connectionStatus()
+
+    def init_toolbar_icon(self):
+        if self.toolBarItemAction is None:
+            self.timer = QtCore.QTimer(self)
+            self.timer.timeout.connect(self.check_for_toolbar_item)
+            self.timer.start(500)
 
     def parse_url(self, url):
         prefix = Utils.URL_SCHEME + ":"
@@ -2787,8 +2810,3 @@ class LoginDialog(QtGui.QDialog):
 
 
 wsv = None
-
-
-def runsAfterLaunch():
-    if wsv:
-        wsv.set_ui_connectionStatus()
