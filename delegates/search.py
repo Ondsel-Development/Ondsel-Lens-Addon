@@ -56,14 +56,15 @@ class SearchResultDelegate(QFrame):
 
     def _take_action(self):
         if self.curation.collection == "shared-models":
-            dlg = ChooseDownloadActionDialog(self.curation.name, self)
+            data_parent = self.curation.parent
+            dlg = ChooseDownloadActionDialog(self.curation.name, data_parent)
             overall_response = dlg.exec()
             if overall_response != 0:
                 if dlg.answer == 1:
                     self._goto_url()
                 elif dlg.answer == 2:
                     downloaded_filename = Utils.download_shared_model_to_memory(
-                        self.curation.api, str(self.curation._id)
+                        self.curation.parent.api, str(self.curation._id)
                     )
                     if downloaded_filename is False:
                         logger.warn("Unable to download; opening in browser instead.")

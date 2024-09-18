@@ -5,6 +5,8 @@ import requests
 import json
 import urllib
 
+from lxml.etree import xmlfile
+
 import Utils
 from models.curation import Curation
 
@@ -103,6 +105,11 @@ class APIClient:
         self.status = newStatus
         if hasattr(self.parent, "api"):  # during parent startup; don't set status yet.
             self.parent.set_ui_connectionStatus()
+
+    def getStatus(self):
+        """gets the current connection status; this is an active check to see if really online"""
+        self._confirm_online()
+        return self.status
 
     def getNameUser(self):
         if self.user and "name" in self.user:
