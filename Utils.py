@@ -8,6 +8,7 @@ import os
 import math
 import re
 import logging
+import tempfile
 
 import zipfile
 import shutil
@@ -193,6 +194,31 @@ def get_addon_version():
         package_xml_content = file.read()
 
     return re.search(r"<version>(.*?)<\/version>", package_xml_content).group(1)
+
+
+def download_shared_model_to_memory(api, id_shared_model):
+    shared_model = api.getSharedModel(id_shared_model)
+    if not shared_model["canDownloadDefaultModel"]:
+        return False
+    model = shared_model["model"]
+    file = model["file"]
+    real_filename = file["custFileName"]
+    version_id = str(file["currentVersionId"])
+    versions = file["versions"]
+    unique_filename = [
+        ver["uniqueFileName"] for ver in versions if str(ver["_id"]) == version_id
+    ][0]
+    return download_to_memory(api, unique_filename, real_filename)
+
+
+def download_to_memory(api, unique_filename, real_filename):
+    with tempfile.NamedTemporaryFile(prefix="sl_", suffix=".FCStd") as tf:
+        api.downloadFileFromServerUsingHandle(unique_filename, tf)
+        tf.flush()
+        FreeCAD.openDocument(tf.name)
+    FreeCAD.ActiveDocument.Label = real_filename
+    FreeCAD.ActiveDocument.FileName = ""
+    return real_filename
 
 
 def get_server_package_file():

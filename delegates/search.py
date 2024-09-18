@@ -1,41 +1,14 @@
-import os
-from datetime import datetime
-import re
-import json
-import shutil
 import requests
-import uuid
-import base64
 import webbrowser
-import logging
 
 import Utils
 from PySide import QtCore, QtGui, QtWidgets
 from PySide.QtGui import (
-    QStyledItemDelegate,
-    QStyle,
-    QMessageBox,
-    QApplication,
-    QIcon,
-    QAction,
-    QActionGroup,
-    QMenu,
-    QSizePolicy,
     QPixmap,
-    QStandardItem,
-    QStandardItemModel,
-    QListView,
-    QListWidgetItem,
-    QScrollArea,
-    QWidget,
-    QVBoxLayout,
-    QLabel,
     QFrame,
     QCursor,
 )
 from PySide.QtCore import QByteArray, Qt, QSize
-from PySide.QtWidgets import QTreeView
-from PySide.QtUiTools import loadUiType
 import FreeCADGui as Gui
 
 from components.choose_download_action_dialog import ChooseDownloadActionDialog
@@ -70,14 +43,14 @@ class SearchResultDelegate(QFrame):
             print("checkout ", curation.nav)
         elif ":" in self.image_url:
             self.widget.iconLabel.setStyleSheet("background-color:rgb(219,219,211)")
-            mainImage = _get_pixmap_from_url(self.image_url)
-            if mainImage is not None:
-                self.widget.iconLabel.setPixmap(mainImage)
+            main_image = _get_pixmap_from_url(self.image_url)
+            if main_image is not None:
+                self.widget.iconLabel.setPixmap(main_image)
         elif self.image_url is not None:
-            mainImage = QtGui.QIcon(Utils.icon_path + self.image_url).pixmap(
+            main_image = QtGui.QIcon(Utils.icon_path + self.image_url).pixmap(
                 QSize(96, 96)
             )
-            self.widget.iconLabel.setPixmap(mainImage)
+            self.widget.iconLabel.setPixmap(main_image)
         #
         self.setLayout(layout)
 
@@ -89,7 +62,16 @@ class SearchResultDelegate(QFrame):
                 if dlg.answer == 1:
                     self._goto_url()
                 elif dlg.answer == 2:
-                    print("download to memory")
+                    downloaded_filename = Utils.download_shared_model_to_memory(
+                        self.curation.api, str(self.curation._id)
+                    )
+                    if downloaded_filename is False:
+                        logger.warn("Unable to download; opening in browser instead.")
+                        self._goto_url()
+                    else:
+                        logger.warn(
+                            f"Downloaded {downloaded_filename} into memory. Be sure to save to disk if you want to keep the model."
+                        )
         else:
             self._goto_url()
 

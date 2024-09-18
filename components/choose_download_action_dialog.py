@@ -36,4 +36,3 @@ class ChooseDownloadActionDialog(QDialog):
         rb = self.sender()
         if rb.isChecked():
             self.answer = rb.answer
-            print(f"You selected {rb.answer}")

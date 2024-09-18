@@ -303,6 +303,19 @@ class APIClient:
         else:
             self._raiseException(response, url=url, filename=filename)
 
+    def _download_with_file_handle(self, url, fh):
+        self._properly_throw_if_offline()
+        try:
+            response = requests.get(url)
+        except requests.exceptions.RequestException as e:
+            raise APIClientException(e)
+
+        if response.status_code == OK:
+            fh.write(response.content)
+            return True
+        else:
+            self._raiseException(response, url=url, status_code=response.status_code)
+
     def _dump_response(self, response, **kwargs):
         # # make a dictionary out of the keyword arguments
         # callData = {f"{k}": v for k, v in kwargs.items}
@@ -529,6 +542,12 @@ class APIClient:
         os.makedirs(directory, exist_ok=True)
 
         return self._download(objUrl, pathFile)
+
+    @authRequired
+    def downloadFileFromServerUsingHandle(self, unique_filename, fh):
+        endpoint = f"/upload/{unique_filename}"
+        url_dict = self._request(endpoint)
+        return self._download_with_file_handle(url_dict["url"], fh)
 
     # Shared Model Functions
 
