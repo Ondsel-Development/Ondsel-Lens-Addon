@@ -666,7 +666,7 @@ class ServerWorkspaceModel(WorkspaceModel):
                 workspace,
             )
             fileId = result["_id"]
-            if extension.lower() in [".fcstd", ".obj"]:
+            if extension.lower() in [".fcstd", ".obj", ".step", ".stp"]:
                 # TODO: This creates a file in the root directory as well
                 self.apiClient.createModel(fileId)
 
