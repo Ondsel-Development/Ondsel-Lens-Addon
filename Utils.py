@@ -26,7 +26,7 @@ icon_ondsel_path_connected = icon_path + "OndselWorkbench.svg"
 icon_ondsel_path_disconnected = icon_path + "OndselWorkbench-disconnected.svg"
 
 
-URL_SCHEME = "ondsel-lens"
+URL_SCHEME = "ondsel"
 
 DEBUG_LEVEL = logging.INFO
 
