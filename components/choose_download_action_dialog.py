@@ -7,13 +7,17 @@ logger = Utils.getLogger(__name__)
 
 
 class ChooseDownloadActionDialog(QDialog):
+    CANCEL = 0
+    OPEN_ON_WEB = 1
+    DL_TO_MEM = 2
+
     def __init__(self, name, data_parent, parent=None):
         super().__init__(parent)
         self.quit_on_close = False
         conn_status = data_parent.api.getStatus()
 
         self.setWindowTitle(name)
-        self.answer = 0  # 0 = cancel, 1 = open web, 2 = download to memory
+        self.answer = self.CANCEL
 
         message = QLabel(f"What should we do with '{name}'?")
 
@@ -23,11 +27,11 @@ class ChooseDownloadActionDialog(QDialog):
         self.button_box.rejected.connect(self.reject)
 
         if conn_status == ConnStatus.CONNECTED:
-            self.choose_open_on_web = QRadioButton("Explore on Ondsel Website")
-            self.choose_open_on_web.answer = 1
+            self.choose_open_on_web = QRadioButton("Explore on the Ondsel Lens website")
+            self.choose_open_on_web.answer = self.OPEN_ON_WEB
             self.choose_open_on_web.toggled.connect(self.selection_made)
-            self.choose_download_to_cad = QRadioButton("Download file to Ondsel ES")
-            self.choose_download_to_cad.answer = 2
+            self.choose_download_to_cad = QRadioButton("Show file in Ondsel ES")
+            self.choose_download_to_cad.answer = self.DL_TO_MEM
             self.choose_download_to_cad.toggled.connect(self.selection_made)
             self.layout = QVBoxLayout()
             self.layout.addWidget(message)
@@ -45,14 +49,14 @@ class ChooseDownloadActionDialog(QDialog):
             self.layout.addWidget(self.button_box)
             self.setLayout(self.layout)
         else:  # ConnStatus.LOGGED_OUT
-            self.choose_open_on_web = QRadioButton("Explore on Ondsel Website")
-            self.choose_open_on_web.answer = 1
+            self.choose_open_on_web = QRadioButton("Explore on the Ondsel Lens website")
+            self.choose_open_on_web.answer = self.OPEN_ON_WEB
             self.choose_open_on_web.toggled.connect(self.selection_made)
             self.choose_download_to_cad = QRadioButton(
-                "Download to Ondsel ES (offline)"
+                "Show file in Ondsel ES (offline)"
             )
             self.choose_download_to_cad.setDisabled(True)
-            self.choose_download_to_cad.answer = 1
+            self.choose_download_to_cad.answer = self.OPEN_ON_WEB # this shouldn't actually happen
             self.layout = QVBoxLayout()
             self.layout.addWidget(message)
             self.layout.addWidget(self.choose_open_on_web)

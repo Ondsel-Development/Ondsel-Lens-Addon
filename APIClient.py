@@ -5,8 +5,6 @@ import requests
 import json
 import urllib
 
-from lxml.etree import xmlfile
-
 import Utils
 from models.curation import Curation
 

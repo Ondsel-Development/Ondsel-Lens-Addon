@@ -60,9 +60,9 @@ class SearchResultDelegate(QFrame):
             dlg = ChooseDownloadActionDialog(self.curation.name, data_parent)
             overall_response = dlg.exec()
             if overall_response != 0:
-                if dlg.answer == 1:
+                if dlg.answer == ChooseDownloadActionDialog.OPEN_ON_WEB:
                     self._goto_url()
-                elif dlg.answer == 2:
+                elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
                     downloaded_filename = Utils.download_shared_model_to_memory(
                         self.curation.parent.api, str(self.curation._id)
                     )
