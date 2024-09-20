@@ -38,6 +38,10 @@ class SearchResultsView(QFlowView):
             resulting_curations = self.parent.api.get_search_results(
                 searchText, searchTarget
             )
+            for curation in resulting_curations:
+                curation.parent = (
+                    self.parent
+                )  # this gives live api access to the item delegate
 
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         api_result = fancy_handle(do_search)

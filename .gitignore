@@ -8,3 +8,4 @@ Cache/
 *.fcstd
 *.FCStd
 *.FCBak
+.idea/

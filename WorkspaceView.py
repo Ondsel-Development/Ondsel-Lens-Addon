@@ -100,13 +100,6 @@ PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
 
 p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 
-# Test server
-# baseUrl = "https://ec2-54-234-132-150.compute-1.amazonaws.com"
-# Prod server
-baseUrl = "https://lens-api.ondsel.com/"
-lensUrl = "https://lens.ondsel.com/"
-ondselUrl = "https://www.ondsel.com/"
-
 remote_changelog_url = (
     "https://github.com/Ondsel-Development/Ondsel-Lens-Addon/blob/main/changeLog.md"
 )
@@ -117,14 +110,6 @@ remote_package_url = (
 )
 
 consumed_args_main_app = False
-
-try:
-    import config
-
-    baseUrl = config.base_url
-    lensUrl = config.lens_url
-except (ImportError, AttributeError):
-    pass
 
 
 class ParseException(Exception):
@@ -591,8 +576,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             self,
             "",
             "",
-            baseUrl,
-            lensUrl,
+            Utils.env.api_url,
+            Utils.env.lens_url,
             Utils.get_source_api_request(),
             Utils.get_version_source_api_request(),
             None,
@@ -621,8 +606,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     self,
                     "",
                     "",
-                    baseUrl,
-                    lensUrl,
+                    Utils.env.api_url,
+                    Utils.env.lens_url,
                     Utils.get_source_api_request(),
                     Utils.get_version_source_api_request(),
                     access_token,
@@ -644,8 +629,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                         self,
                         email,
                         password,
-                        baseUrl,
-                        lensUrl,
+                        Utils.env.api_url,
+                        Utils.env.lens_url,
                         Utils.get_source_api_request(),
                         Utils.get_version_source_api_request(),
                     )
@@ -1942,7 +1927,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
             logger.warn(f"Failed to open {url} in the browser")
 
     def openModelOnline(self, modelId=None):
-        url = ondselUrl
+        url = Utils.env.about_url
 
         if not modelId:
             comboBox = self.form.versionsComboBox
@@ -1951,7 +1936,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
         logger.debug(f"modelId: {modelId}")
         if modelId is not None:
-            url = f"{lensUrl}model/{modelId}"
+            url = f"{Utils.env.lens_url}model/{modelId}"
             logger.debug(f"Opening {url}")
         self.open_url(url)
 
@@ -1975,11 +1960,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.handle(trySetVersion)
 
     def ondselAccount(self):
-        url = f"{lensUrl}login"
+        url = f"{Utils.env.lens_url}login"
         self.open_url(url)
 
     def showOndselSignUpPage(self):
-        url = f"{lensUrl}signup"
+        url = f"{Utils.env.lens_url}signup"
         self.open_url(url)
 
     def timerTick(self):
