@@ -2005,30 +2005,27 @@ class WorkspaceView(QtWidgets.QScrollArea):
         default_path = wsm.getFullPath()
         default_file_path = Utils.joinPath(default_path, default_name)
 
+        old_file_name = doc.FileName
         doc.FileName = default_file_path
-        gui_doc.ActiveView.sendMessage("SaveAs")
 
-        fileName = os.path.basename(doc.FileName)
+        # Note: it is not possible to use our own QFileDialog because that
+        # doesn't update the MDI tab (the file remains marked as unsaved).  To
+        # also update the GUI with which the MDI tab is marked as saved, we
+        # have to make use of the FreeCAD Gui API.
+        if gui_doc.saveAs():
+            # pressed ok, file has been saved, continue
+            file_name = os.path.basename(doc.FileName)
 
-        # Open a dialog box for the user to select a file location and name
-        # file_name, _ = QtGui.QFileDialog.getSaveFileName(
-        #     self, "Save File", default_file_path, "FreeCAD file (*.fcstd)"
-        # )
+            def tryUpload():
+                if self.is_connected():
+                    wsm.upload(file_name)
+                wsm.refreshModel()
 
-        # if file_name:
-        #     # Make sure the file has the correct extension
-        #     if not file_name.lower().endswith(".fcstd"):
-        #         file_name += ".FCStd"
-        #     # Save the file
-        #     FreeCAD.Console.PrintMessage(f"Saving document to file: {file_name}\n")
-        #     doc.saveAs(file_name)
+            self.handle(tryUpload)
+        else:
+            # canceled, file has not been saved, restore
+            doc.FileName = old_file_name
 
-        def tryUpload():
-            if self.is_connected():
-                wsm.upload(fileName)
-            wsm.refreshModel()
-
-        self.handle(tryUpload)
         self.switchView()
 
     def addSelectedFiles(self):
