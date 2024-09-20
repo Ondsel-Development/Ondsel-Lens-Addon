@@ -56,7 +56,9 @@ class ChooseDownloadActionDialog(QDialog):
                 "Show file in Ondsel ES (offline)"
             )
             self.choose_download_to_cad.setDisabled(True)
-            self.choose_download_to_cad.answer = self.OPEN_ON_WEB # this shouldn't actually happen
+            self.choose_download_to_cad.answer = (
+                self.OPEN_ON_WEB
+            )  # this shouldn't actually happen
             self.layout = QVBoxLayout()
             self.layout.addWidget(message)
             self.layout.addWidget(self.choose_open_on_web)
