@@ -1,0 +1,7 @@
+# requirements for the Mock FreeCAD context
+pyjwt
+requests
+tzlocal
+PySide2==5.13.2
+-r fc_requirements.txt
+_mock_environment/libs/FreeCAD

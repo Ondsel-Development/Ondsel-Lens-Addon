@@ -1,0 +1,10 @@
+pyproject.toml
+setup.cfg
+setup.py
+FreeCAD/MockFreeCAD.py
+FreeCAD/__init__.py
+FreeCAD.egg-info/PKG-INFO
+FreeCAD.egg-info/SOURCES.txt
+FreeCAD.egg-info/dependency_links.txt
+FreeCAD.egg-info/requires.txt
+FreeCAD.egg-info/top_level.txt
