@@ -1,5 +1,8 @@
+from .MockConsole import MockConsole
+from .MockParameters import MockParameters
+
 class FreeCADClass:
-    # Console = MockConsole()
+    Console = MockConsole()
     VERSION = [
         "2024",
         "3",
@@ -12,18 +15,17 @@ class FreeCADClass:
     ]
 
     def __init__(self):
-        # self.parameters = MockParameters()
-        # self.parameters.SetDict(
-        #     "User parameter:BaseApp/Preferences/Mod/Start", MockParameters()
-        # )
-        # self.parameters.SetDict("User parameter:BaseApp/Ondsel", MockParameters())
+        self.parameters = MockParameters()
+        self.parameters.SetDict(
+            "User parameter:BaseApp/Preferences/Mod/Start", MockParameters()
+        )
+        self.parameters.SetDict("User parameter:BaseApp/Ondsel", MockParameters())
         self.configs = {"ExeVendor": "Ondsel"}
 
     def ParamGet(self, name=None, default=None):
-        pass
-        # if name is None:
-        #     return self.parameters
-        # return self.parameters._Get(name, default)
+        if name is None:
+            return self.parameters
+        return self.parameters._Get(name, default)
 
     def ConfigGet(self, name=None, default=None):
         if name in self.configs.keys():
@@ -32,13 +34,3 @@ class FreeCADClass:
 
     def Version(self):
         return self.VERSION
-
-    # @staticmethod
-    # def getUserCachePath():
-    #     return str(expanduser("~/.cache/Ondsel/Cache"))
-
-    # @staticmethod
-    # def getUserConfigDir():
-    #     return str(expanduser("~/.config/Ondsel"))
-
-

@@ -1,7 +1,9 @@
 pyproject.toml
 setup.cfg
 setup.py
+FreeCAD/MockConsole.py
 FreeCAD/MockFreeCAD.py
+FreeCAD/MockParameters.py
 FreeCAD/__init__.py
 FreeCAD.egg-info/PKG-INFO
 FreeCAD.egg-info/SOURCES.txt

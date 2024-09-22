@@ -6,11 +6,9 @@ from PySide2.QtWidgets import (
     QTabWidget,
     QTextEdit,
     QWidget,
-    QSizePolicy,
-    QMdiSubWindow,
 )
 
-from CADAccess.MockFreeCAD import FreeCAD
+import FreeCAD
 
 
 class PySideUicClass:
@@ -66,6 +64,3 @@ class FreeCADGuiClass:
 
     def getMainWindow(self):
         return self.main_window
-
-
-FreeCADGui = FreeCADGuiClass()

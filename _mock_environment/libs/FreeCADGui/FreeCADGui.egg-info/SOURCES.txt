@@ -1,0 +1,10 @@
+pyproject.toml
+setup.cfg
+setup.py
+FreeCADGui/MockFreeCADGui.py
+FreeCADGui/__init__.py
+FreeCADGui.egg-info/PKG-INFO
+FreeCADGui.egg-info/SOURCES.txt
+FreeCADGui.egg-info/dependency_links.txt
+FreeCADGui.egg-info/requires.txt
+FreeCADGui.egg-info/top_level.txt
