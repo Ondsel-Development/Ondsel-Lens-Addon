@@ -4,6 +4,7 @@ from PySide2.QtUiTools import QUiLoader
 import FreeCAD
 import FreeCADGui
 
+
 class MainWindow(QMainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()

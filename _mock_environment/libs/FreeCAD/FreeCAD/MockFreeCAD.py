@@ -1,6 +1,7 @@
 from .MockConsole import MockConsole
 from .MockParameters import MockParameters
 
+
 class FreeCADClass:
     Console = MockConsole()
     VERSION = [

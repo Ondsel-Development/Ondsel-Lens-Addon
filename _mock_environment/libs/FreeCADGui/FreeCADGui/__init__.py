@@ -9,8 +9,9 @@ addCommand = _inst.addCommand
 addWorkbenchManipulator = _inst.addWorkbenchManipulator
 getMainWindow = _inst.getMainWindow
 
+
 # property mimics:
 def __getattr__(name):
-    if name == 'PySideUic':
+    if name == "PySideUic":
         return _inst.PySideUic
     raise AttributeError(f"module '{__name__}' has no attribute '{name}'")
