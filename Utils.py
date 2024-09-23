@@ -75,6 +75,19 @@ class __OndselEnv:
         self.lens_url = os.environ.get("ONDSEL_LENS_URL", "https://lens.ondsel.com/")
         self.api_url = os.environ.get("ONDSEL_API_URL", "https://lens-api.ondsel.com/")
         self.about_url = os.environ.get("ONDSEL_ABOUT_URL", "https://www.ondsel.com/")
+        self.debug_level = os.environ.get("ONDSEL_DEBUG_LEVEL", "info")
+
+    def get_debug_level(self):
+        if self.debug_level == "info":
+            return logging.INFO
+        elif self.debug_level == "debug":
+            return logging.DEBUG
+        elif self.debug_level == "error":
+            return logging.ERROR
+        elif self.debug_level == "warning":
+            return logging.WARNING
+        else:
+            return logging.INFO
 
 
 env = __OndselEnv()
@@ -151,9 +164,9 @@ def getFileNameFromURL(url):
 
 def getLogger(name):
     logger = logging.getLogger(name)
-    logger.setLevel(DEBUG_LEVEL)
+    logger.setLevel(env.get_debug_level())
     handler = FreeCADHandler()
-    if DEBUG_LEVEL >= logging.INFO:
+    if env.get_debug_level() >= logging.INFO:
         formatter = logging.Formatter("%(levelname)s: %(message)s")
     else:
         formatter = logging.Formatter("%(levelname)s: %(name)s:%(lineno)d %(message)s")
