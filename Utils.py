@@ -26,6 +26,7 @@ local_package_path = f"{mod_path}/package.xml"
 icon_ondsel_path_connected = icon_path + "OndselWorkbench.svg"
 icon_ondsel_path_disconnected = icon_path + "OndselWorkbench-disconnected.svg"
 
+PARAM_GROUP = "User parameter:BaseApp/Ondsel"
 
 URL_SCHEME = "ondsel"
 
@@ -186,6 +187,10 @@ def createBackup(pathFile, extension=".ondsel-lens.bak"):
 
 def get_dir_mod():
     return os.path.dirname(os.path.abspath(__file__))
+
+
+def get_param_group():
+    return FreeCAD.ParamGet(PARAM_GROUP)
 
 
 # ========================

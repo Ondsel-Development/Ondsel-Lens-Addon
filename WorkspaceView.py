@@ -97,7 +97,7 @@ IDX_TAB_BOOKMARKS = 1
 
 PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
 
-p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
+p = Utils.get_param_group()
 
 remote_changelog_url = (
     "https://github.com/Ondsel-Development/Ondsel-Lens-Addon/blob/main/changeLog.md"
