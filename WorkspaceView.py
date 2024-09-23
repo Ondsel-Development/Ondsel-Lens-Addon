@@ -470,8 +470,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
             markdown = org["curation"]["longDescriptionMd"]
             html = markdown_to_html(markdown)
         self.form.ondselHomePageTextBrowser.setHtml(html)
-        self.form.ondselPromotionsFrame.layout().addWidget(self.form.ondselPromotionsScrollArea)
-
+        self.form.ondselPromotionsFrame.layout().addWidget(
+            self.form.ondselPromotionsScrollArea
+        )
 
     def initializeBookmarks(self):
         tabWidget = self.form.tabWidget
@@ -2208,6 +2209,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     # attempt to load the ondsel org descr/msg and promoted items
                     opv.get_ondsel_and_promotions()
         elif index == IDX_TAB_BOOKMARKS:
+
             def tryRefresh():
                 bookmarkModel = getBookmarkModel(self.api)
                 viewBookmarks = self.form.viewBookmarks

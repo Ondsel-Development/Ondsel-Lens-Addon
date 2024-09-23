@@ -39,7 +39,7 @@ class Promotion:
 
 class PromotionListModel(QAbstractListModel):
 
-    PromotionRole = Qt.UserRole + 1 # TODO: verify this behavior
+    PromotionRole = Qt.UserRole + 1
 
     def __init__(self, *args, promotions=None, **kwargs):
         super(PromotionListModel, self).__init__(*args, **kwargs)

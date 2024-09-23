@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass(order=True)
 class UserSummary:
     _id: str

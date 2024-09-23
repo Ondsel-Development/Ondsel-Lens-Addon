@@ -21,6 +21,7 @@ class OndselPromotionsView(QFlowView):
 
     def get_ondsel_and_promotions(self):
         promotions = []
+
         def get_promoted_items():
             nonlocal promotions
             ondsel_org = self.parent.api.getOndselOrganization()
@@ -38,7 +39,7 @@ class OndselPromotionsView(QFlowView):
         if api_result == API_Call_Result.OK:
             self.promotionListModel.promotion_list = promotions
             self.parent.form.ondselStartStatusLabel.setText("")
-            self.promotionListModel.layoutChanged.emit() # TODO: needed?
+            self.promotionListModel.layoutChanged.emit()
 
         elif api_result == API_Call_Result.DISCONNECTED:
             self.parent.form.ondselStartStatusLabel.setText("off-line")
