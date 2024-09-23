@@ -14,9 +14,10 @@ from PySide.QtGui import QStandardItemModel, QStandardItem
 
 import FreeCAD
 
+from APIClient import fancy_handle, APICallResult
+
 
 CACHE_PATH = FreeCAD.getUserCachePath() + "Ondsel-Lens/"
-p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
 
 
 class WorkspaceListModel(QAbstractListModel):
@@ -46,12 +47,12 @@ class WorkspaceListModel(QAbstractListModel):
         self.api = api
 
     def refreshModel(self):
-        # raises an APIClientException
-        self.beginResetModel()
-        if self.api is not None and self.api.is_logged_in():
-            # the user may be disconnected
+        def try_get_workspaces_connected():
             self.workspaces = self.api.getWorkspaces()
 
+        self.beginResetModel()
+        api_result = fancy_handle(try_get_workspaces_connected)
+        if api_result == APICallResult.OK:
             self.save()
         else:
             self.load()

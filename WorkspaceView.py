@@ -451,17 +451,15 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.try_login()
         self.switchView()
 
-        def tryRefresh():
-            self.workspacesModel.refreshModel()
+        self.workspacesModel.refreshModel()
 
-            # Set a timer to check regularly the server
-            self.timer = QtCore.QTimer()
-            self.timer.timeout.connect(self.timerTick)
-            self.timer.setInterval(60000)
-            self.timer.start()
+        # Set a timer to check regularly the server
+        self.timer = QtCore.QTimer()
+        self.timer.timeout.connect(self.timerTick)
+        self.timer.setInterval(60000)
+        self.timer.start()
 
-        self.handle(tryRefresh)
-        self.handleRequest(self.check_for_update)
+        self.handle_request(self.check_for_update)
 
     def initializeOndselStart(self):
         self.form.ondselStartStatusLabel.setText("loading content...")
@@ -637,9 +635,15 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     access_token,
                     user,
                 )
+                # do not forget to set the API for the workspacesModel
+                self.workspacesModel.set_api(self.api)
+
                 # Set a timer to logout when token expires.
                 # we know that the token is not expired
                 self.set_token_expiration_timer(access_token)
+
+                # verify the status
+                self.api.getStatus()
         self.set_ui_connectionStatus()
 
     def login_btn_clicked(self):
@@ -659,6 +663,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                         Utils.get_version_source_api_request(),
                     )
                     self.set_ui_connectionStatus()
+                    # do not forget to set the API for the workspacesModel
                     self.workspacesModel.set_api(self.api)
                     self.api.authenticate()
                 except APIClientAuthenticationException as e:
@@ -836,20 +841,17 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def setWorkspaceModel(self):
         if self.is_connected():
-            logger.debug("connected")
-            # not necessary to set the path because we will start with the list
-            # of workspaces.
             self.currentWorkspaceModel = ServerWorkspaceModel(
                 self.current_workspace, apiClient=self.api
             )
         else:
-            logger.debug("not connected")
             subPath = ""
             if hasattr(self, "currentWorkspaceModel") and self.currentWorkspaceModel:
                 subPath = self.currentWorkspaceModel.subPath
             self.currentWorkspaceModel = LocalWorkspaceModel(
                 self.current_workspace, subPath=subPath
             )
+
         self.setWorkspaceNameLabel()
         self.form.fileList.setModel(self.currentWorkspaceModel)
         self.switchView()
@@ -863,7 +865,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.current_workspace = None
         self.currentWorkspaceModel = None
         self.form.fileList.setModel(None)
-        self.handle(self.workspacesModel.refreshModel)
+        self.workspacesModel.refreshModel()
         self.switchView()
         self.form.workspaceNameLabel.setText("")
         self.form.fileDetails.setVisible(False)
@@ -904,12 +906,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
             self.handle(tryOpenParent)
 
-    def handleRequest(self, func):
-        """Handle a function that raises an exception from requests.
-
-        Issue warning/errors and possibly log out the user, making
-        it still possible to use the addon.
-        """
+    def handle_request(self, func):
+        """Handle a function that raises an exception from requests."""
         try:
             func()
         except requests.exceptions.RequestException as e:
@@ -2056,11 +2054,12 @@ class WorkspaceView(QtWidgets.QScrollArea):
             file_name = os.path.basename(doc.FileName)
 
             def tryUpload():
-                if self.is_connected():
-                    wsm.upload(file_name)
+                wsm.upload(file_name)
                 wsm.refreshModel()
 
-            self.handle(tryUpload)
+            api_result = fancy_handle(tryUpload)
+            if api_result != APICallResult.OK:
+                self.setWorkspaceModel()
         else:
             # canceled, file has not been saved, restore
             doc.FileName = old_file_name

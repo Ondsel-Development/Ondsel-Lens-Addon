@@ -24,6 +24,8 @@ from VersionModel import VersionModel
 
 import check_links
 
+from APIClient import fancy_handle, APICallResult
+
 logger = Utils.getLogger(__name__)
 
 # class WorkspaceModelFactory:
@@ -186,6 +188,10 @@ class WorkspaceModel(QAbstractListModel):
             self.NameStatusAndIsFolderRole: b"nameStatusAndIsFolderRole",
             self.StatusRole: b"statusRole",
         }
+
+    def upload(self, fileName, fileId=None, message=""):
+        # Default action is to not upload anything
+        pass
 
     def isEmptyDirectory(self, index):
         dirName = self.data(index, WorkspaceModel.NameRole)
@@ -409,7 +415,6 @@ class ServerWorkspaceModel(WorkspaceModel):
         directories, compare them and update the model with FileItem instances
         that reflect the status of the server and local file system.
 
-        throws an APIClientException
         """
 
         self.clearModel()
@@ -418,9 +423,21 @@ class ServerWorkspaceModel(WorkspaceModel):
 
         # retrieve the dirs and files from the server
         # the directories are shown first and then the files
-        serverDirDict = self.apiClient.getDirectory(currentDir["_id"])
-        serverDirs = self.getServerDirs(serverDirDict["directories"])
-        serverFiles = self.getServerFiles(serverDirDict["files"])
+        serverDirDict = None
+        serverDirs = None
+        serverFiles = None
+
+        def tryGetServerInfo():
+            nonlocal serverDirDict
+            nonlocal serverDirs
+            nonlocal serverFiles
+            serverDirDict = self.apiClient.getDirectory(currentDir["_id"])
+            serverDirs = self.getServerDirs(serverDirDict["directories"])
+            serverFiles = self.getServerFiles(serverDirDict["files"])
+
+        api_result = fancy_handle(tryGetServerInfo)
+        if api_result != APICallResult.OK:
+            return
 
         def updateDirFound(serverFileItem, localFileItem):
             pass
