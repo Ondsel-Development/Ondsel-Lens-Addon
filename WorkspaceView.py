@@ -52,7 +52,7 @@ from APIClient import (
     APIClientTierException,
     APIClientRequestException,
     ConnStatus,
-    API_Call_Result,
+    APICallResult,
     fancy_handle,
 )
 from Workspace import (
@@ -2218,11 +2218,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 viewBookmarks.expandAll()
 
             api_result = fancy_handle(tryRefresh)
-            if api_result == API_Call_Result.OK:
+            if api_result == APICallResult.OK:
                 self.form.bookmarkStatusLabel.setText("")
-            elif api_result == API_Call_Result.DISCONNECTED:
+            elif api_result == APICallResult.DISCONNECTED:
                 self.form.bookmarkStatusLabel.setText("offline")
-            elif api_result == API_Call_Result.NOT_LOGGED_IN:
+            elif api_result == APICallResult.NOT_LOGGED_IN:
                 self.form.bookmarkStatusLabel.setText(
                     "you must be logged in to see bookmarks"
                 )

@@ -4,7 +4,7 @@ from PySide.QtGui import (
     QCursor,
 )
 from qflowview.qflowview import QFlowView
-from APIClient import fancy_handle, API_Call_Result
+from APIClient import fancy_handle, APICallResult
 
 from models.curation import CurationListModel
 from delegates.search_result_delegate import SearchResultDelegate
@@ -45,7 +45,7 @@ class SearchResultsView(QFlowView):
 
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         api_result = fancy_handle(do_search)
-        if api_result == API_Call_Result.OK:
+        if api_result == APICallResult.OK:
             self.curationListModel.curation_list = resulting_curations
             if len(resulting_curations) == 0:
                 self.parent.form.searchResultMessageLabel.setText("no results")
@@ -53,7 +53,7 @@ class SearchResultsView(QFlowView):
                 self.parent.form.searchResultMessageLabel.setText("")
                 self.curationListModel.layoutChanged.emit()
 
-        elif api_result == API_Call_Result.DISCONNECTED:
+        elif api_result == APICallResult.DISCONNECTED:
             self.parent.form.searchResultMessageLabel.setText("offline")
             self.curationListModel.curation_list = []
             self.curationListModel.layoutChanged.emit()
