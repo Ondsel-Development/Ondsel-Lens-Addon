@@ -816,6 +816,17 @@ class APIClient:
 
         return organizations
 
+    def getOndselOrganization(self):
+        endpoint = "organizations"
+        params = {
+            'type': 'Ondsel',
+            'publicInfo': 'true',
+        }
+        result = self._request(endpoint, params=params)
+        organizationList = result["data"]
+        return organizationList[0]
+
+
     @authRequired
     def getSecondaryRefs(self, orgSecondaryReferencesId):
         endpoint = f"org-secondary-references/{orgSecondaryReferencesId}"
@@ -896,13 +907,17 @@ class API_Call_Result(Enum):
 
 def fancy_handle(func):
     """
-    Handle a function that raises an APICLientException. It is very similar to
+    Handle a function that raises an APIClientException. It is very similar to
     the 'handle' function found in WorkspaceView.py. The return type is simply
     more expressive so that the calling code can see more.
 
     Storing the results is expected of the called `func`.
 
     Warning messages are never issued.
+
+    If you get an unexplained "ERROR: 'NoneType' object is not callable" error,
+    make sure you are doing "result = fancy_handle(joe)" not
+    "result = fancy_handle(joe())"
 
     Returns an API_Call_Result enum value. It is expected that the caller
     handles all the possible return states.

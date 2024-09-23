@@ -78,7 +78,7 @@
       <string/>
      </property>
      <property name="currentIndex">
-      <number>0</number>
+      <number>1</number>
      </property>
      <property name="iconSize">
       <size>
@@ -106,7 +106,7 @@
           <item>
            <widget class="QToolButton" name="buttonBack">
             <property name="visible">
-             <bool>true</bool>
+             <bool>false</bool>
             </property>
             <property name="toolTip">
              <string>Go back</string>
@@ -120,7 +120,7 @@
           <item>
            <widget class="QLabel" name="workspaceNameLabel">
             <property name="visible">
-             <bool>true</bool>
+             <bool>false</bool>
             </property>
             <property name="toolTip">
              <string>The workspace and path in Lens</string>
@@ -152,7 +152,7 @@
              </sizepolicy>
             </property>
             <property name="visible">
-             <bool>true</bool>
+             <bool>false</bool>
             </property>
             <property name="toolTip">
              <string>Add files or directories to your workspace</string>
@@ -230,7 +230,7 @@
          <layout class="QVBoxLayout">
           <item>
            <layout class="QHBoxLayout">
-            <item alignment="Qt::AlignmentFlag::AlignTop">
+            <item>
              <widget class="QLabel" name="thumbnail_label">
               <property name="sizePolicy">
                <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
@@ -248,7 +248,7 @@
             </item>
             <item>
              <layout class="QVBoxLayout">
-              <item alignment="Qt::AlignmentFlag::AlignTop">
+              <item>
                <widget class="QLabel" name="fileNameLabel">
                 <property name="text">
                  <string>part.FCStd</string>
@@ -293,7 +293,7 @@
                 <item>
                  <spacer name="horizontalSpacer_4">
                   <property name="orientation">
-                   <enum>Qt::Orientation::Horizontal</enum>
+                   <enum>Qt::Vertical</enum>
                   </property>
                   <property name="sizeHint" stdset="0">
                    <size>
@@ -350,7 +350,7 @@
                <item>
                 <spacer name="horizontalSpacer_3">
                  <property name="orientation">
-                  <enum>Qt::Orientation::Horizontal</enum>
+                  <enum>Qt::Vertical</enum>
                  </property>
                  <property name="sizeHint" stdset="0">
                   <size>
@@ -383,6 +383,53 @@
           </item>
          </layout>
         </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="tabOndselStart">
+      <property name="sizePolicy">
+       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+        <horstretch>0</horstretch>
+        <verstretch>0</verstretch>
+       </sizepolicy>
+      </property>
+      <property name="toolTip">
+       <string/>
+      </property>
+      <attribute name="title">
+       <string>Ondsel Start</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="verticalLayout_6">
+       <item>
+        <widget class="QLabel" name="ondselStartStatusLabel">
+         <property name="text">
+          <string>offline</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <item>
+          <widget class="QFrame" name="ondselPromotionsFrame">
+           <property name="frameShape">
+            <enum>QFrame::StyledPanel</enum>
+           </property>
+           <property name="frameShadow">
+            <enum>QFrame::Raised</enum>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>500</width>
+             <height>0</height>
+            </size>
+           </property>
+           <layout class="QVBoxLayout" name="ondselPromotionsFrameLayout"/>
+          </widget>
+         </item>
+         <item>
+          <widget class="QTextBrowser" name="ondselHomePageTextBrowser"/>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>
@@ -521,10 +568,7 @@
       </sizepolicy>
      </property>
      <property name="frameShape">
-      <enum>QFrame::Shape::NoFrame</enum>
-     </property>
-     <property name="frameShadow">
-      <enum>QFrame::Shadow::Plain</enum>
+      <enum>QFrame::NoFrame</enum>
      </property>
      <layout class="QHBoxLayout" name="horizontalLayout">
       <item>
@@ -550,7 +594,7 @@
       <item>
        <spacer name="horizontalSpacer">
         <property name="orientation">
-         <enum>Qt::Orientation::Horizontal</enum>
+         <enum>Qt::Vertical</enum>
         </property>
         <property name="sizeHint" stdset="0">
          <size>
