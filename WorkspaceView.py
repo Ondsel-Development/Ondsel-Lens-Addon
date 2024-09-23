@@ -26,6 +26,7 @@ from jwt.exceptions import ExpiredSignatureError
 import mistune
 
 from PySide import QtCore, QtGui, QtWidgets
+from PySide.QtGui import QStandardItemModel
 
 import FreeCAD
 import FreeCADGui
@@ -707,6 +708,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
             self.setWorkspaceModel()
 
         self.hideFileDetails()
+        self.hideBookmarks()
 
         if p.GetBool("clearCache", False):
             shutil.rmtree(CACHE_PATH)
@@ -2221,13 +2223,15 @@ class WorkspaceView(QtWidgets.QScrollArea):
             if api_result == APICallResult.OK:
                 self.form.bookmarkStatusLabel.setText("")
             elif api_result == APICallResult.DISCONNECTED:
-                self.form.bookmarkStatusLabel.setText("offline")
+                self.form.bookmarkStatusLabel.setText("Disconnected")
             elif api_result == APICallResult.NOT_LOGGED_IN:
-                self.form.bookmarkStatusLabel.setText(
-                    "you must be logged in to see bookmarks"
-                )
+                self.hideBookmarks()
             else:
-                self.form.bookmarkStatusLabel.setText("see report log")
+                self.hideBookmarks("See report log.")
+
+    def hideBookmarks(self, message="You must be logged in to see bookmarks."):
+        self.form.bookmarkStatusLabel.setText(message)
+        self.form.viewBookmarks.setModel(QStandardItemModel())
 
     def downloadBookmarkFile(self, idSharedModel):
         # throws an APIClientException
@@ -2259,7 +2263,17 @@ class WorkspaceView(QtWidgets.QScrollArea):
         typeItem = bookmarkModel.data(index, ROLE_TYPE)
         if typeItem == TYPE_BOOKMARK:
             idShareModel = bookmarkModel.data(index, ROLE_SHARE_MODEL_ID)
-            self.handle(lambda: self.openBookmark(idShareModel))
+            api_result = fancy_handle(lambda: self.openBookmark(idShareModel))
+
+            if api_result == APICallResult.OK:
+                pass
+            if api_result == APICallResult.DISCONNECTED:
+                logger.info("Not connected")
+            elif api_result == APICallResult.NOT_LOGGED_IN:
+                logger.info("Not logged in")
+                self.hideBookmarks()
+            else:
+                self.hideBookmarks("see report log")
 
     def openShareLinkOnline(self, idShareModel):
         url = f"{self.api.get_base_url()}share/{idShareModel}"
