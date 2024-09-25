@@ -20,7 +20,7 @@ class CurationDisplayDelegate(QFrame):
         super().__init__()
         if index is None:
             return  # if none, this is a dummy object
-        self.curation = None # to be properly set by the child class
+        self.curation = None  # to be properly set by the child class
 
     def _take_action(self):
         if self.curation.collection == "shared-models":
