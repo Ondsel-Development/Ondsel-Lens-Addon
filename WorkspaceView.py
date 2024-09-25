@@ -905,14 +905,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
         if subPath == "":
             self.leaveWorkspace()
         else:
-
-            def tryOpenParent():
-                self.currentWorkspaceModel.openParentFolder()
-                self.setWorkspaceNameLabel()
-                self.hideFileDetails()
-
-            # self.handle(tryOpenParent)
-            tryOpenParent()
+            self.currentWorkspaceModel.openParentFolder()
+            self.setWorkspaceNameLabel()
+            self.hideFileDetails()
 
     def handle_request(self, func):
         """Handle a function that raises an exception from requests."""
@@ -1025,14 +1020,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.workspaceNameLabel.setText(workspacePath)
 
     def fileListDoubleClicked(self, index):
-        logger.debug("fileListDoubleClicked()")
-
-        def tryOpenFile():
-            self.openFile(index)
-            self.setWorkspaceNameLabel()
-
-        # self.handle(tryOpenFile)
-        tryOpenFile()
+        self.openFile(index)
+        self.setWorkspaceNameLabel()
 
     def linksListDoubleClicked(self, index):
         model = self.form.linksView.model()
