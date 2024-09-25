@@ -1181,7 +1181,21 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 else:
                     refreshUI()
 
-        self.handle(trySetVersion)
+        api_result = fancy_handle(trySetVersion)
+        if api_result == APICallResult.OK:
+            pass
+        elif api_result == APICallResult.DISCONNECTED:
+            self.hideLinkVersionDetails()
+            logger.warning("Disconnected from server.")
+        elif api_result == APICallResult.NOT_LOGGED_IN:
+            # this should not happen as the user should not have access to
+            # the share links while logged out.
+            self.hideLinkVersionDetails()
+            logger.error("Not logged in, share link has not been updated")
+        else:
+            # this should really not happen
+            self.hideLinkVersionDetails()
+            logger.error("Unknown error")
 
     def updateThumbnail(self, fileItem):
         fileName = fileItem.name

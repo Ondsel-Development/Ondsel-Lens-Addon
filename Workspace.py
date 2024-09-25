@@ -603,7 +603,7 @@ class ServerWorkspaceModel(WorkspaceModel):
                 and fi.serverFileDict["_id"] == fileId
             ):
                 return fi
-        logger.error("Cannot find the correct fileId")
+        # we may be disconnected
         return None
 
     def downloadFile(self, fileItem):
