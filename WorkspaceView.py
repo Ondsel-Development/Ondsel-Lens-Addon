@@ -1031,7 +1031,23 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
         if dialog.exec_() == QtGui.QDialog.Accepted:
             link_properties = dialog.getLinkProperties()
-            self.handle(lambda: model.update_link(index, link_properties))
+            api_result = fancy_handle(lambda: model.update_link(index, link_properties))
+            if api_result == APICallResult.OK:
+                pass
+            elif api_result == APICallResult.DISCONNECTED:
+                self.hideLinkVersionDetails()
+                logger.warning(
+                    "Disconnected from server, share link has not been updated"
+                )
+            elif api_result == APICallResult.NOT_LOGGED_IN:
+                # this should not happen as the user should not have access to
+                # the share links while logged out.
+                self.hideLinkVersionDetails()
+                logger.error("Not logged in, share link has not been updated")
+            else:
+                # this should really not happen
+                self.hideLinkVersionDetails()
+                logger.error("Unknown error")
 
     # ####
     # Downloading files
@@ -1180,6 +1196,14 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
         self.form.thumbnail_label.setPixmap(pixmap)
 
+    def hideLinkVersionDetails(self):
+        self.form.viewOnlineBtn.setVisible(False)
+        self.form.makeActiveBtn.setVisible(False)
+        self.form.linkDetails.setVisible(False)
+        self.form.fileDetails.setVisible(True)
+        self.form.linksView.setModel(None)
+        self.setVersionListModel(None)
+
     def fileListClickedConnected(self, file_item):
         fileName = file_item.name
         modelId = file_item.getModelId()
@@ -1243,18 +1267,14 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def fileListClickedDisconnected(self, fileName):
         path = self.currentWorkspaceModel.getFullPath()
         pixmap = Utils.extract_thumbnail(f"{path}/{fileName}")
-        if pixmap:
-            self.form.thumbnail_label.show()
-            self.form.thumbnail_label.setFixedSize(pixmap.width(), pixmap.height())
-            self.form.thumbnail_label.setPixmap(pixmap)
-            self.form.fileNameLabel.setText(renderFileName(fileName))
-            self.form.fileNameLabel.show()
-            self.form.viewOnlineBtn.setVisible(False)
-            self.form.makeActiveBtn.setVisible(False)
-            self.form.linkDetails.setVisible(False)
-            self.form.fileDetails.setVisible(True)
-            self.form.linksView.setModel(None)
-            self.setVersionListModel(None)
+        width = pixmap.width() if pixmap else Utils.SIZE_PIXMAP
+        height = pixmap.height() if pixmap else Utils.SIZE_PIXMAP
+        self.form.thumbnail_label.show()
+        self.form.thumbnail_label.setFixedSize(width, height)
+        self.form.thumbnail_label.setPixmap(pixmap)
+        self.form.fileNameLabel.setText(renderFileName(fileName))
+        self.form.fileNameLabel.show()
+        self.hideLinkVersionDetails()
 
     def fileListClicked(self, index):
         # This function is also executed once in case of a double click. It is best to
