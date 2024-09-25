@@ -1037,17 +1037,17 @@ class WorkspaceView(QtWidgets.QScrollArea):
             elif api_result == APICallResult.DISCONNECTED:
                 self.hideLinkVersionDetails()
                 logger.warning(
-                    "Disconnected from server, share link has not been updated"
+                    "Disconnected from server.  Share link has not been updated."
                 )
             elif api_result == APICallResult.NOT_LOGGED_IN:
                 # this should not happen as the user should not have access to
                 # the share links while logged out.
                 self.hideLinkVersionDetails()
-                logger.error("Not logged in, share link has not been updated")
+                logger.error("Not logged in. Share link has not been updated.")
             else:
                 # this should really not happen
                 self.hideLinkVersionDetails()
-                logger.error("Unknown error")
+                logger.error("Unknown error updating share links.")
 
     # ####
     # Downloading files
@@ -1191,11 +1191,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
             # this should not happen as the user should not have access to
             # the share links while logged out.
             self.hideLinkVersionDetails()
-            logger.error("Not logged in, share link has not been updated")
+            logger.error("Not logged in.")
         else:
             # this should really not happen
             self.hideLinkVersionDetails()
-            logger.error("Unknown error")
+            logger.error("Unknown error downloading version")
 
     def updateThumbnail(self, fileItem):
         fileName = fileItem.name
@@ -1430,7 +1430,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 FILENAME_SYS_CFG,
             )
 
-        self.handle(tryStorePrefs)
+        api_result = fancy_handle(tryStorePrefs)
+        if api_result == APICallResult.OK:
+            pass
+        elif api_result == APICallResult.DISCONNECTED:
+            logger.warning("Disconnected from server.  No preferences stored.")
+        elif api_result == APICallResult.NOT_LOGGED_IN:
+            # this should not happen as the user should not have access to
+            # the share links while logged out.
+            logger.error("Not logged in.  No preferences stored.")
+        else:
+            # this should really not happen
+            logger.error("Unknown error storing preferences")
 
     def convertParam(self, type, paramGroup, value):
         if type == "FCBool":
@@ -1633,7 +1644,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
             if not result:
                 logger.info(f"Organization {nameOrg} has no preferences stored.")
 
-        self.handle(tryLoadPrefs)
+        api_result = fancy_handle(tryLoadPrefs)
+        if api_result == APICallResult.OK:
+            pass
+        elif api_result == APICallResult.DISCONNECTED:
+            logger.warning("Disconnected from server.  No preferences downloaded.")
+        elif api_result == APICallResult.NOT_LOGGED_IN:
+            # this should not happen as the user should not have access to
+            # the organization preferences while logged out.
+            logger.error("Not logged in.  No preferences downloaded.")
+        else:
+            # this should really not happen
+            logger.error("Unknown error downloading preferences")
 
     def downloadOndselDefaultPrefs(self):
         def tryLoadPrefs():
@@ -1641,7 +1663,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
             if not result:
                 logger.error("No default preferences stored")
 
-        self.handle(tryLoadPrefs)
+        api_result = fancy_handle(tryLoadPrefs)
+        if api_result == APICallResult.OK:
+            pass
+        elif api_result == APICallResult.DISCONNECTED:
+            logger.warning("Disconnected from server.  No preferences downloaded.")
+        elif api_result == APICallResult.NOT_LOGGED_IN:
+            # this should not happen as the user should not have access to this
+            # menu item
+            logger.error("Not logged in.  No preferences downloaded.")
+        else:
+            # this should really not happen
+            logger.error("Unknown error downloading preferences")
 
     # ####
     # Directory deletion
