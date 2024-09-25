@@ -52,7 +52,7 @@ from APIClient import (
     APIClientException,
     APIClientAuthenticationException,
     # APIClientConnectionError,
-    APIClientTierException,
+    # APIClientTierException,
     # APIClientRequestException,
     ConnStatus,
     APICallResult,
@@ -794,21 +794,28 @@ class WorkspaceView(QtWidgets.QScrollArea):
         name = self.api.getNameUser()
         menu = self.guestMenu
         icon = self.ondselIconDisconnected
+
         if self.toolBarItemAction is None:
             self.find_our_toolbaritem_action()
-        if status == ConnStatus.CONNECTED:
-            icon = self.ondselIcon
+
+        if status == ConnStatus.CONNECTED or status == ConnStatus.DISCONNECTED:
             menu = self.userMenu
             login_data = self.get_login_data()
             user = login_data.get("user", {})
             users_name = user.get("name", "?")
             users_username = user.get("username", "?")
-            status_txt = f"Logged in as {users_name} [<code>{users_username}</code>]"
+            if status == ConnStatus.CONNECTED:
+                icon = self.ondselIcon
+                status_txt = (
+                    f"Logged in as {users_name} [<code>{users_username}</code>]"
+                )
+            elif status == ConnStatus.DISCONNECTED:
+                status_txt = "No Network Service"
+                icon = self.ondselIconDisconnected
         elif status == ConnStatus.LOGGED_OUT:
             icon = self.ondselIconLoggedOut
             status_txt = "Logged Out"
-        elif status == ConnStatus.DISCONNECTED:
-            status_txt = "No Network Service"
+
         return status, status_txt, name, menu, icon
 
     def set_ui_connectionStatus(self):
