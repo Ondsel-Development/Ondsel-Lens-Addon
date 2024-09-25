@@ -4,6 +4,14 @@
 # *                                                                     *
 # ***********************************************************************
 
+# # TODO: the following try/except is a hack that only works while online for dev-testing
+# try:
+#     import mistune
+# except ImportError:
+#     import subprocess
+#     subprocess.run(['pip', 'install', 'mistune'])
+#     import mistune
+
 import os
 from datetime import datetime
 import re
@@ -59,7 +67,6 @@ from Workspace import (
     ServerWorkspaceModel,
     FileStatus,
 )
-from markdown import markdown_to_html
 from views.ondsel_promotions_view import OndselPromotionsView
 
 from views.search_results_view import SearchResultsView
@@ -468,7 +475,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         org = self.form.ondselPromotionsScrollArea.ondsel_org
         if org is not None:
             markdown = org["curation"]["longDescriptionMd"]
-            html = markdown_to_html(markdown)
+            html = mistune.html(markdown)
         self.form.ondselHomePageTextBrowser.setHtml(html)
         self.form.ondselPromotionsFrame.layout().addWidget(
             self.form.ondselPromotionsScrollArea

@@ -2,57 +2,25 @@ import requests
 import webbrowser
 
 import Utils
-from PySide import QtCore, QtGui, QtWidgets
 from PySide.QtGui import (
     QPixmap,
     QFrame,
-    QCursor,
 )
 from PySide.QtCore import QByteArray, Qt, QSize
-import FreeCADGui as Gui
 
 from components.choose_download_action_dialog import ChooseDownloadActionDialog
-from models.curation import CurationListModel
 
 logger = Utils.getLogger(__name__)
 
 
-class SearchResultDelegate(QFrame):
-    """delegate for search results"""
+class CurationDisplayDelegate(QFrame):
+    """delegate for curation display in general; should be used by children via inheritance not directly"""
 
     def __init__(self, index=None):
         super().__init__()
         if index is None:
             return  # if none, this is a dummy object
-
-        curation = index.data(CurationListModel.CurationRole)
-        self.curation = curation
-        ui_path = Utils.mod_path + "/delegates/SearchResultItem.ui"
-        self.widget = Gui.PySideUic.loadUi(ui_path)
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.widget)
-        #
-        # decorate the new item with data
-        #
-        self.widget.collectionLabel.setText(curation.nav.user_friendly_target_name())
-        self.widget.titleLabel.setText(curation.name)
-        self.mousePressEvent = lambda event: self._take_action()
-        self.setCursor(QCursor(Qt.PointingHandCursor))
-        self.image_url = curation.get_thumbnail_url()
-        if self.image_url is None:
-            print("checkout ", curation.nav)
-        elif ":" in self.image_url:
-            self.widget.iconLabel.setStyleSheet("background-color:rgb(219,219,211)")
-            main_image = _get_pixmap_from_url(self.image_url)
-            if main_image is not None:
-                self.widget.iconLabel.setPixmap(main_image)
-        elif self.image_url is not None:
-            main_image = QtGui.QIcon(Utils.icon_path + self.image_url).pixmap(
-                QSize(96, 96)
-            )
-            self.widget.iconLabel.setPixmap(main_image)
-        #
-        self.setLayout(layout)
+        self.curation = None # to be properly set by the child class
 
     def _take_action(self):
         if self.curation.collection == "shared-models":
@@ -84,7 +52,7 @@ class SearchResultDelegate(QFrame):
             logger.warn(f"Failed to open {url} in the browser")
 
 
-def _get_pixmap_from_url(thumbnailUrl):
+def get_pixmap_from_url(thumbnailUrl):
     try:
         response = requests.get(thumbnailUrl)
         image_data = response.content

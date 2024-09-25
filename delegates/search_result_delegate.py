@@ -1,4 +1,3 @@
-from PySide.QtWidgets import QLabel
 from PySide import QtGui
 from PySide.QtGui import (
     QCursor,
@@ -8,21 +7,18 @@ import FreeCADGui as Gui
 
 import Utils
 from delegates.curation_display_delegate import CurationDisplayDelegate, get_pixmap_from_url
-from models.promotion import PromotionListModel
+from models.curation import CurationListModel
 
 logger = Utils.getLogger(__name__)
 
 
-class PromotionDelegate(CurationDisplayDelegate):
-    """delegate for promotion listing"""
+class SearchResultDelegate(CurationDisplayDelegate):
+    """delegate for search results"""
 
     def __init__(self, index=None):
         super().__init__()
-        promotion = index.data(PromotionListModel.PromotionRole)
-        self.promotion = promotion
-        curation = promotion.curation
+        curation = index.data(CurationListModel.CurationRole)
         self.curation = curation
-        notation = promotion.notation
         ui_path = Utils.mod_path + "/delegates/CurationItem.ui"
         self.widget = Gui.PySideUic.loadUi(ui_path)
         layout = QtGui.QVBoxLayout()
@@ -48,11 +44,4 @@ class PromotionDelegate(CurationDisplayDelegate):
             )
             self.widget.iconLabel.setPixmap(main_image)
         #
-        # insert Notation detail (if there is any)
-        #
-        if notation.message:
-            blue_msg = f"<font color='#add8e6'>{notation.message}</font>"
-            blue_label = QLabel(blue_msg)
-            blue_label.setWordWrap(True)
-            layout.addWidget(blue_label)
         self.setLayout(layout)

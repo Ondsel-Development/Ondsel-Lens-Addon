@@ -23,6 +23,7 @@
       <depend>pyjwt</depend>
       <depend>requests</depend>
       <depend>tzlocal</depend>
+      <depend>mistune</depend>
     </workbench>
   </content>
 
