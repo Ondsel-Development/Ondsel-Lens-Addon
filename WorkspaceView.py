@@ -14,7 +14,9 @@ import requests
 import uuid
 import base64
 import webbrowser
-import logging
+
+# import logging
+
 import random
 import math
 
@@ -49,16 +51,15 @@ from APIClient import (
     APIClient,
     APIClientException,
     APIClientAuthenticationException,
-    APIClientConnectionError,
+    # APIClientConnectionError,
     APIClientTierException,
-    APIClientRequestException,
+    # APIClientRequestException,
     ConnStatus,
     APICallResult,
     fancy_handle,
 )
 from Workspace import (
     WorkspaceModel,
-    LocalWorkspaceModel,
     ServerWorkspaceModel,
     FileStatus,
 )
@@ -840,17 +841,16 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.setWorkspaceModel()
 
     def setWorkspaceModel(self):
-        if self.is_connected():
-            self.currentWorkspaceModel = ServerWorkspaceModel(
-                self.current_workspace, apiClient=self.api
-            )
-        else:
-            subPath = ""
-            if hasattr(self, "currentWorkspaceModel") and self.currentWorkspaceModel:
-                subPath = self.currentWorkspaceModel.subPath
-            self.currentWorkspaceModel = LocalWorkspaceModel(
-                self.current_workspace, subPath=subPath
-            )
+        self.currentWorkspaceModel = ServerWorkspaceModel(
+            self.current_workspace, apiClient=self.api
+        )
+        # subPath = ""
+        # if hasattr(self, "currentWorkspaceModel") and self.currentWorkspaceModel:
+        #     subPath = self.currentWorkspaceModel.subPath
+        # self.currentWorkspaceModel = LocalWorkspaceModel(
+        #     self.current_workspace, subPath=subPath
+        # )
+        # I probably need to do something with the subpath
 
         self.setWorkspaceNameLabel()
         self.form.fileList.setModel(self.currentWorkspaceModel)
@@ -904,7 +904,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 self.setWorkspaceNameLabel()
                 self.hideFileDetails()
 
-            self.handle(tryOpenParent)
+            # self.handle(tryOpenParent)
+            tryOpenParent()
 
     def handle_request(self, func):
         """Handle a function that raises an exception from requests."""
@@ -927,40 +928,42 @@ class WorkspaceView(QtWidgets.QScrollArea):
         Returns true if the user is disconnected
 
         """
-        connected_before_call = self.is_connected()
-        try:
-            func()
-            if not connected_before_call:
-                # since the call succeeds, it may mean we are connected again
-                if self.is_connected():
-                    # check if we are connected right now
-                    logger.info("The connection to the Lens service is restored.")
-            return False
-        except APIClientConnectionError as e:
-            if connected_before_call:
-                if logger.level <= logging.DEBUG:
-                    logger.warn(e)
-                else:
-                    logger.warn("Disconnected from the Lens service.")
-        except APIClientRequestException as e:
-            if connected_before_call:
-                if logger.level <= logging.DEBUG:
-                    logger.warn(e)
-                else:
-                    logger.warn("Error encountered from the Lens service.")
-        except APIClientAuthenticationException as e:
-            logger.warn(e)
-            logger.warn("Logging out")
-            self.logout()
-        except APIClientTierException as e:
-            self.show_tier_dialog(str(e))
-        except APIClientException as e:
-            logger.error("Uncaught exception:")
-            logger.error(e)
-            logger.warn("Logging out")
-            self.logout()
+        func()
         self.set_ui_connectionStatus()
-        return True
+        # connected_before_call = self.is_connected()
+        # try:
+        #     func()
+        #     if not connected_before_call:
+        #         # since the call succeeds, it may mean we are connected again
+        #         if self.is_connected():
+        #             # check if we are connected right now
+        #             logger.info("The connection to the Lens service is restored.")
+        #     return False
+        # except APIClientConnectionError as e:
+        #     if connected_before_call:
+        #         if logger.level <= logging.DEBUG:
+        #             logger.warn(e)
+        #         else:
+        #             logger.warn("Disconnected from the Lens service.")
+        # except APIClientRequestException as e:
+        #     if connected_before_call:
+        #         if logger.level <= logging.DEBUG:
+        #             logger.warn(e)
+        #         else:
+        #             logger.warn("Error encountered from the Lens service.")
+        # except APIClientAuthenticationException as e:
+        #     logger.warn(e)
+        #     logger.warn("Logging out")
+        #     self.logout()
+        # except APIClientTierException as e:
+        #     self.show_tier_dialog(str(e))
+        # except APIClientException as e:
+        #     logger.error("Uncaught exception:")
+        #     logger.error(e)
+        #     logger.warn("Logging out")
+        #     self.logout()
+        # self.set_ui_connectionStatus()
+        # return True
 
     def show_tier_dialog(self, message):
         dialog = QMessageBox()
@@ -975,25 +978,30 @@ class WorkspaceView(QtWidgets.QScrollArea):
         dialog.exec()
 
     def tryOpenPathFile(self, pathFile):
+        warning = f"FreeCAD cannot open {pathFile}"
         if Utils.isOpenableByFreeCAD(pathFile):
-            logger.debug(f"Opening file: {pathFile}")
             if not self.restoreFile(pathFile):
-                FreeCAD.loadFile(pathFile)
+                if os.path.exists(pathFile):
+                    logger.debug(f"Opening file: {pathFile}")
+                    FreeCAD.loadFile(pathFile)
+                else:
+                    logger.warn(warning)
         else:
-            logger.warn(f"FreeCAD cannot open {pathFile}")
+            logger.warn(warning)
 
     def openFile(self, index):
         """Open a file
 
         throws an APIClientException
         """
+        logger.debug("openFile")
         wsm = self.currentWorkspaceModel
         fileItem = wsm.data(index)
         if fileItem.is_folder:
             wsm.openDirectory(index)
         else:
             pathFile = Utils.joinPath(wsm.getFullPath(), fileItem.name)
-            if not os.path.isfile(pathFile) and self.is_connected():
+            if not os.path.isfile(pathFile):
                 wsm.downloadFile(fileItem)
                 # wsm has refreshed
             self.tryOpenPathFile(pathFile)
@@ -1010,11 +1018,14 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.workspaceNameLabel.setText(workspacePath)
 
     def fileListDoubleClicked(self, index):
+        logger.debug("fileListDoubleClicked()")
+
         def tryOpenFile():
             self.openFile(index)
             self.setWorkspaceNameLabel()
 
-        self.handle(tryOpenFile)
+        # self.handle(tryOpenFile)
+        tryOpenFile()
 
     def linksListDoubleClicked(self, index):
         model = self.form.linksView.model()
@@ -1213,8 +1224,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 self.form.linkDetails.setVisible(True)
                 self.form.makeActiveBtn.setVisible(version_model.canBeMadeActive())
 
-            if self.handle(tryInitModels):
-                # disconnected
+            api_result = fancy_handle(tryInitModels)
+            if api_result != APICallResult.OK:
+                # disconnected or logged out
                 hideDetails()
         else:
             hideDetails()
@@ -1625,7 +1637,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             else:
                 logger.warn(f"Directory {fileItem.name} is not empty")
 
-        self.handle(tryDelete)
+        # self.handle(tryDelete)
+        tryDelete()
 
     # ####
     # File deletion
@@ -1657,7 +1670,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
         fileName = fileItem.name
         if fileItem.status == FileStatus.SERVER_ONLY:
             if self.confirmDeleteLens(fileName) == QtGui.QMessageBox.Yes:
-                self.handle(lambda: self.currentWorkspaceModel.deleteFile(index))
+                # self.handle(lambda: self.currentWorkspaceModel.deleteFile(index))
+                self.currentWorkspaceModel.deleteFile(index)
         elif fileItem.status in [
             FileStatus.UNTRACKED,
             FileStatus.LOCAL_COPY_OUTDATED,
@@ -1738,7 +1752,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
                 logger.debug("versionComboBox setCurrentIndex")
 
-        self.handle(tryUpload)
+        # self.handle(tryUpload)
+        tryUpload()
 
     def enterCommitMessage(self):
         dialog = EnterCommitMessageDialog()
@@ -2018,7 +2033,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             else:
                 self.workspacesModel.refreshModel()
 
-        self.handle(tryRefresh)
+        # self.handle(tryRefresh)
+        tryRefresh()
 
     # ####
     # Adding files and directories
@@ -2114,7 +2130,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 self.currentWorkspaceModel.createDir(dir)
             self.currentWorkspaceModel.refreshModel()
 
-        self.handle(tryCreateDir)
+        # self.handle(tryCreateDir)
+        tryCreateDir()
         self.switchView()
 
     # def newWorkspaceBtnClicked(self):

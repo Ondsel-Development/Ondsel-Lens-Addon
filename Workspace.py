@@ -107,7 +107,15 @@ class WorkspaceModel(QAbstractListModel):
         self.endResetModel()
 
     def refreshModel(self):
-        pass  # Implemented in subclasses
+        logger.debug("WorkspaceModel.refreshModel()")
+        self.clearModel()
+        if not os.path.isdir(self.path):
+            self.files = []
+            return
+        localDirs, localFiles = self.getLocalFiles()
+        self.beginResetModel()
+        self.files = self.sortFiles(localDirs, localFiles)
+        self.endResetModel()
 
     def getLocalFiles(self):
         if not os.path.exists(self.getFullPath()):
@@ -161,7 +169,24 @@ class WorkspaceModel(QAbstractListModel):
         return len(self.files)
 
     def data(self, index, role=Qt.DisplayRole):
-        pass  # Implemented in subclasses
+        # logger.debug("WorkspaceModel.data()")
+        if not index.isValid():
+            return None
+        file_item = self.files[index.row()]
+
+        if role == Qt.DisplayRole:
+            return file_item
+        elif role == self.NameRole:
+            return file_item.name
+        elif role == self.NameAndIsFolderRole:
+            return file_item.name, file_item.is_folder
+        elif role == self.IdRole:
+            return 0
+        elif role == self.StatusRole:
+            return ""
+        elif role == self.NameStatusAndIsFolderRole:
+            return file_item.name, None, file_item.is_folder
+        return None
 
     def getWorkspacePath(self):
         """Returns the path of the workspace including subpath"""
@@ -176,8 +201,19 @@ class WorkspaceModel(QAbstractListModel):
         else:
             return Utils.joinPath(self.path, self.subPath)
 
-    def openFile(self, index):
-        pass  # Implemented in subclasses
+    def openDirectory(self, index):
+        logger.debug("WorkspaceModel.openDirectory()")
+        file_item = self.files[index.row()]
+        if file_item.is_folder:
+            self.subPath = Utils.joinPath(self.subPath, file_item.name)
+            self.refreshModel()
+        else:
+            logger.error(f"{file_item.name} is not a directory")
+
+    def openParentFolder(self):
+        logger.debug("WorkspaceModel.openParentFolder()")
+        self.subPath = os.path.dirname(self.subPath)
+        self.refreshModel()
 
     def roleNames(self):
         return {
@@ -191,6 +227,7 @@ class WorkspaceModel(QAbstractListModel):
 
     def upload(self, fileName, fileId=None, message=""):
         # Default action is to not upload anything
+        logger.debug("WorkspaceModel.upload()")
         pass
 
     def isEmptyDirectory(self, index):
@@ -250,6 +287,7 @@ class WorkspaceModel(QAbstractListModel):
         return [fi.name for fi in localDirs + localFiles]
 
     def createDir(self, dir):
+        logger.debug("WorkspaceModel.createDir()")
         fullPath = Utils.joinPath(self.getFullPath(), dir)
         if not os.path.exists(fullPath):
             os.makedirs(fullPath)
@@ -261,54 +299,6 @@ class WorkspaceModel(QAbstractListModel):
 
         for file in self.files:
             print(file)
-
-
-class LocalWorkspaceModel(WorkspaceModel):
-    def __init__(self, workspaceDict, **kwargs):
-        super().__init__(workspaceDict, **kwargs)
-
-        self.refreshModel()
-
-    def refreshModel(self):
-        self.clearModel()
-        if not os.path.isdir(self.path):
-            self.files = []
-            return
-        localDirs, localFiles = self.getLocalFiles()
-        self.beginResetModel()
-        self.files = self.sortFiles(localDirs, localFiles)
-        self.endResetModel()
-
-    def data(self, index, role=Qt.DisplayRole):
-        if not index.isValid():
-            return None
-        file_item = self.files[index.row()]
-
-        if role == Qt.DisplayRole:
-            return file_item
-        elif role == self.NameRole:
-            return file_item.name
-        elif role == self.NameAndIsFolderRole:
-            return file_item.name, file_item.is_folder
-        elif role == self.IdRole:
-            return 0
-        elif role == self.StatusRole:
-            return ""
-        elif role == self.NameStatusAndIsFolderRole:
-            return file_item.name, None, file_item.is_folder
-        return None
-
-    def openParentFolder(self):
-        self.subPath = os.path.dirname(self.subPath)
-        self.refreshModel()
-
-    def openDirectory(self, index):
-        file_item = self.files[index.row()]
-        if file_item.is_folder:
-            self.subPath = Utils.joinPath(self.subPath, file_item.name)
-            self.refreshModel()
-        else:
-            logger.error(f"{file_item.name} is not a directory")
 
 
 class ServerWorkspaceModel(WorkspaceModel):
@@ -416,6 +406,7 @@ class ServerWorkspaceModel(WorkspaceModel):
         that reflect the status of the server and local file system.
 
         """
+        logger.debug("ServerWorkspaceModel.refreshModel()")
 
         self.clearModel()
 
@@ -437,6 +428,7 @@ class ServerWorkspaceModel(WorkspaceModel):
 
         api_result = fancy_handle(tryGetServerInfo)
         if api_result != APICallResult.OK:
+            super().refreshModel()
             return
 
         def updateDirFound(serverFileItem, localFileItem):
@@ -483,9 +475,11 @@ class ServerWorkspaceModel(WorkspaceModel):
         #     self.uploadUntrackedFiles()
 
     def data(self, index, role=Qt.DisplayRole):
+        # logger.debug("ServerWorkspaceModel.data()")
         if not index.isValid():
             return None
         file_item = self.files[index.row()]
+        status = file_item.status if file_item.serverFileDict else ""
 
         if role == Qt.DisplayRole:
             return file_item
@@ -494,19 +488,11 @@ class ServerWorkspaceModel(WorkspaceModel):
         elif role == self.NameAndIsFolderRole:
             return file_item.name, file_item.is_folder
         elif role == self.IdRole:
-            # Commented out the code below.  It is confusing, and if at a later
-            # stage the modelId is required, it would bet better to create a
-            # role for that.
-            # if (
-            #     file_item.serverFileDict is not None
-            #     and "modelId" in file_item.serverFileDict
-            # ):
-            #     return file_item.serverFileDict["modelId"]
             return file_item.serverFileDict["_id"]
         elif role == self.StatusRole:
-            return file_item.status
+            return status
         elif role == self.NameStatusAndIsFolderRole:
-            return file_item.name, file_item.status, file_item.is_folder
+            return file_item.name, status, file_item.is_folder
         return None
 
     def getServerThumbnail(self, fileId):
@@ -539,15 +525,21 @@ class ServerWorkspaceModel(WorkspaceModel):
         return None
 
     def openDirectory(self, index):
+        logger.debug("ServerWorkspaceModel.openDirectory()")
+
         file_item = self.files[index.row()]
         self.subPath = Utils.joinPath(self.subPath, file_item.name)
         # push the directory to the stack
         if file_item.serverFileDict.get("_id"):
             # the server knows about this directory
+            logger.debug("  pushing serverFileDict to the currentDirectory")
             self.currentDirectory.append(file_item.serverFileDict)
         else:
             # the server needs to know about this directory
-            id = self.createDir(file_item.name)
+            logger.debug("  creating a directory")
+            id = None
+            fancy_handle(lambda: self.createDir(file_item.name))
+            # ignore the result
             self.currentDirectory.append({"_id": id, "name": file_item.name})
         self.refreshModel()
 
@@ -573,6 +565,7 @@ class ServerWorkspaceModel(WorkspaceModel):
         It assumes that the directory is empty.  It should not call
         refreshModel because it is combined with a call to super().
         """
+        logger.debug("ServerWorkspaceModel.deleteDirectory()")
         super().deleteDirectory(index, NO_REFRESH)
         fileItem = self.files[index.row()]
         if fileItem.serverFileDict and "_id" in fileItem.serverFileDict:
@@ -584,6 +577,7 @@ class ServerWorkspaceModel(WorkspaceModel):
 
     def deleteFileLocally(self, index):
         """Delete a file on the local filesystem."""
+        logger.debug("ServerWorkspaceModel.deleteFileLocally()")
         super().deleteFile(index)
 
     def deleteFile(self, index):
@@ -591,6 +585,7 @@ class ServerWorkspaceModel(WorkspaceModel):
 
         This function assumes that the files have been removed locally.
         """
+        logger.debug("ServerWorkspaceModel.deleteFile()")
         file_item = self.files[index.row()]
 
         id = file_item.serverFileDict["_id"]
@@ -619,7 +614,6 @@ class ServerWorkspaceModel(WorkspaceModel):
 
     def downloadVersion(self, fileItem, version):
         # This will download a specific version
-        # Throws an APIClientException
         if fileItem.is_folder:
             logger.warn("Download of folders not supported yet.")
             self.refreshModel()
@@ -627,9 +621,16 @@ class ServerWorkspaceModel(WorkspaceModel):
         else:
             logger.info(f"Downloading file {fileItem.name}")
             file_path = fileItem.getPath()
-            self.apiClient.downloadFileFromServer(version["uniqueFileName"], file_path)
-            updatedAt, createdAt = VersionModel.getVersionDateTime(version)
-            Utils.setFileModificationTimes(file_path, updatedAt, createdAt)
+
+            def tryDownload():
+                self.apiClient.downloadFileFromServer(
+                    version["uniqueFileName"], file_path
+                )
+                updatedAt, createdAt = VersionModel.getVersionDateTime(version)
+                Utils.setFileModificationTimes(file_path, updatedAt, createdAt)
+
+            fancy_handle(tryDownload)
+            # discard the result
             self.refreshModel()
             return True
 
@@ -700,6 +701,7 @@ class ServerWorkspaceModel(WorkspaceModel):
                 self.apiClient.createModel(fileId)
 
     def openParentFolder(self):
+        logger.debug("ServerWorkspaceModel.openParentFolder()")
         self.subPath = os.path.dirname(self.subPath)
         self.currentDirectory.pop()
         self.refreshModel()
@@ -718,6 +720,7 @@ class ServerWorkspaceModel(WorkspaceModel):
         return {k: self.workspace[k] for k in ("_id", "name", "refName", "open")}
 
     def createDir(self, nameDirectory):
+        logger.debug("ServerWorkspaceModel.createDir()")
         # raises an APIClientException
         currentDir = self.currentDirectory[-1]
         workspace = self.summarizeWorkspace()
