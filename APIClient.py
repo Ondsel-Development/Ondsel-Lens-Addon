@@ -212,13 +212,13 @@ class APIClient:
     def _confirm_online_after_exception(self):
         self._confirm_online()
         if self.status == ConnStatus.DISCONNECTED:
-            raise APIClientOfflineException("Safely offline")
+            raise APIClientOfflineException("Disconnected from service: logged out")
 
     def _properly_throw_if_offline(self):
         if self.status == ConnStatus.DISCONNECTED:
             self._confirm_online()  # try to connect again
             if self.status == ConnStatus.DISCONNECTED:
-                raise APIClientOfflineException("Safely offline")
+                raise APIClientOfflineException("Disconnected from service: logged out")
 
     def _delete(self, endpoint, headers={}, params=None):
         headers = self._set_default_headers(headers)

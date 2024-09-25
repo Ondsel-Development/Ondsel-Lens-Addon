@@ -684,7 +684,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     p.SetString("loginData", json.dumps(loginData))
                     self.set_ui_connectionStatus()
                     self.leaveWorkspace()
-                    self.handle(self.workspacesModel.refreshModel)
+                    self.workspacesModel.refreshModel()
                     self.switchView()
                     # Set a timer to logout when token expires.  since we've
                     # just received the access token, it is very unlikely that
