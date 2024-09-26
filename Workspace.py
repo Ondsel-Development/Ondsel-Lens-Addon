@@ -556,8 +556,21 @@ class ServerWorkspaceModel(WorkspaceModel):
             return True
 
     def isEmptyDirectory(self, index):
-        # throws an APIClientException
-        return super().isEmptyDirectory(index) and self._isEmptyDirectoryOnServer(index)
+        empty_on_server = None
+
+        def tryServer():
+            nonlocal empty_on_server
+            empty_on_server = self._isEmptyDirectoryOnServer(index)
+
+        api_result = fancy_handle(tryServer)
+        if api_result == APICallResult.OK:
+            return super().isEmptyDirectory(index) and empty_on_server
+        elif api_result == APICallResult.DISCONNECTED:
+            return super().isEmptyDirectory(index)
+        elif api_result == APICallResult.NOT_LOGGED_IN:
+            return super().isEmptyDirectory(index)
+        else:
+            raise Exception("Unknown API result")
 
     def deleteDirectory(self, index):
         """Delete a directory on the server and on the local filesystem.
@@ -570,7 +583,18 @@ class ServerWorkspaceModel(WorkspaceModel):
         fileItem = self.files[index.row()]
         if fileItem.serverFileDict and "_id" in fileItem.serverFileDict:
             logger.debug(f"doing an API delete on {fileItem.name}")
-            self.apiClient.deleteDirectory(fileItem.serverFileDict["_id"])
+            api_result = fancy_handle(
+                lambda: self.apiClient.deleteDirectory(fileItem.serverFileDict["_id"])
+            )
+            if api_result == APICallResult.OK:
+                pass
+            elif api_result == APICallResult.DISCONNECTED:
+                logger.warn("Disconnected. Could not delete directory on the server.")
+            elif api_result == APICallResult.NOT_LOGGED_IN:
+                logger.warn("Not logged in. Could not delete directory on the server.")
+                pass
+            else:
+                raise Exception("Unknown API result")
         else:
             logger.debug(f"Dir {fileItem.name} is not on the server.")
         self.refreshModel()
