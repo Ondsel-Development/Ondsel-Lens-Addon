@@ -2,7 +2,7 @@ import inspect
 from dataclasses import dataclass, field
 from models.nav_ref import NavRef
 from models.file_summary import FileSummary_CurationLimited
-from typing import Optional
+from typing import Optional, Any
 from PySide.QtCore import Qt, QAbstractListModel
 
 
@@ -17,8 +17,8 @@ class Curation:
     longDescriptionMd: str = ""
     tags: list[str] = field(default_factory=list, repr=False)
     representativeFile: Optional[FileSummary_CurationLimited] = None
-    # promoted: <- ignore, to be deprecatted here and moved to Organization object
-    # keywordRefs: <- ignore, not relavant to Add-On
+    promoted: Optional[Any] = field(default_factory=list, repr=False)  # This needs to be refactored later
+    keywordRefs: Any = None  # ignore, not relevant to Add-On
 
     def __post_init__(self):
         self.nav = NavRef(**self.nav)

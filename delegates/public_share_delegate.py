@@ -10,7 +10,6 @@ from delegates.curation_display_delegate import (
     CurationDisplayDelegate,
     get_pixmap_from_url,
 )
-from models.curation import CurationListModel
 from models.share_link import PublicShareLinkListModel
 
 logger = Utils.getLogger(__name__)
@@ -22,6 +21,7 @@ class PublicShareLinkDelegate(CurationDisplayDelegate):
     def __init__(self, index=None):
         super().__init__()
         self.share_link = index.data(PublicShareLinkListModel.ShareLinkRole)
+        print("here", self.share_link)
         curation = self.share_link.curation
         self.curation = curation
         ui_path = Utils.mod_path + "/delegates/CurationItem.ui"

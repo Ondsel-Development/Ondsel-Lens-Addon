@@ -47,14 +47,14 @@ class ShareLink:
     canDownloadDefaultModel: bool  # "model" means "original file" in this context
     isActive: bool
     isSystemGenerated: Optional[bool]
-    showInPublicGallery: Optional[bool]  # deprecated
     isThumbnailGenerated: Optional[bool]
     thumbnailUrl: str  # can be None or empty also
     fileDetail: FileDetail
     curation: Curation
     protection: Protection
-    pin: Optional[str]
-    directSharedTo: Optional[UserSummary]
+    showInPublicGallery: Optional[bool] = None  # deprecated
+    pin: Optional[str] = None
+    directSharedTo: Optional[UserSummary] = None
     # TODO: figure out support for the following fields when needed:
     # messages: list[Message] = field(default_factory=list, repr=False)
     # messagesParticipants: list[UserSummary] = field(default_factory=list, repr=False)
@@ -63,7 +63,8 @@ class ShareLink:
         self.model = Model(**self.model)
         self.fileDetail = FileDetail(**self.fileDetail)
         self.curation = Curation(**self.curation)
-        self.directSharedTo = UserSummary(**self.directSharedTo)
+        if self.directSharedTo is not None:
+            self.directSharedTo = UserSummary(**self.directSharedTo)
 
     @classmethod
     def from_json(cls, json_data):
@@ -88,7 +89,7 @@ class PublicShareLinkListModel(QAbstractListModel):
     def data(self, index, role):
         if role == Qt.DisplayRole:
             return self.sharelink_list[index.row()].name
-        elif role == self.CurationRole:
+        elif role == self.ShareLinkRole:
             return self.sharelink_list[index.row()]
 
     def rowCount(self, index):

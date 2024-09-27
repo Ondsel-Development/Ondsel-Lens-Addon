@@ -1,6 +1,6 @@
 import inspect
 from dataclasses import dataclass
-from typing import Optional
+from typing import Optional, Any
 
 from models.error_msg import ErrorMsg
 
@@ -16,13 +16,10 @@ class Model:
 
     _id: str
     userId: str
-    user: dict  # Type.Ref(userSchema), # addon is not expanding on this for now with a proper class model
-    # uniqueFileName: Optional[str]  # deprecated; use file field
     fileId: str
     file: dict  # addon is not expanding on this for now with a proper class model
     createdAt: int
     updatedAt: int
-    fileUpdatedAt: Optional[int]
     isObjGenerationInProgress: Optional[bool]
     isObjGenerated: Optional[bool]
     shouldStartObjGeneration: Optional[bool]
@@ -32,11 +29,6 @@ class Model:
     isSharedModel: Optional[bool]
     isThumbnailGenerated: Optional[bool]
     thumbnailUrl: str
-    thumbnailUrlUpdatedAt: int
-    isExportFCStdGenerated: Optional[bool]
-    isExportSTEPGenerated: Optional[bool]
-    isExportSTLGenerated: Optional[bool]
-    isExportOBJGenerated: Optional[bool]
     sharedModelId: Optional[str]
     isSharedModelAnonymousType: Optional[bool]
     # deleted: Type.Optional(Type.Boolean()), # will never see this field via API
@@ -45,8 +37,17 @@ class Model:
     # latestLogErrorIdForStepExportCommand: logErrorIdType,
     # latestLogErrorIdForStlExportCommand: logErrorIdType,
     # latestLogErrorIdForObjExportCommand: logErrorIdType,
-    generatedFileExtensionForViewer: Optional[str]
     haveWriteAccess: bool
+    user: Optional[Any] = None  # Type.Ref(userSchema), # addon is not expanding on this for now with a proper class model
+    thumbnailUrlUpdatedAt: Optional[int] = None
+    isExportFCStdGenerated: Optional[bool] = False
+    isExportSTEPGenerated: Optional[bool] = False
+    isExportSTLGenerated: Optional[bool] = False
+    isExportOBJGenerated: Optional[bool] = False
+    generatedFileExtensionForViewer: Optional[str] = False
+    fileUpdatedAt: Optional[int] = None
+    custFileName: Optional[str] = None
+    uniqueFileName: Optional[str] = None  # deprecated; use file field
 
     @classmethod
     def from_json(cls, json_data):

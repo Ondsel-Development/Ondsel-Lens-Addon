@@ -4,13 +4,6 @@
 # *                                                                     *
 # ***********************************************************************
 
-# # TODO: the following try/except is a hack that only works while online for dev-testing
-# try:
-#     import mistune
-# except ImportError:
-#     import subprocess
-#     subprocess.run(["pip", "install", "mistune"])
-#     import mistune
 
 import os
 from datetime import datetime
@@ -70,6 +63,7 @@ from Workspace import (
     FileStatus,
 )
 from views.ondsel_promotions_view import OndselPromotionsView
+from views.public_shares_view import PublicSharesView
 
 from views.search_results_view import SearchResultsView
 
@@ -446,15 +440,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.txtExplain.setReadOnly(True)
         self.form.txtExplain.hide()
 
-        # initialize ondsel-start
+        # initialize ondsel-start tab
         self.initializeOndselStart()
 
-        # initialize bookmarks
+        # initialize bookmarks tab
         self.initializeBookmarks()
 
-        # initialize search
+        # initialize search tab
         self.form.searchResultScrollArea = SearchResultsView(self)
         self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
+
+        # initialize public-shares tab
+        self.initializePublicShares()
 
         self.initializeUpdateLens()
 
@@ -508,6 +505,13 @@ class WorkspaceView(QtWidgets.QScrollArea):
         bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
         bookmarkView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
+
+    def initializePublicShares(self):
+        self.form.publicSharesStatusLabel.setText("loading content...")
+        self.form.publicSharesScrollArea = PublicSharesView(self)
+        self.form.ondselPromotionsFrame.layout().addWidget(
+            self.form.ondselPromotionsScrollArea
+        )
 
     def initializeUpdateLens(self):
         self.form.frameUpdate.hide()
