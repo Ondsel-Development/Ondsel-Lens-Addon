@@ -593,9 +593,7 @@ class APIClient:
         params = {
             "$limit": 25,
             "$skip": 0,
-            # "$sort": {
-            #     "createdAt": -1,
-            # },
+            "$sort[createdAt]": -1,
             "protection": "Listed",
             "isActive": "true",
             "isThumbnailGenerated": "true"

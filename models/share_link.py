@@ -54,7 +54,7 @@ class ShareLink:
     protection: Protection
     showInPublicGallery: Optional[bool] = None  # deprecated
     pin: Optional[str] = None
-    directSharedTo: Optional[UserSummary] = None
+    directSharedTo: Optional[list[UserSummary]] = field(default_factory=list, repr=False)
     # TODO: figure out support for the following fields when needed:
     # messages: list[Message] = field(default_factory=list, repr=False)
     # messagesParticipants: list[UserSummary] = field(default_factory=list, repr=False)
@@ -64,7 +64,7 @@ class ShareLink:
         self.fileDetail = FileDetail(**self.fileDetail)
         self.curation = Curation(**self.curation)
         if self.directSharedTo is not None:
-            self.directSharedTo = UserSummary(**self.directSharedTo)
+            self.directSharedTo = [UserSummary(**user) for user in self.directSharedTo]
 
     @classmethod
     def from_json(cls, json_data):
