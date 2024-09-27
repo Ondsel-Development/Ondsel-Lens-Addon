@@ -21,7 +21,6 @@ class PublicShareLinkDelegate(CurationDisplayDelegate):
     def __init__(self, index=None):
         super().__init__()
         self.share_link = index.data(PublicShareLinkListModel.ShareLinkRole)
-        print("here", self.share_link)
         curation = self.share_link.curation
         self.curation = curation
         ui_path = Utils.mod_path + "/delegates/CurationItem.ui"

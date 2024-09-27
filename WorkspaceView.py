@@ -346,7 +346,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         tabBar.setTabIcon(IDX_TAB_BOOKMARKS, bookmarkIcon)
         searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
         tabBar.setTabIcon(IDX_TAB_SEARCH, searchIcon)
-        publicIcon = QtGui.QIcon(Utils.icon_path + "public.svg")
+        publicIcon = QtGui.QIcon(Utils.icon_path + "dots-square.svg")
         tabBar.setTabIcon(IDX_TAB_PUBLIC_SHARES, publicIcon)
 
         self.setWidget(self.form)
@@ -509,8 +509,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def initializePublicShares(self):
         self.form.publicSharesStatusLabel.setText("loading content...")
         self.form.publicSharesScrollArea = PublicSharesView(self)
-        self.form.ondselPromotionsFrame.layout().addWidget(
-            self.form.ondselPromotionsScrollArea
+        self.form.publicSharesFrame.layout().addWidget(
+            self.form.publicSharesScrollArea
         )
 
     def initializeUpdateLens(self):
