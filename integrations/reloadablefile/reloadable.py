@@ -221,13 +221,16 @@ class ReloadableObjectViewProvider:
         return self.setEdit(vobj)
 
     def setEdit(self, vobj=None, mode=0):
-        obj = vobj.Object
-        if not Gui.Control.activeDialog():
-            panel = TaskPanel(obj)
-            Gui.Control.showDialog(panel)
-            return True
+        if mode == 0:
+            obj = vobj.Object
+            if not Gui.Control.activeDialog():
+                panel = TaskPanel(obj)
+                Gui.Control.showDialog(panel)
+                # We handled the setEdit
+                return True
 
-        return False
+        # We did not handle the setEdit, let calling code do that.
+        return None
 
     def getDefaultDisplayMode(self):
         return "Flat Lines"
