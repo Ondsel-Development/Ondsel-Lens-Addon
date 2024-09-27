@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from models.nav_ref import NavRef
 from models.file_summary import FileSummary_CurationLimited
 from typing import Optional
-from PySide.QtCore import Qt, QAbstractListModel, QModelIndex
+from PySide.QtCore import Qt, QAbstractListModel
 
 
 @dataclass(order=True)

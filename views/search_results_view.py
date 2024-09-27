@@ -7,7 +7,7 @@ from qflowview.qflowview import QFlowView
 from APIClient import fancy_handle, API_Call_Result
 
 from models.curation import CurationListModel
-from delegates.search import SearchResultDelegate
+from delegates.search_result_delegate import SearchResultDelegate
 
 
 class SearchResultsView(QFlowView):
