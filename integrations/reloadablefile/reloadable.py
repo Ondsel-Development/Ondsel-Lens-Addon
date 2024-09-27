@@ -99,7 +99,7 @@ class ReloadableObject:
     def onChanged(self, obj, prop):
 
         # take no action unless it's a property we care about
-        if prop not in [PROP_FILEPATH, PROP_URL, PROP_SOURCE_TYPE]:
+        if App.isRestoring() or prop not in [PROP_FILEPATH, PROP_URL, PROP_SOURCE_TYPE]:
             return
 
         # User has either changed the source or the source type
@@ -122,7 +122,10 @@ class ReloadableObject:
 
     def execute(self, obj):
         if obj.SourceType == SOURCE_TYPE_FILEPATH:
-            return self.has_file_changed(obj)
+            if self.has_file_changed(obj):
+                self.should_reload = True
+                if hasattr(obj, "ViewObject"):
+                    obj.ViewObject.signalChangeIcon()
 
     def load_source(self, obj):
         if obj.SourceType == SOURCE_TYPE_URL:
