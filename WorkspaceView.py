@@ -4,14 +4,6 @@
 # *                                                                     *
 # ***********************************************************************
 
-# # TODO: the following try/except is a hack that only works while online for dev-testing
-# try:
-#     import mistune
-# except ImportError:
-#     import subprocess
-#     subprocess.run(['pip', 'install', 'mistune'])
-#     import mistune
-
 import os
 from datetime import datetime
 import re
@@ -30,6 +22,8 @@ from inspect import cleandoc
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError
+
+import mistune
 
 from PySide import QtCore, QtGui, QtWidgets
 
@@ -2320,7 +2314,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
         elif status == ConnStatus.DISCONNECTED:
             # set tab to workspaces just in case cached. ondsel-start won't work anyway
-            # NOTE: currently there is no way to test this as connection is not tested on startup
+            # NOTE: currently there is no way to test this as connection is not tested
+            # on startup
             tabWidget.setCurrentIndex(IDX_TAB_WORKSPACES)
 
         elif status == ConnStatus.LOGGED_OUT:
