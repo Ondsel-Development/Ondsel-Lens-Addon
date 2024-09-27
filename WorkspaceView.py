@@ -1729,12 +1729,21 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def confirmDeleteLocally(self, fileName):
         return self.confirmDelete(fileName, "the local file system")
 
-    def deleteFileConnected(self, fileItem, index):
+    def deleteFile(self, fileItem, index):
         fileName = fileItem.name
         if fileItem.status == FileStatus.SERVER_ONLY:
             if self.confirmDeleteLens(fileName) == QtGui.QMessageBox.Yes:
-                # self.handle(lambda: self.currentWorkspaceModel.deleteFile(index))
-                self.currentWorkspaceModel.deleteFile(index)
+                api_result = fancy_handle(
+                    lambda: self.currentWorkspaceModel.deleteFile(index)
+                )
+                if api_result == APICallResult.OK:
+                    pass
+                elif api_result == APICallResult.DISCONNECTED:
+                    logger.warn("Disconnected.  Failed to delete the file.")
+                elif api_result == APICallResult.NOT_LOGGED_IN:
+                    logger.warn("Not logged in.  Failed to delete the file.")
+                else:
+                    raise Exception("Unknown API result while deleting a file.")
         elif fileItem.status in [
             FileStatus.UNTRACKED,
             FileStatus.LOCAL_COPY_OUTDATED,
@@ -1743,16 +1752,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         ]:
             if self.confirmDeleteLocally(fileName) == QtGui.QMessageBox.Yes:
                 self.currentWorkspaceModel.deleteFileLocally(index)
-
-    def deleteFileDisconnected(self, fileItem, index):
-        if self.confirmDeleteLocally(fileItem.name) == QtGui.QMessageBox.Yes:
-            self.currentWorkspaceModel.deleteFile(index)
-
-    def deleteFile(self, fileItem, index):
-        if self.is_connected():
-            self.deleteFileConnected(fileItem, index)
-        else:
-            self.deleteFileDisconnected(fileItem, index)
 
     def showFileContextMenuFile(self, file_item, pos, index):
         menu = QtGui.QMenu()
