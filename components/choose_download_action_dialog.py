@@ -1,10 +1,10 @@
-from PySide2.QtWidgets import QRadioButton
 from PySide.QtWidgets import (
     QDialog,
     QButtonGroup,
     QDialogButtonBox,
     QVBoxLayout,
     QLabel,
+    QRadioButton,
 )
 import Utils
 from APIClient import ConnStatus
