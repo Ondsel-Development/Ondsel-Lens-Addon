@@ -509,9 +509,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def initializePublicShares(self):
         self.form.publicSharesStatusLabel.setText("loading content...")
         self.form.publicSharesScrollArea = PublicSharesView(self)
-        self.form.publicSharesFrame.layout().addWidget(
-            self.form.publicSharesScrollArea
-        )
+        self.form.publicSharesFrame.layout().addWidget(self.form.publicSharesScrollArea)
 
     def initializeUpdateLens(self):
         self.form.frameUpdate.hide()

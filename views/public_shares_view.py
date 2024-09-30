@@ -25,7 +25,9 @@ class PublicSharesView(QFlowView):
             nonlocal sharelinks
             sharelinks = self.parent.api.get_public_shared_models()
             for sl in sharelinks:
-                sl.curation.parent = self.parent  # this gives live api access to the item delegate's curation
+                sl.curation.parent = (
+                    self.parent
+                )  # this gives live api access to the item delegate's curation
 
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         api_result = fancy_handle(get_public_sharelink_items)

@@ -38,7 +38,9 @@ class Model:
     # latestLogErrorIdForObjExportCommand: logErrorIdType,
     haveWriteAccess: bool
     errorMsg: Optional[ErrorMsg] = None
-    user: Optional[Any] = None  # Type.Ref(userSchema), # addon is not expanding on this for now with a proper class model
+    user: Optional[Any] = (
+        None  # Type.Ref(userSchema), # addon is not expanding on this for now with a proper class model
+    )
     thumbnailUrlUpdatedAt: Optional[int] = None
     isExportFCStdGenerated: Optional[bool] = False
     isExportSTEPGenerated: Optional[bool] = False

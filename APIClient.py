@@ -596,7 +596,7 @@ class APIClient:
             "$sort[createdAt]": -1,
             "protection": "Listed",
             "isActive": "true",
-            "isThumbnailGenerated": "true"
+            "isThumbnailGenerated": "true",
         }
         result = self._request("shared-models", {}, params)
         dict_list = result["data"]

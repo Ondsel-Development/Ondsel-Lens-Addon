@@ -54,7 +54,9 @@ class ShareLink:
     protection: Protection
     showInPublicGallery: Optional[bool] = None  # deprecated
     pin: Optional[str] = None
-    directSharedTo: Optional[list[UserSummary]] = field(default_factory=list, repr=False)
+    directSharedTo: Optional[list[UserSummary]] = field(
+        default_factory=list, repr=False
+    )
     # TODO: figure out support for the following fields when needed:
     # messages: list[Message] = field(default_factory=list, repr=False)
     # messagesParticipants: list[UserSummary] = field(default_factory=list, repr=False)

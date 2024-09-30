@@ -17,7 +17,9 @@ class Curation:
     longDescriptionMd: str = ""
     tags: list[str] = field(default_factory=list, repr=False)
     representativeFile: Optional[FileSummary_CurationLimited] = None
-    promoted: Optional[Any] = field(default_factory=list, repr=False)  # This needs to be refactored later
+    promoted: Optional[Any] = field(
+        default_factory=list, repr=False
+    )  # This needs to be refactored later
     keywordRefs: Any = None  # ignore, not relevant to Add-On
 
     def __post_init__(self):
