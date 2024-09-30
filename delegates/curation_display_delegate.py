@@ -4,11 +4,7 @@ import requests
 import webbrowser
 
 import Utils
-from PySide.QtGui import (
-    QPixmap,
-    QFrame,
-    QIcon
-)
+from PySide.QtGui import QPixmap, QFrame, QIcon
 from PySide.QtCore import Qt, QThread, QObject, Signal, QSize
 
 from components.choose_download_action_dialog import ChooseDownloadActionDialog
@@ -26,7 +22,10 @@ class CurationDisplayDelegate(QFrame):
         self.curation = None  # to be properly set by the child class
 
     def start_image_load(self):
-        image_url = self.curation.get_thumbnail_url()  # sadly, this API call cannot be queued because API does not work in thread for some reason
+        self._preload_icon()
+        image_url = (
+            self.curation.get_thumbnail_url()
+        )  # sadly, this cannot be queued because API does not work in thread for some reason
         self.thread = QThread()
         self.worker = _GetCurationImage()
         self.worker.image_url = image_url
@@ -35,10 +34,14 @@ class CurationDisplayDelegate(QFrame):
         self.thread.started.connect(self.worker.run)
         self.thread.start()
 
-    def _image_available(self, pixmap, is_cad_image):
-        if pixmap is not None:
+    def _preload_icon(self):
+        image_filename = self.curation.get_just_icon_filename()
+        pixmap = QIcon(Utils.icon_path + image_filename).pixmap(QSize(96, 96))
+        self.widget.iconLabel.setPixmap(pixmap)
+
+    def _image_available(self, pixmap, image_downloaded):
+        if image_downloaded:
             self.widget.iconLabel.setPixmap(pixmap)
-        if is_cad_image:
             self.widget.iconLabel.setStyleSheet("background-color:rgb(219,219,211)")
 
     def _take_action(self):
@@ -99,22 +102,20 @@ class _GetCurationImage(QObject):
     The child will call the `start_image_load()` method of CurationDisplayDelegate during initialization. That will,
     in turn, start this thread. This thread then emits the result when image is in memory.
     """
-    finished = Signal(QPixmap, bool)
+
+    finished = Signal(
+        QPixmap, bool
+    )  # the bool is needed because "None" is still re-interpreted by the C lib as QPixMap
+
     def __init__(self):
         super().__init__()
         self.image_url = None
+
     def run(self):
         pixmap = None
-        is_cad_image = False
-        if self.image_url is None:
-            pass
-            # print("checkout ", self.curation.nav)
-        elif ":" in self.image_url:
+        image_downloaded = False
+        if self.image_url is not None and ":" in self.image_url:
             pixmap = get_pixmap_from_url(self.image_url)
             if pixmap is not None:
-                is_cad_image = True
-        elif self.image_url is not None:
-            pixmap = QIcon(Utils.icon_path + self.image_url).pixmap(
-                QSize(96, 96)
-            )
-        self.finished.emit(pixmap, is_cad_image)
+                image_downloaded = True
+        self.finished.emit(pixmap, image_downloaded)
