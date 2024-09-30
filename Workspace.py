@@ -107,7 +107,6 @@ class WorkspaceModel(QAbstractListModel):
         self.endResetModel()
 
     def refreshModel(self):
-        logger.debug("WorkspaceModel.refreshModel()")
         self.clearModel()
         if not os.path.isdir(self.path):
             self.files = []

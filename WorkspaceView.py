@@ -105,6 +105,9 @@ IDX_TAB_SEARCH = 3
 
 PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
 
+INTERVAL_TIMER_MS = 60000
+INTERVAL_TOOLBAR_TIMER_MS = 500
+
 p = Utils.get_param_group()
 
 remote_changelog_url = (
@@ -457,7 +460,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         # Set a timer to check regularly the server
         self.timer = QtCore.QTimer()
         self.timer.timeout.connect(self.timerTick)
-        self.timer.setInterval(60000)
+        self.timer.setInterval(INTERVAL_TIMER_MS)
         self.timer.start()
 
         self.handle_request(self.check_for_update)
@@ -1123,6 +1126,30 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 return True
         return False
 
+    def handle_api_call(self, func, message):
+        """Handle an API call.
+
+        We assume here that the user is logged in or disconnected.  With a
+        connection, we should get status ok and we shouldn't do anything.
+        Otherwise, we report the error and refresh the model (workspace model
+        or the workspacesmodel)
+        """
+        api_result = fancy_handle(func)
+        if api_result == APICallResult.OK:
+            pass
+        elif api_result == APICallResult.DISCONNECTED:
+            self.refreshModel()
+            logger.warning(f"Disconnected from server. {message}")
+        elif api_result == APICallResult.NOT_LOGGED_IN:
+            # this should not happen as the user should not have access to
+            # the share links while logged out.
+            self.refreshModel()
+            logger.error(f"Not logged in. {message}")
+        else:
+            # this should really not happen
+            self.refreshModel()
+            logger.error(f"Unknown error: {message}")
+
     def versionClicked(self, row):
         comboBox = self.form.versionsComboBox
 
@@ -1154,22 +1181,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     self.updateThumbnail(refreshedFileItem)
                 else:
                     refreshUI()
-
-        api_result = fancy_handle(trySetVersion)
-        if api_result == APICallResult.OK:
-            pass
-        elif api_result == APICallResult.DISCONNECTED:
-            self.hideLinkVersionDetails()
-            logger.warning("Disconnected from server.")
-        elif api_result == APICallResult.NOT_LOGGED_IN:
-            # this should not happen as the user should not have access to
-            # the share links while logged out.
-            self.hideLinkVersionDetails()
-            logger.error("Not logged in.")
-        else:
-            # this should really not happen
-            self.hideLinkVersionDetails()
-            logger.error("Unknown error downloading version")
 
     def updateThumbnail(self, fileItem):
         fileName = fileItem.name
@@ -1232,10 +1243,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 self.form.linkDetails.setVisible(True)
                 self.form.makeActiveBtn.setVisible(version_model.canBeMadeActive())
 
-            api_result = fancy_handle(tryInitModels)
-            if api_result != APICallResult.OK:
-                # disconnected or logged out
-                hideDetails()
+            self.handle_api_call(tryInitModels, "")
         else:
             hideDetails()
 
@@ -1404,18 +1412,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 FILENAME_SYS_CFG,
             )
 
-        api_result = fancy_handle(tryStorePrefs)
-        if api_result == APICallResult.OK:
-            pass
-        elif api_result == APICallResult.DISCONNECTED:
-            logger.warning("Disconnected from server.  No preferences stored.")
-        elif api_result == APICallResult.NOT_LOGGED_IN:
-            # this should not happen as the user should not have access to
-            # the share links while logged out.
-            logger.error("Not logged in.  No preferences stored.")
-        else:
-            # this should really not happen
-            logger.error("Unknown error storing preferences")
+        self.handle_api_call(tryStorePrefs, "No preferences stored.")
 
     def convertParam(self, type, paramGroup, value):
         if type == "FCBool":
@@ -1618,18 +1615,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
             if not result:
                 logger.info(f"Organization {nameOrg} has no preferences stored.")
 
-        api_result = fancy_handle(tryLoadPrefs)
-        if api_result == APICallResult.OK:
-            pass
-        elif api_result == APICallResult.DISCONNECTED:
-            logger.warning("Disconnected from server.  No preferences downloaded.")
-        elif api_result == APICallResult.NOT_LOGGED_IN:
-            # this should not happen as the user should not have access to
-            # the organization preferences while logged out.
-            logger.error("Not logged in.  No preferences downloaded.")
-        else:
-            # this should really not happen
-            logger.error("Unknown error downloading preferences")
+        self.handle_api_call(tryLoadPrefs, "No preferences downloaded.")
 
     def downloadOndselDefaultPrefs(self):
         def tryLoadPrefs():
@@ -1637,18 +1623,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
             if not result:
                 logger.error("No default preferences stored")
 
-        api_result = fancy_handle(tryLoadPrefs)
-        if api_result == APICallResult.OK:
-            pass
-        elif api_result == APICallResult.DISCONNECTED:
-            logger.warning("Disconnected from server.  No preferences downloaded.")
-        elif api_result == APICallResult.NOT_LOGGED_IN:
-            # this should not happen as the user should not have access to this
-            # menu item
-            logger.error("Not logged in.  No preferences downloaded.")
-        else:
-            # this should really not happen
-            logger.error("Unknown error downloading preferences")
+        self.handle_api_call(tryLoadPrefs, "No preferences downloaded.")
 
     # ####
     # Directory deletion
@@ -1706,17 +1681,10 @@ class WorkspaceView(QtWidgets.QScrollArea):
         fileName = fileItem.name
         if fileItem.status == FileStatus.SERVER_ONLY:
             if self.confirmDeleteLens(fileName) == QtGui.QMessageBox.Yes:
-                api_result = fancy_handle(
-                    lambda: self.currentWorkspaceModel.deleteFile(index)
+                self.handle_api_call(
+                    lambda: self.currentWorkspaceModel.deleteFile(index),
+                    "File not deleted.",
                 )
-                if api_result == APICallResult.OK:
-                    pass
-                elif api_result == APICallResult.DISCONNECTED:
-                    logger.warn("Disconnected.  Failed to delete the file.")
-                elif api_result == APICallResult.NOT_LOGGED_IN:
-                    logger.warn("Not logged in.  Failed to delete the file.")
-                else:
-                    raise Exception("Unknown API result while deleting a file.")
         elif fileItem.status in [
             FileStatus.UNTRACKED,
             FileStatus.LOCAL_COPY_OUTDATED,
@@ -1865,23 +1833,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
     # ####
 
     def handle_update_sharelink(self, func):
-        api_result = fancy_handle(func)
-        if api_result == APICallResult.OK:
-            pass
-        elif api_result == APICallResult.DISCONNECTED:
-            self.hideLinkVersionDetails()
-            logger.warning(
-                "Disconnected from server.  Share link has not been updated."
-            )
-        elif api_result == APICallResult.NOT_LOGGED_IN:
-            # this should not happen as the user should not have access to
-            # the share links while logged out.
-            self.hideLinkVersionDetails()
-            logger.error("Not logged in. Share link has not been updated.")
-        else:
-            # this should really not happen
-            self.hideLinkVersionDetails()
-            logger.error("Unknown error updating share links.")
+        self.handle_api_call(func, "Share link has not been updated.")
 
     def showShareLinkDialog(self, link_data, func):
         dialog = SharingLinkEditDialog(link_data, self)
@@ -1904,7 +1856,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def addShareLink(self):
         self.showShareLinkDialog(
             None,
-            lambda link_props: self.form.linksView.model().add_new_link(link_props)
+            lambda link_props: self.form.linksView.model().add_new_link(link_props),
         )
 
     def deleteShareLinkClicked(self, index):
@@ -2066,34 +2018,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
         fileItem = versionModel.fileItem
         fileId = fileItem.serverFileDict["_id"]
         versionId = versionModel.getCurrentVersionId()
+        wsm = self.currentWorkspaceModel
 
         def trySetVersion():
             self.api.setVersionActive(fileId, versionId)
             # refresh the models
-            wsm = self.currentWorkspaceModel
             wsm.refreshModel()
             newFileItem = wsm.getFileItemFileId(fileItem.serverFileDict["_id"])
             versionModel.refreshModel(newFileItem)
             comboBox.setCurrentIndex(versionModel.getCurrentIndex())
             self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
 
-        api_result = fancy_handle(trySetVersion)
-        if api_result == APICallResult.OK:
-            pass
-        elif api_result == APICallResult.DISCONNECTED:
-            self.hideLinkVersionDetails()
-            logger.warning(
-                "Disconnected from server.  Setting active version failed."
-            )
-        elif api_result == APICallResult.NOT_LOGGED_IN:
-            # this should not happen as the user should not have access to
-            # the share links while logged out.
-            self.hideLinkVersionDetails()
-            logger.error("Not logged in. Setting active version failed.")
-        else:
-            # this should really not happen
-            self.hideLinkVersionDetails()
-            logger.error("Unknown error setting active version.")
+        self.handle_api_call(trySetVersion, "Setting active version failed.")
 
     def ondselAccount(self):
         url = f"{Utils.env.lens_url}login"
@@ -2103,15 +2039,14 @@ class WorkspaceView(QtWidgets.QScrollArea):
         url = f"{Utils.env.lens_url}signup"
         self.open_url(url)
 
-    def timerTick(self):
-        def tryRefresh():
-            if self.current_workspace is not None:
-                self.currentWorkspaceModel.refreshModel()
-            else:
-                self.workspacesModel.refreshModel()
+    def refreshModel(self):
+        if self.current_workspace is not None:
+            self.currentWorkspaceModel.refreshModel()
+        else:
+            self.workspacesModel.refreshModel()
 
-        # self.handle(tryRefresh)
-        tryRefresh()
+    def timerTick(self):
+        self.refreshModel()
 
     # ####
     # Adding files and directories
@@ -2150,9 +2085,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 wsm.upload(file_name)
                 wsm.refreshModel()
 
-            api_result = fancy_handle(tryUpload)
-            if api_result != APICallResult.OK:
-                self.setWorkspaceModel()
+            self.handle_api_call(tryUpload, "File not uploaded.")
         else:
             # canceled, file has not been saved, restore
             doc.FileName = old_file_name
@@ -2184,17 +2117,17 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
         # after copying try the upload
         def tryUpload():
-            if self.is_connected():
-                for fileUrl in selectedFiles:
-                    fileName = os.path.basename(fileUrl)
-                    destFileUrl = Utils.joinPath(wsm.getFullPath(), fileName)
-                    if os.path.isfile(destFileUrl):
-                        wsm.upload(fileName)
-                    else:
-                        logger.warning(f"Failed to upload {fileName}")
+            for fileUrl in selectedFiles:
+                fileName = os.path.basename(fileUrl)
+                destFileUrl = Utils.joinPath(wsm.getFullPath(), fileName)
+                if os.path.isfile(destFileUrl):
+                    wsm.upload(fileName)
+                else:
+                    logger.warning(f"Not a file: {fileName}")
             wsm.refreshModel()
 
-        self.handle(tryUpload)
+        self.handle_api_call(tryUpload, "Failed to upload (some of) the files.")
+
         self.switchView()
 
     def addDir(self):
@@ -2207,8 +2140,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 self.currentWorkspaceModel.createDir(dir)
             self.currentWorkspaceModel.refreshModel()
 
-        # self.handle(tryCreateDir)
-        tryCreateDir()
+        self.handle_api_call(tryCreateDir, "Failed to create the directory.")
+
         self.switchView()
 
     # def newWorkspaceBtnClicked(self):
@@ -2431,15 +2364,15 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def check_for_toolbar_item(self):
         if self.find_our_toolbaritem_action():
-            self.timer.stop()
+            self.toolbar_timer.stop()
             self.select_correct_default_tab_at_startup()
             self.set_ui_connectionStatus()
 
     def init_toolbar_icon(self):
         if self.toolBarItemAction is None:
-            self.timer = QtCore.QTimer(self)
-            self.timer.timeout.connect(self.check_for_toolbar_item)
-            self.timer.start(500)
+            self.toolbar_timer = QtCore.QTimer(self)
+            self.toolbar_timer.timeout.connect(self.check_for_toolbar_item)
+            self.toolbar_timer.start(INTERVAL_TOOLBAR_TIMER_MS)
 
     def parse_url(self, url):
         prefix = Utils.URL_SCHEME + ":"
