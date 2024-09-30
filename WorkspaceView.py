@@ -1023,32 +1023,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.openFile(index)
         self.setWorkspaceNameLabel()
 
-    def linksListDoubleClicked(self, index):
-        model = self.form.linksView.model()
-        linkData = model.data(index, ShareLinkModel.EditLinkRole)
-
-        dialog = SharingLinkEditDialog(linkData, self)
-
-        if dialog.exec_() == QtGui.QDialog.Accepted:
-            link_properties = dialog.getLinkProperties()
-            api_result = fancy_handle(lambda: model.update_link(index, link_properties))
-            if api_result == APICallResult.OK:
-                pass
-            elif api_result == APICallResult.DISCONNECTED:
-                self.hideLinkVersionDetails()
-                logger.warning(
-                    "Disconnected from server.  Share link has not been updated."
-                )
-            elif api_result == APICallResult.NOT_LOGGED_IN:
-                # this should not happen as the user should not have access to
-                # the share links while logged out.
-                self.hideLinkVersionDetails()
-                logger.error("Not logged in. Share link has not been updated.")
-            else:
-                # this should really not happen
-                self.hideLinkVersionDetails()
-                logger.error("Unknown error updating share links.")
-
     # ####
     # Downloading files
     # ####
@@ -1700,7 +1674,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
             else:
                 logger.warn(f"Directory {fileItem.name} is not empty")
 
-        # self.handle(tryDelete)
         tryDelete()
 
     # ####
@@ -1814,7 +1787,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
                 logger.debug("versionComboBox setCurrentIndex")
 
-        # self.handle(tryUpload)
         tryUpload()
 
     def enterCommitMessage(self):
@@ -1887,6 +1859,65 @@ class WorkspaceView(QtWidgets.QScrollArea):
             self.showFileContextMenuDir(file_item, pos, index)
         else:
             self.showFileContextMenuFile(file_item, pos, index)
+
+    # ####
+    # Sharelinks
+    # ####
+
+    def handle_update_sharelink(self, func):
+        api_result = fancy_handle(func)
+        if api_result == APICallResult.OK:
+            pass
+        elif api_result == APICallResult.DISCONNECTED:
+            self.hideLinkVersionDetails()
+            logger.warning(
+                "Disconnected from server.  Share link has not been updated."
+            )
+        elif api_result == APICallResult.NOT_LOGGED_IN:
+            # this should not happen as the user should not have access to
+            # the share links while logged out.
+            self.hideLinkVersionDetails()
+            logger.error("Not logged in. Share link has not been updated.")
+        else:
+            # this should really not happen
+            self.hideLinkVersionDetails()
+            logger.error("Unknown error updating share links.")
+
+    def showShareLinkDialog(self, link_data, func):
+        dialog = SharingLinkEditDialog(link_data, self)
+
+        if dialog.exec_() == QtGui.QDialog.Accepted:
+            link_properties = dialog.getLinkProperties()
+            self.handle_update_sharelink(lambda: func(link_properties))
+
+    def linksListDoubleClicked(self, index):
+        self.editShareLinkClicked(index)
+
+    def editShareLinkClicked(self, index):
+        model = self.form.linksView.model()
+        link_data = model.data(index, ShareLinkModel.EditLinkRole)
+
+        self.showShareLinkDialog(
+            link_data, lambda link_props: model.update_link(index, link_props)
+        )
+
+    def addShareLink(self):
+        self.showShareLinkDialog(
+            None,
+            lambda link_props: self.form.linksView.model().add_new_link(link_props)
+        )
+
+    def deleteShareLinkClicked(self, index):
+        model = self.form.linksView.model()
+        linkId = model.data(index, ShareLinkModel.UrlRole)
+        result = QtGui.QMessageBox.question(
+            None,
+            "Delete Link",
+            "Are you sure you want to delete this link?",
+            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
+        )
+        if result == QtGui.QMessageBox.Yes:
+            self.handle_update_sharelink(lambda: model.delete_link(linkId))
 
     def showLinksContextMenu(self, pos):
         index = self.form.linksView.indexAt(pos)
@@ -2007,38 +2038,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         clipboard.setText(text)
         logger.info(f"{message} copied to the clipboard.")
 
-    def editShareLinkClicked(self, index):
-        model = self.form.linksView.model()
-        linkData = model.data(index, ShareLinkModel.EditLinkRole)
-
-        dialog = SharingLinkEditDialog(linkData, self)
-
-        if dialog.exec_() == QtGui.QDialog.Accepted:
-            link_properties = dialog.getLinkProperties()
-            self.handle(lambda: model.update_link(index, link_properties))
-
-    def deleteShareLinkClicked(self, index):
-        model = self.form.linksView.model()
-        linkId = model.data(index, ShareLinkModel.UrlRole)
-        result = QtGui.QMessageBox.question(
-            None,
-            "Delete Link",
-            "Are you sure you want to delete this link?",
-            QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-        )
-        if result == QtGui.QMessageBox.Yes:
-            self.handle(lambda: model.delete_link(linkId))
-
-    def addShareLink(self):
-        dialog = SharingLinkEditDialog(None, self)
-
-        if dialog.exec_() == QtGui.QDialog.Accepted:
-            link_properties = dialog.getLinkProperties()
-
-            self.handle(
-                lambda: self.form.linksView.model().add_new_link(link_properties)
-            )
-
     def open_url(self, url):
         # doesn't work on platforms without `gio-launch-desktop` while Qt
         # tries to use this.
@@ -2078,7 +2077,23 @@ class WorkspaceView(QtWidgets.QScrollArea):
             comboBox.setCurrentIndex(versionModel.getCurrentIndex())
             self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
 
-        self.handle(trySetVersion)
+        api_result = fancy_handle(trySetVersion)
+        if api_result == APICallResult.OK:
+            pass
+        elif api_result == APICallResult.DISCONNECTED:
+            self.hideLinkVersionDetails()
+            logger.warning(
+                "Disconnected from server.  Setting active version failed."
+            )
+        elif api_result == APICallResult.NOT_LOGGED_IN:
+            # this should not happen as the user should not have access to
+            # the share links while logged out.
+            self.hideLinkVersionDetails()
+            logger.error("Not logged in. Setting active version failed.")
+        else:
+            # this should really not happen
+            self.hideLinkVersionDetails()
+            logger.error("Unknown error setting active version.")
 
     def ondselAccount(self):
         url = f"{Utils.env.lens_url}login"
