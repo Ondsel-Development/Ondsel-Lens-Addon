@@ -1,3 +1,5 @@
+import copy
+
 import requests
 import webbrowser
 
@@ -5,8 +7,9 @@ import Utils
 from PySide.QtGui import (
     QPixmap,
     QFrame,
+    QIcon
 )
-from PySide.QtCore import QByteArray, Qt, QSize
+from PySide.QtCore import Qt, QThread, QObject, Signal, QSize
 
 from components.choose_download_action_dialog import ChooseDownloadActionDialog
 
@@ -21,6 +24,22 @@ class CurationDisplayDelegate(QFrame):
         if index is None:
             return  # if none, this is a dummy object
         self.curation = None  # to be properly set by the child class
+
+    def start_image_load(self):
+        image_url = self.curation.get_thumbnail_url()  # sadly, this API call cannot be queued because API does not work in thread for some reason
+        self.thread = QThread()
+        self.worker = _GetCurationImage()
+        self.worker.image_url = image_url
+        self.worker.moveToThread(self.thread)
+        self.worker.finished.connect(self._image_available)
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
+
+    def _image_available(self, pixmap, is_cad_image):
+        if pixmap is not None:
+            self.widget.iconLabel.setPixmap(pixmap)
+        if is_cad_image:
+            self.widget.iconLabel.setStyleSheet("background-color:rgb(219,219,211)")
 
     def _take_action(self):
         if self.curation.collection == "shared-models":
@@ -72,3 +91,30 @@ def get_pixmap_from_url(thumbnailUrl):
     except requests.exceptions.RequestException:
         pass  # no thumbnail online.
     return None
+
+
+class _GetCurationImage(QObject):
+    """
+    This thread worker class is strictly for use by the single thread started in CurationDisplayDelegate (and it's children).
+    The child will call the `start_image_load()` method of CurationDisplayDelegate during initialization. That will,
+    in turn, start this thread. This thread then emits the result when image is in memory.
+    """
+    finished = Signal(QPixmap, bool)
+    def __init__(self):
+        super().__init__()
+        self.image_url = None
+    def run(self):
+        pixmap = None
+        is_cad_image = False
+        if self.image_url is None:
+            pass
+            # print("checkout ", self.curation.nav)
+        elif ":" in self.image_url:
+            pixmap = get_pixmap_from_url(self.image_url)
+            if pixmap is not None:
+                is_cad_image = True
+        elif self.image_url is not None:
+            pixmap = QIcon(Utils.icon_path + self.image_url).pixmap(
+                QSize(96, 96)
+            )
+        self.finished.emit(pixmap, is_cad_image)

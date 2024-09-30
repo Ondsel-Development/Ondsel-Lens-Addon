@@ -34,18 +34,6 @@ class PublicShareLinkDelegate(CurationDisplayDelegate):
         self.widget.titleLabel.setText(curation.name)
         self.mousePressEvent = lambda event: self._take_action()
         self.setCursor(QCursor(Qt.PointingHandCursor))
-        self.image_url = curation.get_thumbnail_url()
-        if self.image_url is None:
-            print("checkout ", curation.nav)
-        elif ":" in self.image_url:
-            self.widget.iconLabel.setStyleSheet("background-color:rgb(219,219,211)")
-            main_image = get_pixmap_from_url(self.image_url)
-            if main_image is not None:
-                self.widget.iconLabel.setPixmap(main_image)
-        elif self.image_url is not None:
-            main_image = QtGui.QIcon(Utils.icon_path + self.image_url).pixmap(
-                QSize(96, 96)
-            )
-            self.widget.iconLabel.setPixmap(main_image)
-        #
+        self.start_image_load()
+
         self.setLayout(layout)
