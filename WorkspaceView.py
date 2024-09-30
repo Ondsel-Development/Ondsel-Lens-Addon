@@ -14,9 +14,6 @@ import requests
 import uuid
 import base64
 import webbrowser
-
-# import logging
-
 import random
 import math
 
@@ -51,9 +48,6 @@ from APIClient import (
     APIClient,
     APIClientException,
     APIClientAuthenticationException,
-    # APIClientConnectionError,
-    # APIClientTierException,
-    # APIClientRequestException,
     ConnStatus,
     APICallResult,
     fancy_handle,
@@ -854,14 +848,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.currentWorkspaceModel = ServerWorkspaceModel(
             self.current_workspace, apiClient=self.api
         )
-        # subPath = ""
-        # if hasattr(self, "currentWorkspaceModel") and self.currentWorkspaceModel:
-        #     subPath = self.currentWorkspaceModel.subPath
-        # self.currentWorkspaceModel = LocalWorkspaceModel(
-        #     self.current_workspace, subPath=subPath
-        # )
-        # I probably need to do something with the subpath
-
         self.setWorkspaceNameLabel()
         self.form.fileList.setModel(self.currentWorkspaceModel)
         self.switchView()
@@ -999,7 +985,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
         throws an APIClientException
         """
-        logger.debug("openFile")
         wsm = self.currentWorkspaceModel
         fileItem = wsm.data(index)
         if fileItem.is_folder:
@@ -1181,6 +1166,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     self.updateThumbnail(refreshedFileItem)
                 else:
                     refreshUI()
+
+        self.handle_api_call(trySetVersion, "Failed to download version.")
 
     def updateThumbnail(self, fileItem):
         fileName = fileItem.name
@@ -1740,22 +1727,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
         Interacts with the API.
         """
 
-        def tryUpload():
-            wsm = self.currentWorkspaceModel
-            if fileId:
-                # updating an existing version
-                wsm.upload(fileName, fileId, message)
-            else:
-                # initial commit
-                wsm.upload(fileName)
-            wsm.refreshModel()
-            if self.form.versionsComboBox.isVisible():
-                model = self.form.versionsComboBox.model()
-                model.refreshModel(fileItem)
-                self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
-                logger.debug("versionComboBox setCurrentIndex")
-
-        tryUpload()
+        wsm = self.currentWorkspaceModel
+        if fileId:
+            # updating an existing version
+            wsm.upload(fileName, fileId, message)
+        else:
+            # initial commit
+            wsm.upload(fileName)
+        wsm.refreshModel()
+        if self.form.versionsComboBox.isVisible():
+            model = self.form.versionsComboBox.model()
+            model.refreshModel(fileItem)
+            self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
 
     def enterCommitMessage(self):
         dialog = EnterCommitMessageDialog()
@@ -2042,6 +2025,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def refreshModel(self):
         if self.current_workspace is not None:
             self.currentWorkspaceModel.refreshModel()
+            self.hideLinkVersionDetails()
         else:
             self.workspacesModel.refreshModel()
 

@@ -226,7 +226,6 @@ class WorkspaceModel(QAbstractListModel):
 
     def upload(self, fileName, fileId=None, message=""):
         # Default action is to not upload anything
-        logger.debug("WorkspaceModel.upload()")
         pass
 
     def isEmptyDirectory(self, index):
@@ -286,7 +285,6 @@ class WorkspaceModel(QAbstractListModel):
         return [fi.name for fi in localDirs + localFiles]
 
     def createDir(self, dir):
-        logger.debug("WorkspaceModel.createDir()")
         fullPath = Utils.joinPath(self.getFullPath(), dir)
         if not os.path.exists(fullPath):
             os.makedirs(fullPath)
@@ -405,7 +403,6 @@ class ServerWorkspaceModel(WorkspaceModel):
         that reflect the status of the server and local file system.
 
         """
-        logger.debug("ServerWorkspaceModel.refreshModel()")
 
         self.clearModel()
 
@@ -474,7 +471,6 @@ class ServerWorkspaceModel(WorkspaceModel):
         #     self.uploadUntrackedFiles()
 
     def data(self, index, role=Qt.DisplayRole):
-        # logger.debug("ServerWorkspaceModel.data()")
         if not index.isValid():
             return None
         file_item = self.files[index.row()]
@@ -524,18 +520,14 @@ class ServerWorkspaceModel(WorkspaceModel):
         return None
 
     def openDirectory(self, index):
-        logger.debug("ServerWorkspaceModel.openDirectory()")
-
         file_item = self.files[index.row()]
         self.subPath = Utils.joinPath(self.subPath, file_item.name)
         # push the directory to the stack
         if file_item.serverFileDict.get("_id"):
             # the server knows about this directory
-            logger.debug("  pushing serverFileDict to the currentDirectory")
             self.currentDirectory.append(file_item.serverFileDict)
         else:
             # the server needs to know about this directory
-            logger.debug("  creating a directory")
             id = None
             fancy_handle(lambda: self.createDir(file_item.name))
             # ignore the result
@@ -577,7 +569,6 @@ class ServerWorkspaceModel(WorkspaceModel):
         It assumes that the directory is empty.  It should not call
         refreshModel because it is combined with a call to super().
         """
-        logger.debug("ServerWorkspaceModel.deleteDirectory()")
         super().deleteDirectory(index, NO_REFRESH)
         fileItem = self.files[index.row()]
         if fileItem.serverFileDict and "_id" in fileItem.serverFileDict:
@@ -600,7 +591,6 @@ class ServerWorkspaceModel(WorkspaceModel):
 
     def deleteFileLocally(self, index):
         """Delete a file on the local filesystem."""
-        logger.debug("ServerWorkspaceModel.deleteFileLocally()")
         super().deleteFile(index)
 
     def deleteFile(self, index):
@@ -608,7 +598,6 @@ class ServerWorkspaceModel(WorkspaceModel):
 
         This function assumes that the files have been removed locally.
         """
-        logger.debug("ServerWorkspaceModel.deleteFile()")
         file_item = self.files[index.row()]
 
         id = file_item.serverFileDict["_id"]
@@ -724,7 +713,6 @@ class ServerWorkspaceModel(WorkspaceModel):
                 self.apiClient.createModel(fileId)
 
     def openParentFolder(self):
-        logger.debug("ServerWorkspaceModel.openParentFolder()")
         self.subPath = os.path.dirname(self.subPath)
         self.currentDirectory.pop()
         self.refreshModel()
@@ -743,7 +731,6 @@ class ServerWorkspaceModel(WorkspaceModel):
         return {k: self.workspace[k] for k in ("_id", "name", "refName", "open")}
 
     def createDir(self, nameDirectory):
-        logger.debug("ServerWorkspaceModel.createDir()")
         # raises an APIClientException
         currentDir = self.currentDirectory[-1]
         workspace = self.summarizeWorkspace()
