@@ -4,6 +4,7 @@
 # *                                                                     *
 # ***********************************************************************
 
+
 import os
 from datetime import datetime
 import re
@@ -62,6 +63,7 @@ from Workspace import (
     FileStatus,
 )
 from views.ondsel_promotions_view import OndselPromotionsView
+from views.public_shares_view import PublicSharesView
 
 from views.search_results_view import SearchResultsView
 
@@ -100,6 +102,7 @@ IDX_TAB_WORKSPACES = 0
 IDX_TAB_ONDSEL_START = 1
 IDX_TAB_BOOKMARKS = 2
 IDX_TAB_SEARCH = 3
+IDX_TAB_PUBLIC_SHARES = 4
 
 PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
 
@@ -343,6 +346,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
         tabBar.setTabIcon(IDX_TAB_BOOKMARKS, bookmarkIcon)
         searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
         tabBar.setTabIcon(IDX_TAB_SEARCH, searchIcon)
+        publicIcon = QtGui.QIcon(Utils.icon_path + "dots-square.svg")
+        tabBar.setTabIcon(IDX_TAB_PUBLIC_SHARES, publicIcon)
 
         self.setWidget(self.form)
         self.setWindowTitle("Ondsel Lens")
@@ -435,15 +440,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.txtExplain.setReadOnly(True)
         self.form.txtExplain.hide()
 
-        # initialize ondsel-start
+        # initialize ondsel-start tab
         self.initializeOndselStart()
 
-        # initialize bookmarks
+        # initialize bookmarks tab
         self.initializeBookmarks()
 
-        # initialize search
+        # initialize search tab
         self.form.searchResultScrollArea = SearchResultsView(self)
         self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
+
+        # initialize public-shares tab
+        self.initializePublicShares()
 
         self.initializeUpdateLens()
 
@@ -497,6 +505,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
         bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
         bookmarkView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
+
+    def initializePublicShares(self):
+        self.form.publicSharesStatusLabel.setText("loading content...")
+        self.form.publicSharesScrollArea = PublicSharesView(self)
+        self.form.publicSharesFrame.layout().addWidget(self.form.publicSharesScrollArea)
 
     def initializeUpdateLens(self):
         self.form.frameUpdate.hide()

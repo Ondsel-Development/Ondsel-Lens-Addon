@@ -1,4 +1,3 @@
-from PySide.QtWidgets import QLabel
 from PySide import QtGui
 from PySide.QtGui import (
     QCursor,
@@ -11,21 +10,19 @@ from delegates.curation_display_delegate import (
     CurationDisplayDelegate,
     get_pixmap_from_url,
 )
-from models.promotion import PromotionListModel
+from models.share_link import PublicShareLinkListModel
 
 logger = Utils.getLogger(__name__)
 
 
-class PromotionDelegate(CurationDisplayDelegate):
-    """delegate for promotion listing"""
+class PublicShareLinkDelegate(CurationDisplayDelegate):
+    """delegate for public ShareLinks"""
 
     def __init__(self, index=None):
         super().__init__()
-        promotion = index.data(PromotionListModel.PromotionRole)
-        self.promotion = promotion
-        curation = promotion.curation
+        self.share_link = index.data(PublicShareLinkListModel.ShareLinkRole)
+        curation = self.share_link.curation
         self.curation = curation
-        notation = promotion.notation
         ui_path = Utils.mod_path + "/delegates/CurationItem.ui"
         self.widget = Gui.PySideUic.loadUi(ui_path)
         layout = QtGui.QVBoxLayout()
@@ -38,12 +35,5 @@ class PromotionDelegate(CurationDisplayDelegate):
         self.mousePressEvent = lambda event: self._take_action()
         self.setCursor(QCursor(Qt.PointingHandCursor))
         self.start_image_load()
-        #
-        # insert Notation detail (if there is any)
-        #
-        if notation.message:
-            blue_msg = f"<font color='#add8e6'>{notation.message}</font>"
-            blue_label = QLabel(blue_msg)
-            blue_label.setWordWrap(True)
-            layout.addWidget(blue_label)
+
         self.setLayout(layout)

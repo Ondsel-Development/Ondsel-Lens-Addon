@@ -7,6 +7,7 @@ import urllib
 
 import Utils
 from models.curation import Curation
+from models.share_link import ShareLink
 
 logger = Utils.getLogger(__name__)
 
@@ -581,6 +582,28 @@ class APIClient:
 
         result = self._request(endpoint, headers, params)
         return result["data"]
+
+    def get_public_shared_models(self):
+        """
+        Gets the most recent public ShareLinks (protection = 'Listed')
+
+        This is a public query. Returns list[ShareLink] sorted by creation date (most recent first)
+        """
+        shared_models = []
+        params = {
+            "$limit": 25,
+            "$skip": 0,
+            "$sort[createdAt]": -1,
+            "protection": "Listed",
+            "isActive": "true",
+            "isThumbnailGenerated": "true",
+        }
+        result = self._request("shared-models", {}, params)
+        dict_list = result["data"]
+        for item in dict_list:
+            new_sl = ShareLink.from_json(item)
+            shared_models.append(new_sl)
+        return shared_models
 
     @authRequired
     def createSharedModel(self, params):
