@@ -2349,27 +2349,28 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def parse_url(self, url):
         prefix = Utils.URL_SCHEME + ":"
+        sub_scheme = None
+        id1 = None
+        id2 = None
         try:
             if url.startswith(prefix):
                 stripped_url = url[len(prefix) :]
-                try:
-                    sub_scheme, data = stripped_url.split("/", 1)
-                    logger.debug(f"stripped_url: {stripped_url}")
-                    logger.debug(f"sub_scheme: {sub_scheme}")
-                    logger.debug(f"data: {data}")
-                    if sub_scheme == "share":
-                        return sub_scheme, data
-                    else:
-                        raise ParseException(
-                            f"Unrecognized subscheme {sub_scheme} in URL {url}"
-                        )
-                except ValueError as e:
-                    raise ParseException(f"Unrecognized subscheme in URL {url}, {e}")
+                result = stripped_url.split("/")
+                sub_scheme = result[0]
+                if (len(result) > 1):
+                    id1 = result[1]
+                if (len(result) > 2):
+                    id2 = result[2]
+                logger.debug(f"stripped_url: {stripped_url}")
+                logger.debug(f"sub_scheme: {sub_scheme}")
+                logger.debug(f"ids: {id1}, {id2}")
+                if sub_scheme not in ["share", "file"]:
+                    raise ParseException(f"Unrecognized subscheme {sub_scheme} in URL {url}")
             else:
                 raise ParseException(f"Unrecognized URL scheme: {url}")
         except ParseException as e:
             logger.warning(e)
-            return None, None
+        return sub_scheme, id1, id2
 
     def get_lens_url(self):
         main_window = FreeCADGui.getMainWindow()
@@ -2389,9 +2390,13 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def handle_lens_url(self, url):
         if self.is_logged_in():
             if url:
-                sub_scheme, data = self.parse_url(url)
+                sub_scheme, id1, id2 = self.parse_url(url)
                 if sub_scheme == "share":
-                    self.openBookmark(data)
+                    self.openBookmark(id1)
+                else:
+                    logger.info("file not supported yet")
+                    file = Utils.download_file_version_to_memory(self.api, id1, id2)
+                    logger.info(file)
             else:
                 logger.info("Please log in to view the share link")
         else:

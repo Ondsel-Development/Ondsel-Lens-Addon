@@ -229,6 +229,11 @@ def download_shared_model_to_memory(api, id_shared_model):
     return download_to_memory(api, unique_filename, real_filename)
 
 
+def download_file_version_to_memory(api, file_id, version_id):
+    file_detail, version_detail = api.get_file_version_details(file_id, version_id, True)
+    return download_to_memory(api, version_detail.uniqueFileName, file_detail.custFileName)
+
+
 def download_to_memory(api, unique_filename, real_filename):
     with tempfile.NamedTemporaryFile(prefix="sl_", suffix=".FCStd") as tf:
         api.downloadFileFromServerUsingHandle(unique_filename, tf)
@@ -336,3 +341,11 @@ def version_greater_than(latestVersion, currentVersion):
 
     # All are the same
     return False
+
+
+def listy_class_replacement(json_list, RefClass):
+    """ Converts a list of JSON objects into a list of Class objects """
+    temp = []
+    for data in json_list:
+        temp.append(RefClass(**data))
+    return temp
