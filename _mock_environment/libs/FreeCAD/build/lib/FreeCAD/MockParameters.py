@@ -10,7 +10,7 @@ class MockParameters:
     def GetFloat(self, name: str, default: float) -> float:
         return self._Get(name, default)
 
-    def GetString(self, name: str, default: str) -> str:
+    def GetString(self, name: str, default = None) -> str:
         return self._Get(name, default)
 
     def _Get(self, name, default):
