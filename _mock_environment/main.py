@@ -24,6 +24,8 @@ class MainWindow(QMainWindow):
     def begin_ondsel_lens(self):
         import Init
         import InitGui
+        FreeCAD.GuiUp = True
+        FreeCAD.Console.PrintMessage("FreeCAD.GuiUp = True")
 
     def post_operations(self):
         pass

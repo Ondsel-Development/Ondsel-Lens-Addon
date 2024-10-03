@@ -7,12 +7,12 @@ _inst = FreeCADClass()
 ParamGet = _inst.ParamGet
 ConfigGet = _inst.ConfigGet
 Version = _inst.Version
+GuiUp = _inst.GuiUp
 
 # property mimics
 Console = (
     _inst.Console
 )  # this is a property set only at __init__, so a direct ref should be safe
-
 
 # static equivalent
 def getUserCachePath():

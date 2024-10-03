@@ -14,6 +14,7 @@ class FreeCADClass:
         "flavor",
         "a34043c4fa4efa3c871e376a4e1536dcdeb86ebc",
     ]
+    GuiUp = False
 
     def __init__(self):
         self.parameters = MockParameters()

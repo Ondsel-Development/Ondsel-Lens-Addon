@@ -1,0 +1,11 @@
+pyproject.toml
+setup.cfg
+setup.py
+Part/MockPart.py
+Part/MockShape.py
+Part/__init__.py
+Part.egg-info/PKG-INFO
+Part.egg-info/SOURCES.txt
+Part.egg-info/dependency_links.txt
+Part.egg-info/requires.txt
+Part.egg-info/top_level.txt

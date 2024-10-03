@@ -25,7 +25,7 @@ from PySide.QtWidgets import QFileDialog
 from urllib.parse import urlparse
 import FreeCAD as App
 import FreeCADGui as Gui
-import Part
+# import Part
 import Utils
 import datetime
 import os
