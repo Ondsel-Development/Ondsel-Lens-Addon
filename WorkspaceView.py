@@ -26,6 +26,7 @@ from jwt.exceptions import ExpiredSignatureError
 
 import mistune
 
+import handlers
 from PySide import QtCore, QtGui, QtWidgets
 
 import FreeCAD
@@ -2388,19 +2389,13 @@ class WorkspaceView(QtWidgets.QScrollArea):
             return None
 
     def handle_lens_url(self, url):
-        if self.is_logged_in():
-            if url:
-                sub_scheme, id1, id2 = self.parse_url(url)
-                if sub_scheme == "share":
-                    filename = Utils.download_shared_model_to_memory(self.api, id1)
-                    logger.info(f"Done downloading share link referenced file '{filename}'")
-                else:
-                    filename = Utils.download_file_version_to_memory(self.api, id1, id2)
-                    logger.info(f"Done downloading file '{filename}'")
-            else:
-                logger.info("Please log in to view/download the link")
+        sub_scheme, id1, id2 = self.parse_url(url)
+        if sub_scheme == "share":
+            message = handlers.download_shared_model_to_memory(self.api, id1)
+            logger.info(message)
         else:
-            logger.info("Please log in to view/download the link")
+            message = handlers.download_file_version_to_memory(self.api, id1, id2)
+            logger.info(message)
 
 
 # class NewWorkspaceDialog(QtGui.QDialog):

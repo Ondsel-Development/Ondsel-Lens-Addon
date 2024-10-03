@@ -8,6 +8,7 @@ import urllib
 import Utils
 from models.curation import Curation
 from models.file import File
+from models.file_version import FileVersion
 from models.share_link import ShareLink
 
 logger = Utils.getLogger(__name__)
@@ -449,7 +450,7 @@ class APIClient:
         return files
 
     @authRequired
-    def get_file_version_details(self, file_id, version_id, allowPublicQuery=False):
+    def get_file_version_details(self, file_id, version_id, allowPublicQuery=False) -> (File, FileVersion):
         endpoint = f"file/{file_id}"
         file_JSON = self._request(endpoint)
         file = File.from_json(file_JSON)
