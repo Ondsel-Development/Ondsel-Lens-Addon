@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>TaskPanel</class>
+ <widget class="QWidget" name="TaskPanel">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>400</width>
+    <height>300</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Select a File or Enter a URL</string>
+  </property>
+  <layout class="QVBoxLayout" name="verticalLayout">
+
+   <!-- Radio buttons for selecting the source type -->
+   <item>
+    <widget class="QGroupBox" name="groupBoxSourceType">
+     <property name="title">
+      <string>Select Source Type</string>
+     </property>
+     <layout class="QHBoxLayout" name="horizontalLayoutSourceType">
+      <item>
+       <widget class="QRadioButton" name="radioButtonFile">
+        <property name="text">
+         <string>Local File</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QRadioButton" name="radioButtonURL">
+        <property name="text">
+         <string>URL</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
+
+   <!-- File Path input section -->
+   <item>
+    <widget class="QWidget" name="widgetFileInput">
+        <layout class="QHBoxLayout" name="horizontalLayoutFile">
+            <item>
+                <widget class="QLineEdit" name="lineEditFilePath"/>
+            </item>
+            <item>
+                <widget class="QPushButton" name="buttonBrowse">
+                    <property name="text">
+                        <string>...</string>
+                    </property>
+                </widget>
+            </item>
+        </layout>
+    </widget>
+   </item>
+
+   <!-- URL input section -->
+   <item>
+    <widget class="QWidget" name="widgetUrlInput">
+        <layout class="QHBoxLayout" name="horizontalLayoutURL">
+            <item>
+                <widget class="QLineEdit" name="lineEditUrl">
+                    <property name="placeholderText">
+                        <string>Enter URL</string>
+                    </property>
+                </widget>
+            </item>
+        </layout>
+    </widget>
+   </item>
+
+   <!-- Spacer -->
+   <item>
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+
+  </layout>
+ </widget>
+ <resources>
+  <include location="resources/resource.qrc"/>
+ </resources>
+ <connections>
+  <!-- Connect radio buttons to show/hide the appropriate input fields -->
+  <connection>
+   <sender>radioButtonFile</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>widgetFileInput</receiver>
+   <slot>setVisible(bool)</slot>
+  </connection>
+  <connection>
+   <sender>radioButtonURL</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>widgetUrlInput</receiver>
+   <slot>setVisible(bool)</slot>
+  </connection>
+ </connections>
+</ui>

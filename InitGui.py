@@ -12,7 +12,9 @@ from lens_command import (
     LensWorkbenchManipulator,
     start_mdi_tab,
     init_toolbar_icon,
+    ensure_mdi_tab,
 )
+import integrations.reloadablefile.reloadable as reloadable
 import register_lens_handler
 
 
@@ -22,4 +24,7 @@ Gui.addWorkbenchManipulator(LensWorkbenchManipulator())
 
 start_mdi_tab()
 init_toolbar_icon()
+ensure_mdi_tab()
+
 register_lens_handler.register_lens_handler()
+reloadable.initialize()

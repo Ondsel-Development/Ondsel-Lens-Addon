@@ -2,8 +2,8 @@ import inspect
 from dataclasses import dataclass, field
 from models.nav_ref import NavRef
 from models.file_summary import FileSummary_CurationLimited
-from typing import Optional
-from PySide.QtCore import Qt, QAbstractListModel, QModelIndex
+from typing import Optional, Any
+from PySide.QtCore import Qt, QAbstractListModel
 
 
 @dataclass(order=True)
@@ -17,8 +17,10 @@ class Curation:
     longDescriptionMd: str = ""
     tags: list[str] = field(default_factory=list, repr=False)
     representativeFile: Optional[FileSummary_CurationLimited] = None
-    # promoted: <- ignore, to be deprecatted here and moved to Organization object
-    # keywordRefs: <- ignore, not relavant to Add-On
+    promoted: Optional[Any] = field(
+        default_factory=list, repr=False
+    )  # This needs to be refactored later
+    keywordRefs: Any = None  # ignore, not relevant to Add-On
 
     def __post_init__(self):
         self.nav = NavRef(**self.nav)
@@ -31,24 +33,28 @@ class Curation:
         return (self.nav.target == "shared-models") or self.nav.target == "workspaces"
 
     def get_thumbnail_url(self):
-        """either returns a full URL to a web thumbnail or a local svg filename. an URL with have a colon"""
+        """either returns a full URL to a web thumbnail or a local svg filename. an URL will have a colon"""
         url = None
         if self.representativeFile:
             url = self.representativeFile.thumbnailUrlCache
         if url is None:
-            # todo: get better defaults for the different target collections. A generic head, for example, for a user.
-            if self.nav.target == "workspaces":
-                url = "folder.svg"
-            elif self.nav.target == "organizations":
-                url = "group.svg"
-            elif self.nav.target == "users":
-                url = "person.svg"
-            elif self.nav.target == "shared-models":
-                url = "public.svg"
-            elif self.nav.target == "models":
-                url = None
-            elif self.nav.target == "ondsel":
-                url = None
+            url = self.get_just_icon_filename()
+        return url
+
+    def get_just_icon_filename(self):
+        url = None
+        if self.nav.target == "workspaces":
+            url = "folder.svg"
+        elif self.nav.target == "organizations":
+            url = "group.svg"
+        elif self.nav.target == "users":
+            url = "person.svg"
+        elif self.nav.target == "shared-models":
+            url = "public.svg"
+        elif self.nav.target == "models":
+            url = None
+        elif self.nav.target == "ondsel":
+            url = None
         return url
 
     @classmethod

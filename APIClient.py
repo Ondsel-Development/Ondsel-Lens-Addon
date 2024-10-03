@@ -7,6 +7,7 @@ import urllib
 
 import Utils
 from models.curation import Curation
+from models.share_link import ShareLink
 
 logger = Utils.getLogger(__name__)
 
@@ -52,6 +53,10 @@ class APIClientOfflineException(APIClientException):
     by a call to the Lens API root.
     """
 
+    pass
+
+
+class APIClientTierException(APIClientException):
     pass
 
 
@@ -352,6 +357,10 @@ class APIClient:
     def get_user(self):
         return self.user
 
+    @authRequired
+    def is_user_solo(self):
+        return self.user["tier"] == "Solo"
+
     # @authRequired
     # def logout(self):
     #     endpoint = "authentication"
@@ -573,6 +582,28 @@ class APIClient:
 
         result = self._request(endpoint, headers, params)
         return result["data"]
+
+    def get_public_shared_models(self):
+        """
+        Gets the most recent public ShareLinks (protection = 'Listed')
+
+        This is a public query. Returns list[ShareLink] sorted by creation date (most recent first)
+        """
+        shared_models = []
+        params = {
+            "$limit": 25,
+            "$skip": 0,
+            "$sort[createdAt]": -1,
+            "protection": "Listed",
+            "isActive": "true",
+            "isThumbnailGenerated": "true",
+        }
+        result = self._request("shared-models", {}, params)
+        dict_list = result["data"]
+        for item in dict_list:
+            new_sl = ShareLink.from_json(item)
+            shared_models.append(new_sl)
+        return shared_models
 
     @authRequired
     def createSharedModel(self, params):
@@ -808,6 +839,16 @@ class APIClient:
 
         return organizations
 
+    def getOndselOrganization(self):
+        endpoint = "organizations"
+        params = {
+            "type": "Ondsel",
+            "publicInfo": "true",
+        }
+        result = self._request(endpoint, params=params)
+        organizationList = result["data"]
+        return organizationList[0]
+
     @authRequired
     def getSecondaryRefs(self, orgSecondaryReferencesId):
         endpoint = f"org-secondary-references/{orgSecondaryReferencesId}"
@@ -888,13 +929,17 @@ class API_Call_Result(Enum):
 
 def fancy_handle(func):
     """
-    Handle a function that raises an APICLientException. It is very similar to
+    Handle a function that raises an APIClientException. It is very similar to
     the 'handle' function found in WorkspaceView.py. The return type is simply
     more expressive so that the calling code can see more.
 
     Storing the results is expected of the called `func`.
 
     Warning messages are never issued.
+
+    If you get an unexplained "ERROR: 'NoneType' object is not callable" error,
+    make sure you are doing "result = fancy_handle(joe)" not
+    "result = fancy_handle(joe())"
 
     Returns an API_Call_Result enum value. It is expected that the caller
     handles all the possible return states.

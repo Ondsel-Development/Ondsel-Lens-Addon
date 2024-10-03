@@ -4,6 +4,7 @@
 # *                                                                     *
 # ***********************************************************************
 
+
 import os
 from datetime import datetime
 import re
@@ -22,6 +23,8 @@ from inspect import cleandoc
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError
+
+import mistune
 
 from PySide import QtCore, QtGui, QtWidgets
 
@@ -47,6 +50,7 @@ from APIClient import (
     APIClientException,
     APIClientAuthenticationException,
     APIClientConnectionError,
+    APIClientTierException,
     APIClientRequestException,
     ConnStatus,
     API_Call_Result,
@@ -58,6 +62,8 @@ from Workspace import (
     ServerWorkspaceModel,
     FileStatus,
 )
+from views.ondsel_promotions_view import OndselPromotionsView
+from views.public_shares_view import PublicSharesView
 
 from views.search_results_view import SearchResultsView
 
@@ -93,11 +99,14 @@ FILENAME_SYS_CFG = "system.cfg"
 PREFIX_PARAM_ROOT = "/Root/"
 
 IDX_TAB_WORKSPACES = 0
-IDX_TAB_BOOKMARKS = 1
+IDX_TAB_ONDSEL_START = 1
+IDX_TAB_BOOKMARKS = 2
+IDX_TAB_SEARCH = 3
+IDX_TAB_PUBLIC_SHARES = 4
 
 PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
 
-p = FreeCAD.ParamGet("User parameter:BaseApp/Ondsel")
+p = Utils.get_param_group()
 
 remote_changelog_url = (
     "https://github.com/Ondsel-Development/Ondsel-Lens-Addon/blob/main/changeLog.md"
@@ -330,13 +339,15 @@ class WorkspaceView(QtWidgets.QScrollArea):
         tabWidget = self.form.findChildren(QtGui.QTabWidget)[0]
         tabBar = tabWidget.tabBar()
         wsIcon = QtGui.QIcon(Utils.icon_path + "folder-multiple-outline.svg")
-        tabBar.setTabIcon(0, wsIcon)
+        tabBar.setTabIcon(IDX_TAB_WORKSPACES, wsIcon)
+        wsIcon = QtGui.QIcon(Utils.icon_path + "play-outline.svg")
+        tabBar.setTabIcon(IDX_TAB_ONDSEL_START, wsIcon)
         bookmarkIcon = QtGui.QIcon(Utils.icon_path + "bookmark-outline.svg")
-        tabBar.setTabIcon(1, bookmarkIcon)
+        tabBar.setTabIcon(IDX_TAB_BOOKMARKS, bookmarkIcon)
         searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
-        tabBar.setTabIcon(2, searchIcon)
-        # settingsIcon = QtGui.QIcon(Utils.icon_path + "settings.svg")
-        # tabBar.setTabIcon(3, settingsIcon)
+        tabBar.setTabIcon(IDX_TAB_SEARCH, searchIcon)
+        publicIcon = QtGui.QIcon(Utils.icon_path + "dots-square.svg")
+        tabBar.setTabIcon(IDX_TAB_PUBLIC_SHARES, publicIcon)
 
         self.setWidget(self.form)
         self.setWindowTitle("Ondsel Lens")
@@ -429,11 +440,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.txtExplain.setReadOnly(True)
         self.form.txtExplain.hide()
 
+        # initialize ondsel-start tab
+        self.initializeOndselStart()
+
+        # initialize bookmarks tab
         self.initializeBookmarks()
 
-        # initialize search
+        # initialize search tab
         self.form.searchResultScrollArea = SearchResultsView(self)
         self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
+
+        # initialize public-shares tab
+        self.initializePublicShares()
 
         self.initializeUpdateLens()
 
@@ -451,6 +469,19 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
         self.handle(tryRefresh)
         self.handleRequest(self.check_for_update)
+
+    def initializeOndselStart(self):
+        self.form.ondselStartStatusLabel.setText("loading content...")
+        self.form.ondselPromotionsScrollArea = OndselPromotionsView(self)
+        html = "unable to retrieve"
+        org = self.form.ondselPromotionsScrollArea.ondsel_org
+        if org is not None:
+            markdown = org["curation"]["longDescriptionMd"]
+            html = mistune.html(markdown)
+        self.form.ondselHomePageTextBrowser.setHtml(html)
+        self.form.ondselPromotionsFrame.layout().addWidget(
+            self.form.ondselPromotionsScrollArea
+        )
 
     def initializeBookmarks(self):
         tabWidget = self.form.tabWidget
@@ -474,6 +505,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
         bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
         bookmarkView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
         bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
+
+    def initializePublicShares(self):
+        self.form.publicSharesStatusLabel.setText("loading content...")
+        self.form.publicSharesScrollArea = PublicSharesView(self)
+        self.form.publicSharesFrame.layout().addWidget(self.form.publicSharesScrollArea)
 
     def initializeUpdateLens(self):
         self.form.frameUpdate.hide()
@@ -929,6 +965,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             logger.warn(e)
             logger.warn("Logging out")
             self.logout()
+        except APIClientTierException as e:
+            self.show_tier_dialog(str(e))
         except APIClientException as e:
             logger.error("Uncaught exception:")
             logger.error(e)
@@ -936,6 +974,18 @@ class WorkspaceView(QtWidgets.QScrollArea):
             self.logout()
         self.set_ui_connectionStatus()
         return True
+
+    def show_tier_dialog(self, message):
+        dialog = QMessageBox()
+        dialog.setWindowTitle("Please upgrade your tier")
+        dialog.setTextFormat(QtCore.Qt.RichText)
+        dialog.setText(f"{message} Please upgrade your tier:")
+        dialog.setInformativeText(
+            "<a href='https://ondsel.com/pricing'>Ondsel Pricing</a>"
+        )
+        dialog.setStandardButtons(QMessageBox.Ok)
+
+        dialog.exec()
 
     def tryOpenPathFile(self, pathFile):
         if Utils.isOpenableByFreeCAD(pathFile):
@@ -2166,7 +2216,13 @@ class WorkspaceView(QtWidgets.QScrollArea):
     # ####
 
     def onTabChanged(self, index):
-        if index == IDX_TAB_BOOKMARKS:
+        if index == IDX_TAB_ONDSEL_START:
+            if hasattr(self.form, "ondselPromotionsScrollArea"):
+                opv = self.form.ondselPromotionsScrollArea
+                if opv.ondsel_org is None:
+                    # attempt to load the ondsel org descr/msg and promoted items
+                    opv.get_ondsel_and_promotions()
+        elif index == IDX_TAB_BOOKMARKS:
 
             def tryRefresh():
                 bookmarkModel = getBookmarkModel(self.api)
@@ -2262,9 +2318,27 @@ class WorkspaceView(QtWidgets.QScrollArea):
                                 return True
         return False
 
+    def select_correct_default_tab_at_startup(self):
+        status = self.api.status
+        tabWidget = self.form.findChildren(QtGui.QTabWidget)[0]
+        if status == ConnStatus.CONNECTED:
+            # set tab to workspaces
+            tabWidget.setCurrentIndex(IDX_TAB_WORKSPACES)
+
+        elif status == ConnStatus.DISCONNECTED:
+            # set tab to workspaces just in case cached. ondsel-start won't work anyway
+            # NOTE: currently there is no way to test this as connection is not tested
+            # on startup
+            tabWidget.setCurrentIndex(IDX_TAB_WORKSPACES)
+
+        elif status == ConnStatus.LOGGED_OUT:
+            # set tab to ondsel-start
+            tabWidget.setCurrentIndex(IDX_TAB_ONDSEL_START)
+
     def check_for_toolbar_item(self):
         if self.find_our_toolbaritem_action():
             self.timer.stop()
+            self.select_correct_default_tab_at_startup()
             self.set_ui_connectionStatus()
 
     def init_toolbar_icon(self):

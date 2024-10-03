@@ -1,58 +1,48 @@
+import copy
+
 import requests
 import webbrowser
 
 import Utils
-from PySide import QtCore, QtGui, QtWidgets
-from PySide.QtGui import (
-    QPixmap,
-    QFrame,
-    QCursor,
-)
-from PySide.QtCore import QByteArray, Qt, QSize
-import FreeCADGui as Gui
+from PySide.QtGui import QPixmap, QFrame, QIcon
+from PySide.QtCore import Qt, QThread, QObject, Signal, QSize
 
 from components.choose_download_action_dialog import ChooseDownloadActionDialog
-from models.curation import CurationListModel
 
 logger = Utils.getLogger(__name__)
 
 
-class SearchResultDelegate(QFrame):
-    """delegate for search results"""
+class CurationDisplayDelegate(QFrame):
+    """delegate for curation display in general; should be used by children via inheritance not directly"""
 
     def __init__(self, index=None):
         super().__init__()
         if index is None:
             return  # if none, this is a dummy object
+        self.curation = None  # to be properly set by the child class
 
-        curation = index.data(CurationListModel.CurationRole)
-        self.curation = curation
-        ui_path = Utils.mod_path + "/delegates/SearchResultItem.ui"
-        self.widget = Gui.PySideUic.loadUi(ui_path)
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.widget)
-        #
-        # decorate the new item with data
-        #
-        self.widget.collectionLabel.setText(curation.nav.user_friendly_target_name())
-        self.widget.titleLabel.setText(curation.name)
-        self.mousePressEvent = lambda event: self._take_action()
-        self.setCursor(QCursor(Qt.PointingHandCursor))
-        self.image_url = curation.get_thumbnail_url()
-        if self.image_url is None:
-            print("checkout ", curation.nav)
-        elif ":" in self.image_url:
+    def start_image_load(self):
+        self._preload_icon()
+        image_url = (
+            self.curation.get_thumbnail_url()
+        )  # sadly, this cannot be queued because API does not work in thread for some reason
+        self.thread = QThread()
+        self.worker = _GetCurationImage()
+        self.worker.image_url = image_url
+        self.worker.moveToThread(self.thread)
+        self.worker.finished.connect(self._image_available)
+        self.thread.started.connect(self.worker.run)
+        self.thread.start()
+
+    def _preload_icon(self):
+        image_filename = self.curation.get_just_icon_filename()
+        pixmap = QIcon(Utils.icon_path + image_filename).pixmap(QSize(96, 96))
+        self.widget.iconLabel.setPixmap(pixmap)
+
+    def _image_available(self, pixmap, image_downloaded):
+        if image_downloaded:
+            self.widget.iconLabel.setPixmap(pixmap)
             self.widget.iconLabel.setStyleSheet("background-color:rgb(219,219,211)")
-            main_image = _get_pixmap_from_url(self.image_url)
-            if main_image is not None:
-                self.widget.iconLabel.setPixmap(main_image)
-        elif self.image_url is not None:
-            main_image = QtGui.QIcon(Utils.icon_path + self.image_url).pixmap(
-                QSize(96, 96)
-            )
-            self.widget.iconLabel.setPixmap(main_image)
-        #
-        self.setLayout(layout)
 
     def _take_action(self):
         if self.curation.collection == "shared-models":
@@ -84,7 +74,7 @@ class SearchResultDelegate(QFrame):
             logger.warn(f"Failed to open {url} in the browser")
 
 
-def _get_pixmap_from_url(thumbnailUrl):
+def get_pixmap_from_url(thumbnailUrl):
     try:
         response = requests.get(thumbnailUrl)
         image_data = response.content
@@ -104,3 +94,28 @@ def _get_pixmap_from_url(thumbnailUrl):
     except requests.exceptions.RequestException:
         pass  # no thumbnail online.
     return None
+
+
+class _GetCurationImage(QObject):
+    """
+    This thread worker class is strictly for use by the single thread started in CurationDisplayDelegate (and it's children).
+    The child will call the `start_image_load()` method of CurationDisplayDelegate during initialization. That will,
+    in turn, start this thread. This thread then emits the result when image is in memory.
+    """
+
+    finished = Signal(
+        QPixmap, bool
+    )  # the bool is needed because "None" is still re-interpreted by the C lib as QPixMap
+
+    def __init__(self):
+        super().__init__()
+        self.image_url = None
+
+    def run(self):
+        pixmap = None
+        image_downloaded = False
+        if self.image_url is not None and ":" in self.image_url:
+            pixmap = get_pixmap_from_url(self.image_url)
+            if pixmap is not None:
+                image_downloaded = True
+        self.finished.emit(pixmap, image_downloaded)

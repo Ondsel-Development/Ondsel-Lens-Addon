@@ -1,7 +1,7 @@
 import Utils
 import WorkspaceView
 import FreeCADGui as Gui
-from PySide import QtGui, QtWidgets
+from PySide import QtGui, QtWidgets, QtCore
 
 
 class LensCommand:
@@ -61,3 +61,17 @@ def start_mdi_tab():
 def init_toolbar_icon():
     if WorkspaceView.wsv:
         WorkspaceView.wsv.init_toolbar_icon()
+
+
+def ensure_mdi_tab():
+    main_window = Gui.getMainWindow()
+    timer = QtCore.QTimer(main_window)
+
+    def check_mdi_tab_visible():
+        subwindow = find_subwindow(main_window)
+        if subwindow:
+            start_mdi_tab()
+            timer.stop()
+
+    timer.timeout.connect(check_mdi_tab_visible)
+    timer.start(500)
