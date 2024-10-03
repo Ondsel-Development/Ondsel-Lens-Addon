@@ -8,6 +8,7 @@ class ModelSummary:
     """
     A summary of a Model
     """
+
     _id: str
     createdAt: int
     isObjGenerated: Optional[bool]

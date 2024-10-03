@@ -18,6 +18,7 @@ class File:
     Files only exist within a single workspace.
     A file may have zero or more ShareLinks and Models associated with it.
     """
+
     _id: str
     custFileName: str
     currentVersionId: str
@@ -31,7 +32,9 @@ class File:
     workspace: Optional[WorkspaceSummary]
     versions: list[FileVersion] = field(default_factory=list, repr=False)
     relatedUserDetails: list[UserSummary] = field(default_factory=list, repr=False)
-    followingActiveSharedModels: list[ShareLinkSummary] = field(default_factory=list, repr=False)
+    followingActiveSharedModels: list[ShareLinkSummary] = field(
+        default_factory=list, repr=False
+    )
 
     def __post_init__(self):
         self.model = ModelSummary(**self.model)
@@ -40,8 +43,12 @@ class File:
         if self.workspace is not None:
             self.workspace = WorkspaceSummary(**self.workspace)
         self.versions = Utils.listy_class_replacement(self.versions, FileVersion)
-        self.relatedUserDetails = Utils.listy_class_replacement(self.relatedUserDetails, UserSummary)
-        self.followingActiveSharedModels = Utils.listy_class_replacement(self.followingActiveSharedModels, ShareLinkSummary)
+        self.relatedUserDetails = Utils.listy_class_replacement(
+            self.relatedUserDetails, UserSummary
+        )
+        self.followingActiveSharedModels = Utils.listy_class_replacement(
+            self.followingActiveSharedModels, ShareLinkSummary
+        )
 
     @classmethod
     def from_json(cls, json_data):

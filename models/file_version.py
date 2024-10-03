@@ -18,7 +18,9 @@ class FileVersion:
     additionalData: dict = None
 
     def __post_init__(self):
-        self.lockedSharedModels = Utils.listy_class_replacement(self.lockedSharedModels, ShareLinkSummary)
+        self.lockedSharedModels = Utils.listy_class_replacement(
+            self.lockedSharedModels, ShareLinkSummary
+        )
 
     @classmethod
     def from_json(cls, json_data):
@@ -30,5 +32,6 @@ class FileVersion:
                 if k in inspect.signature(cls).parameters
             }
         )
+
 
 # TODO: add date text display for createdAt and fileUpdatedAt
