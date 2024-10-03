@@ -2398,9 +2398,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     filename = Utils.download_file_version_to_memory(self.api, id1, id2)
                     logger.info(f"Done downloading file '{filename}'")
             else:
-                logger.info("Please log in to view the share link")
+                logger.info("Please log in to view/download the link")
         else:
-            logger.info("Please log in to view the share link")
+            logger.info("Please log in to view/download the link")
 
 
 # class NewWorkspaceDialog(QtGui.QDialog):
