@@ -7,6 +7,7 @@ from APIClient import fancy_handle, API_Call_Result
 
 def download_shared_model_to_memory(api, id_shared_model):
     shared_model = None
+
     def get_shared_model():
         nonlocal shared_model
         shared_model = api.getSharedModel(id_shared_model)
@@ -41,9 +42,12 @@ def download_shared_model_to_memory(api, id_shared_model):
 def download_file_version_to_memory(api, file_id, version_id):
     unique_filename = None
     real_filename = None
+
     def get_file_detail():
         nonlocal unique_filename, real_filename
-        file_detail, version_detail = api.get_file_version_details(file_id, version_id, True)
+        file_detail, version_detail = api.get_file_version_details(
+            file_id, version_id, True
+        )
         unique_filename = version_detail.uniqueFileName
         real_filename = file_detail.custFileName
 
@@ -71,5 +75,3 @@ def download_to_memory(api, unique_filename, real_filename):
         FreeCAD.openDocument(tf.name)
     FreeCAD.ActiveDocument.Label = real_filename
     FreeCAD.ActiveDocument.FileName = ""
-
-

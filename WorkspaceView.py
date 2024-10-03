@@ -2358,15 +2358,17 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 stripped_url = url[len(prefix) :]
                 result = stripped_url.split("/")
                 sub_scheme = result[0]
-                if (len(result) > 1):
+                if len(result) > 1:
                     id1 = result[1]
-                if (len(result) > 2):
+                if len(result) > 2:
                     id2 = result[2]
                 logger.debug(f"stripped_url: {stripped_url}")
                 logger.debug(f"sub_scheme: {sub_scheme}")
                 logger.debug(f"ids: {id1}, {id2}")
                 if sub_scheme not in ["share", "file"]:
-                    raise ParseException(f"Unrecognized subscheme {sub_scheme} in URL {url}")
+                    raise ParseException(
+                        f"Unrecognized subscheme {sub_scheme} in URL {url}"
+                    )
             else:
                 raise ParseException(f"Unrecognized URL scheme: {url}")
         except ParseException as e:

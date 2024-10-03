@@ -450,7 +450,9 @@ class APIClient:
         return files
 
     @authRequired
-    def get_file_version_details(self, file_id, version_id, allowPublicQuery=False) -> (File, FileVersion):
+    def get_file_version_details(
+        self, file_id, version_id, allowPublicQuery=False
+    ) -> (File, FileVersion):
         endpoint = f"file/{file_id}"
         file_JSON = self._request(endpoint)
         file = File.from_json(file_JSON)
