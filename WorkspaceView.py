@@ -2392,11 +2392,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
             if url:
                 sub_scheme, id1, id2 = self.parse_url(url)
                 if sub_scheme == "share":
-                    self.openBookmark(id1)
+                    filename = Utils.download_shared_model_to_memory(self.api, id1)
+                    logger.info(f"Done downloading share link referenced file '{filename}'")
                 else:
-                    logger.info("file not supported yet")
-                    file = Utils.download_file_version_to_memory(self.api, id1, id2)
-                    logger.info(file)
+                    filename = Utils.download_file_version_to_memory(self.api, id1, id2)
+                    logger.info(f"Done downloading file '{filename}'")
             else:
                 logger.info("Please log in to view the share link")
         else:

@@ -233,6 +233,8 @@ def download_file_version_to_memory(api, file_id, version_id):
     file_detail, version_detail = api.get_file_version_details(file_id, version_id, True)
     return download_to_memory(api, version_detail.uniqueFileName, file_detail.custFileName)
 
+def download_bookmarked_shared_model_to_memory(api, id_bookmarked_model):
+    pass
 
 def download_to_memory(api, unique_filename, real_filename):
     with tempfile.NamedTemporaryFile(prefix="sl_", suffix=".FCStd") as tf:
