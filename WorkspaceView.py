@@ -2352,6 +2352,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         prefix = Utils.URL_SCHEME + ":"
         sub_scheme = None
         id1 = None
+        mod_scheme = None
         id2 = None
         try:
             if url.startswith(prefix):
@@ -2361,7 +2362,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 if len(result) > 1:
                     id1 = result[1]
                 if len(result) > 2:
-                    id2 = result[2]
+                    mod_scheme = result[2]
+                if len(result) > 3:
+                    id2 = result[3]
                 logger.debug(f"stripped_url: {stripped_url}")
                 logger.debug(f"sub_scheme: {sub_scheme}")
                 logger.debug(f"ids: {id1}, {id2}")
@@ -2369,6 +2372,11 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     raise ParseException(
                         f"Unrecognized subscheme {sub_scheme} in URL {url}"
                     )
+                if sub_scheme == "file":
+                    if mod_scheme != "version":
+                        raise ParseException(
+                            f"Unrecognized var {mod_scheme} in URL {url}"
+                        )
             else:
                 raise ParseException(f"Unrecognized URL scheme: {url}")
         except ParseException as e:
