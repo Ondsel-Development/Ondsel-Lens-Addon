@@ -4,11 +4,13 @@ import requests
 import webbrowser
 
 import Utils
-import handlers
+from APIClient import API_Call_Result
 from PySide.QtGui import QPixmap, QFrame, QIcon
 from PySide.QtCore import Qt, QThread, QObject, Signal, QSize
 
 from components.choose_download_action_dialog import ChooseDownloadActionDialog
+from components.choose_from_lens_dialog import ChooseFromLensDialog
+from components.choose_workspace_action_dialog import ChooseWorkspaceActionDialog
 
 logger = Utils.getLogger(__name__)
 
@@ -54,7 +56,7 @@ class CurationDisplayDelegate(QFrame):
                 if dlg.answer == ChooseDownloadActionDialog.OPEN_ON_WEB:
                     self._goto_url()
                 elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
-                    downloaded_filename = handlers.download_shared_model_to_memory(
+                    downloaded_filename = Utils.download_shared_model_to_memory(
                         self.curation.parent.api, str(self.curation._id)
                     )
                     if downloaded_filename is False:
@@ -64,6 +66,15 @@ class CurationDisplayDelegate(QFrame):
                         logger.warn(
                             f"Downloaded {downloaded_filename} into memory. Be sure to save to disk if you want to keep the model."
                         )
+        elif self.curation.collection == "workspaces":
+            data_parent = self.curation.parent
+            dlg = ChooseWorkspaceActionDialog(self.curation.name, data_parent)
+            overall_response = dlg.exec()
+            if overall_response != 0:
+                if dlg.answer == ChooseWorkspaceActionDialog.OPEN_ON_WEB:
+                    self._goto_url()
+                elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
+                    self._choose_one_file()
         else:
             self._goto_url()
 
@@ -73,6 +84,28 @@ class CurationDisplayDelegate(QFrame):
         logger.info(f"open {url}")
         if not webbrowser.open(url):
             logger.warn(f"Failed to open {url} in the browser")
+
+    def _choose_one_file(self):
+        data_parent = self.curation.parent
+        choose_name = f"Choose a file from {self.curation.name}"
+        ws, resp = data_parent.api.fancy_auth_call(data_parent.api.get_workspace_including_public, self.curation._id)
+        if resp != API_Call_Result.OK:
+            logger.warn(f"connection problem: {resp}")
+            return
+        logger.info(ws)
+        workspace_list = [
+            {
+                "_id": self.curation._id,
+                "owner": ws.describe_owner(),
+                "name": self.curation.name
+            }
+        ]
+        dlg = ChooseFromLensDialog(choose_name, workspace_list, data_parent)
+        overall_response = dlg.exec()
+        if overall_response == 0:
+            self._goto_url()
+        print("FILE CHOSEN")
+        print(dlg.answer)
 
 
 def get_pixmap_from_url(thumbnailUrl):

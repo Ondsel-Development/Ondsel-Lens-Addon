@@ -10,6 +10,7 @@ from models.curation import Curation
 from models.file import File
 from models.file_version import FileVersion
 from models.share_link import ShareLink
+from models.workspace_dataclass import WorkspaceDataClass
 
 logger = Utils.getLogger(__name__)
 
@@ -57,6 +58,13 @@ class APIClientOfflineException(APIClientException):
 
     pass
 
+class APIClientNotFoundException(APIClientException):
+    """
+    The API properly responded but returned a 404 not OK.
+    """
+
+    pass
+
 
 class APIClientTierException(APIClientException):
     pass
@@ -71,6 +79,7 @@ class ConnStatus(Enum):
 OK = requests.codes.ok
 CREATED = requests.codes.created
 UNAUTHORIZED = requests.codes.unauthorized
+NOT_FOUND = requests.codes.not_found
 
 
 class APIClient:
@@ -230,6 +239,8 @@ class APIClient:
 
         if response.status_code == OK:
             return response.json()
+        elif response.status_code == NOT_FOUND:
+            raise APIClientNotFoundException(f"item not found {endpoint}")
         else:
             self._raiseException(
                 response, endpoint=endpoint, headers=headers, params=params
@@ -250,6 +261,8 @@ class APIClient:
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
+        elif response.status_code == NOT_FOUND:
+            raise APIClientNotFoundException(f"item not found {endpoint}")
         else:
             self._raiseException(
                 response, endpoint=endpoint, headers=headers, params=params
@@ -276,6 +289,8 @@ class APIClient:
             return response.json()
         elif response.status_code == UNAUTHORIZED:
             raise APIClientAuthenticationException("Not authenticated")
+        elif response.status_code == NOT_FOUND:
+            raise APIClientNotFoundException(f"item not found {endpoint}")
         else:
             self._raiseException(
                 response, endpoint=endpoint, headers=headers, data=data, files=files
@@ -295,6 +310,8 @@ class APIClient:
 
         if response.status_code in [CREATED, OK]:
             return response.json()
+        elif response.status_code == NOT_FOUND:
+            raise APIClientNotFoundException(f"item not found {endpoint}")
         else:
             self._raiseException(
                 response, endpoint=endpoint, headers=headers, data=data, files=files
@@ -686,6 +703,18 @@ class APIClient:
         return result
 
     @authRequired
+    def get_workspace_including_public(self, workspace_id):
+        endpoint = f"workspaces/{workspace_id}"
+        result = None
+        try:
+            result = self._request(endpoint)
+        except APIClientNotFoundException:
+            params = {"publicInfo": "true"}
+            result = self._request(endpoint, params=params)
+        workspace = WorkspaceDataClass.from_json(result)
+        return workspace
+
+    @authRequired
     def createWorkspace(self, name, description, organizationId):
         logger.debug("Creating the workspace...")
         endpoint = "workspaces"
@@ -884,6 +913,26 @@ class APIClient:
             curations.append(new_curation)
         return curations
 
+    @authRequired
+    def fancy_auth_call(self, api_method, key):
+        """
+        This is a limited routine that uses 'fancy_handle' to return a tuple: (value, response) in a GoLang-like
+        fashion. This routine only works on "get-like methods" found on the APIClient class.
+        If `response` is OK, then there was no error and `value` has a value; otherwise `value` is set to None
+
+        Calling it would look like this:
+
+            value, response = self.api.fancy_auth_call(self.api.getOrganization, org_id)
+        """
+        answer = None
+        def internal_get_method():
+            nonlocal answer
+            answer = api_method(key)
+        response = fancy_handle(internal_get_method)
+        if response != API_Call_Result.OK:
+            answer = None
+        return answer, response
+
 
 class APIHelper:
     def __init__(self):
@@ -978,5 +1027,6 @@ def fancy_handle(func):
     except Exception as e:
         logger.error(e)
         return API_Call_Result.GENERAL_ERROR
-    self.set_ui_connectionStatus()
-    return True
+    # self.set_ui_connectionStatus()
+    # return True
+
