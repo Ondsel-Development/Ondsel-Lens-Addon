@@ -2025,7 +2025,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def refreshModel(self):
         if self.current_workspace is not None:
             self.currentWorkspaceModel.refreshModel()
-            self.hideLinkVersionDetails()
+            if not self.is_connected():
+                self.hideLinkVersionDetails()
         else:
             self.workspacesModel.refreshModel()
 
