@@ -42,11 +42,11 @@ class File:
             self.directory = DirectorySummary(**self.directory)
         if self.workspace is not None:
             self.workspace = WorkspaceSummary(**self.workspace)
-        self.versions = Utils.listy_class_replacement(self.versions, FileVersion)
-        self.relatedUserDetails = Utils.listy_class_replacement(
+        self.versions = Utils.convert_to_class_list(self.versions, FileVersion)
+        self.relatedUserDetails = Utils.convert_to_class_list(
             self.relatedUserDetails, UserSummary
         )
-        self.followingActiveSharedModels = Utils.listy_class_replacement(
+        self.followingActiveSharedModels = Utils.convert_to_class_list(
             self.followingActiveSharedModels, ShareLinkSummary
         )
 

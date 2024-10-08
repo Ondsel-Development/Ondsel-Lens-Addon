@@ -18,7 +18,7 @@ class FileVersion:
     additionalData: dict = None
 
     def __post_init__(self):
-        self.lockedSharedModels = Utils.listy_class_replacement(
+        self.lockedSharedModels = Utils.convert_to_class_list(
             self.lockedSharedModels, ShareLinkSummary
         )
 
