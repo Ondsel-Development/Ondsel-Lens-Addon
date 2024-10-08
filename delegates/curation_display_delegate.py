@@ -88,18 +88,7 @@ class CurationDisplayDelegate(QFrame):
     def _choose_one_file(self):
         data_parent = self.curation.parent
         choose_name = f"Choose a file from {self.curation.name}"
-        ws, resp = data_parent.api.fancy_auth_call(data_parent.api.get_workspace_including_public, self.curation._id)
-        if resp != API_Call_Result.OK:
-            logger.warn(f"connection problem: {resp}")
-            return
-        logger.info(ws)
-        workspace_list = [
-            {
-                "_id": self.curation._id,
-                "owner": ws.describe_owner(),
-                "name": self.curation.name
-            }
-        ]
+        workspace_list = [self.curation._id]
         dlg = ChooseFromLensDialog(choose_name, workspace_list, data_parent)
         overall_response = dlg.exec()
         if overall_response == 0:

@@ -10,7 +10,7 @@ from PySide.QtWidgets import (
     QRadioButton,
 )
 import Utils
-from APIClient import ConnStatus
+from APIClient import ConnStatus, API_Call_Result
 
 logger = Utils.getLogger(__name__)
 
@@ -21,13 +21,16 @@ class ChooseFromLensDialog(QDialog):
 
     SELECT_FILE_ONLY = 0
 
-    def __init__(self, name, workspaces, data_parent, parent=None):
+    def __init__(self, name, workspace_ids, data_parent, parent=None):
         super().__init__(parent)
         self.quit_on_close = False
-        conn_status = data_parent.api.getStatus()
+        self.api = data_parent.api
+        conn_status = self.api.getStatus()
         self.setWindowTitle(name)
+        self.explore_table = QtWidgets.QTableWidget(0, 3)
         self.create_explore_table()
-        self.create_workspaces_table(workspaces)
+        self.workspaces_table = QtWidgets.QTableWidget(0, 1)
+        self.create_workspaces_table(workspace_ids)
         self.create_button_box()
         self.answer = {
             "workspace_id": None,
@@ -45,7 +48,6 @@ class ChooseFromLensDialog(QDialog):
         self.setLayout(overall_layout)
 
     def create_explore_table(self):
-        self.explore_table = QtWidgets.QTableWidget(0, 3)
         self.explore_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
         self.explore_table.setHorizontalHeaderLabels(("", "Name", "Type"))
         self.explore_table.horizontalHeader().setSectionResizeMode(
@@ -55,12 +57,15 @@ class ChooseFromLensDialog(QDialog):
         self.explore_table.setShowGrid(False)
         # self.filesTable.cellActivated.connect(self.openFileOfItem)
 
-    def create_workspaces_table(self, workspaces):
-        if workspaces is None:
-            self.workspaces = []  # TODO: populate with user's entries
-        else:
-            self.workspaces = workspaces
-        self.workspaces_table = QtWidgets.QTableWidget(0, 1)
+    def create_workspaces_table(self, workspace_ids):
+        self.workspaces = []
+        for id in workspace_ids:
+            ws, resp = self.api.fancy_auth_call(self.api.get_workspace_including_public, id)
+            if resp != API_Call_Result.OK:
+                logger.warn(f"connection problem: {resp} on workspace {id}")
+                return
+            self.workspaces.append(ws)
+
         self.workspaces_table.setSelectionBehavior(
             QtWidgets.QAbstractItemView.SelectRows
         )
@@ -72,7 +77,7 @@ class ChooseFromLensDialog(QDialog):
         self.workspaces_table.setShowGrid(False)
 
         for ws in self.workspaces:
-            ws_desc = f"{ws['owner']} | {ws['name']}"
+            ws_desc = f"{ws.describe_owner()} | {ws.name}"
             row = self.workspaces_table.rowCount()
             self.workspaces_table.insertRow(row)
             self.workspaces_table.setItem(row, 0, QtWidgets.QTableWidgetItem(ws_desc))

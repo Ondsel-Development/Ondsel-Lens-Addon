@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Optional
 
-
+from Utils import convert_to_class_list, import_json_forgiving_of_extra_fields
 from models.curation import Curation
 from models.directory_summary import DirectorySummary
 from models.groups_or_users import GroupsOrUsers
@@ -48,16 +48,10 @@ class WorkspaceDataClass:
         self.rootDirectory = DirectorySummary(**self.rootDirectory)
         if self.curation:
             self.curation = Curation(**self.curation)
-        new_gou_list = []
-        for gou in self.groupsOrUsers:
-            new_gou = GroupsOrUsers(**gou)
-            new_gou_list.append(new_gou)
-        self.groupsOrUsers = new_gou_list
+        self.groupsOrUsers = convert_to_class_list(self.groupsOrUsers, GroupsOrUsers)
 
     def describe_owner(self) -> str:
         name = "Unknown"
-        print(self.organization)
-        print(self.organization.type)
         orgType = self.organization.type
         if orgType == OrganizationType.OPEN:
             name = f"Org {self.organization.name}"
@@ -73,12 +67,5 @@ class WorkspaceDataClass:
 
     @classmethod
     def from_json(cls, json_data):
-        """makes forgiving of extra fields"""
-        return cls(
-            **{
-                k: v
-                for k, v in json_data.items()
-                if k in inspect.signature(cls).parameters
-            }
-        )
+        return import_json_forgiving_of_extra_fields(cls, json_data)
 
