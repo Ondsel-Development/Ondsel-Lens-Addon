@@ -25,6 +25,7 @@ from jwt.exceptions import ExpiredSignatureError
 
 import mistune
 
+import handlers
 from PySide import QtCore, QtGui, QtWidgets
 from PySide.QtGui import QStandardItemModel
 
@@ -2374,27 +2375,38 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def parse_url(self, url):
         prefix = Utils.URL_SCHEME + ":"
+        sub_scheme = None
+        id1 = None
+        mod_scheme = None
+        id2 = None
         try:
             if url.startswith(prefix):
                 stripped_url = url[len(prefix) :]
-                try:
-                    sub_scheme, data = stripped_url.split("/", 1)
-                    logger.debug(f"stripped_url: {stripped_url}")
-                    logger.debug(f"sub_scheme: {sub_scheme}")
-                    logger.debug(f"data: {data}")
-                    if sub_scheme == "share":
-                        return sub_scheme, data
-                    else:
+                result = stripped_url.split("/")
+                sub_scheme = result[0]
+                if len(result) > 1:
+                    id1 = result[1]
+                if len(result) > 2:
+                    mod_scheme = result[2]
+                if len(result) > 3:
+                    id2 = result[3]
+                logger.debug(f"stripped_url: {stripped_url}")
+                logger.debug(f"sub_scheme: {sub_scheme}")
+                logger.debug(f"ids: {id1}, {id2}")
+                if sub_scheme not in ["share", "file"]:
+                    raise ParseException(
+                        f"Unrecognized subscheme {sub_scheme} in URL {url}"
+                    )
+                if sub_scheme == "file":
+                    if mod_scheme != "version":
                         raise ParseException(
-                            f"Unrecognized subscheme {sub_scheme} in URL {url}"
+                            f"Unrecognized var {mod_scheme} in URL {url}"
                         )
-                except ValueError as e:
-                    raise ParseException(f"Unrecognized subscheme in URL {url}, {e}")
             else:
                 raise ParseException(f"Unrecognized URL scheme: {url}")
         except ParseException as e:
             logger.warning(e)
-            return None, None
+        return sub_scheme, id1, id2
 
     def get_lens_url(self):
         main_window = FreeCADGui.getMainWindow()
@@ -2412,15 +2424,13 @@ class WorkspaceView(QtWidgets.QScrollArea):
             return None
 
     def handle_lens_url(self, url):
-        if self.is_logged_in():
-            if url:
-                sub_scheme, data = self.parse_url(url)
-                if sub_scheme == "share":
-                    self.openBookmark(data)
-            else:
-                logger.info("Please log in to view the share link")
+        sub_scheme, id1, id2 = self.parse_url(url)
+        if sub_scheme == "share":
+            message = handlers.download_shared_model_to_memory(self.api, id1)
+            logger.info(message)
         else:
-            logger.info("Please log in to view the share link")
+            message = handlers.download_file_version_to_memory(self.api, id1, id2)
+            logger.info(message)
 
 
 # class NewWorkspaceDialog(QtGui.QDialog):

@@ -5,6 +5,7 @@ from PySide.QtWidgets import (
     QVBoxLayout,
     QLabel,
     QRadioButton,
+    QMessageBox,
 )
 import Utils
 from APIClient import ConnStatus
@@ -48,15 +49,13 @@ class ChooseDownloadActionDialog(QDialog):
         if conn_status == ConnStatus.CONNECTED:
             layout.addWidget(choose_download_to_mem)
             layout.addWidget(choose_open_on_web)
-            ok_button_box = self.create_button_box(
-                QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-            )
+            ok_button_box = self.create_button_box(True)
         elif conn_status == ConnStatus.DISCONNECTED:
             offline_msg = QLabel(
                 "Sorry, you are currently offline. Cannot reach Ondsel."
             )
             layout.addWidget(offline_msg)
-            ok_button_box = self.create_button_box(QDialogButtonBox.Ok)
+            ok_button_box = self.create_button_box(False)
         else:  # ConnStatus.LOGGED_OUT
             text_download_to_mem = choose_download_to_mem.text()
             choose_download_to_mem.setText(text_download_to_mem + " (logged out)")
@@ -65,9 +64,7 @@ class ChooseDownloadActionDialog(QDialog):
             choose_open_on_web.setChecked(True)
             layout.addWidget(choose_download_to_mem)
             layout.addWidget(choose_open_on_web)
-            ok_button_box = self.create_button_box(
-                QDialogButtonBox.Ok | QDialogButtonBox.Cancel
-            )
+            ok_button_box = self.create_button_box(True)
 
         layout.addWidget(ok_button_box)
         self.setLayout(layout)
@@ -93,8 +90,12 @@ class ChooseDownloadActionDialog(QDialog):
         )
         super().accept()
 
-    def create_button_box(self, buttons):
-        button_box = QDialogButtonBox(buttons)
+    def create_button_box(self, both):
+        if both:
+            button_box = QDialogButtonBox(QDialogButtonBox.Cancel)
+            button_box.addButton(QDialogButtonBox.Ok)
+        else:
+            button_box = QDialogButtonBox(QDialogButtonBox.Ok)
         button_box.accepted.connect(self.accept)
         button_box.rejected.connect(self.reject)
 
