@@ -1,3 +1,4 @@
+from APIClient import APICallResult
 from PySide import QtWidgets
 from PySide.QtWidgets import (
     QPushButton,
@@ -6,11 +7,8 @@ from PySide.QtWidgets import (
     QDialogButtonBox,
     QVBoxLayout,
     QHBoxLayout,
-    QLabel,
-    QRadioButton,
 )
 import Utils
-from APIClient import ConnStatus, API_Call_Result
 
 logger = Utils.getLogger(__name__)
 
@@ -61,7 +59,7 @@ class ChooseFromLensDialog(QDialog):
         self.workspaces = []
         for id in workspace_ids:
             ws, resp = self.api.fancy_auth_call(self.api.get_workspace_including_public, id)
-            if resp != API_Call_Result.OK:
+            if resp != APICallResult.OK:
                 logger.warn(f"connection problem: {resp} on workspace {id}")
                 return
             self.workspaces.append(ws)

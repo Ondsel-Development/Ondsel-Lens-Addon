@@ -935,7 +935,7 @@ class APIClient:
             nonlocal answer
             answer = api_method(key)
         response = fancy_handle(internal_get_method)
-        if response != API_Call_Result.OK:
+        if response != APICallResult.OK:
             answer = None
         return answer, response
 
