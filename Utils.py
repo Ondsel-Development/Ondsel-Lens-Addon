@@ -312,9 +312,9 @@ def version_greater_than(latestVersion, currentVersion):
     return False
 
 
-def listy_class_replacement(json_list, RefClass):
+def convert_to_class_list(json_list, cls):
     """Converts a list of JSON objects into a list of Class objects"""
     temp = []
     for data in json_list:
-        temp.append(RefClass(**data))
+        temp.append(cls(**data))
     return temp
