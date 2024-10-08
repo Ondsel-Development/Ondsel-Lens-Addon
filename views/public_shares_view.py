@@ -6,7 +6,7 @@ from PySide.QtCore import Qt
 from delegates.public_share_delegate import PublicShareLinkDelegate
 from models.share_link import PublicShareLinkListModel
 from qflowview.qflowview import QFlowView
-from APIClient import fancy_handle, API_Call_Result
+from APIClient import fancy_handle, APICallResult
 
 
 class PublicSharesView(QFlowView):
@@ -31,12 +31,12 @@ class PublicSharesView(QFlowView):
 
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         api_result = fancy_handle(get_public_sharelink_items)
-        if api_result == API_Call_Result.OK:
+        if api_result == APICallResult.OK:
             self.publicShareLinkListModel.sharelink_list = sharelinks
             self.parent.form.publicSharesStatusLabel.setText("Most recent shown first")
             self.publicShareLinkListModel.layoutChanged.emit()
 
-        elif api_result == API_Call_Result.DISCONNECTED:
+        elif api_result == APICallResult.DISCONNECTED:
             self.parent.form.publicSharesStatusLabel.setText("off-line")
             self.publicShareLinkListModel.sharelink_list = []
             self.publicShareLinkListModel.layoutChanged.emit()
