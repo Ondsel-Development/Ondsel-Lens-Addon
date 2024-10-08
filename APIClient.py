@@ -121,7 +121,10 @@ class APIClient:
             self.parent.set_ui_connectionStatus()
 
     def getStatus(self):
-        """gets the current connection status; this is an active check to see if really online"""
+        """
+        Gets the current connection status;
+        This is an active check to see if really online.
+        """
         self._confirm_online()
         return self.status
 
@@ -204,9 +207,12 @@ class APIClient:
         return headers
 
     def _confirm_online(self):
-        """calls lens api root to simply check if online. if not online, updates status"""
+        """
+        Calls lens api root to simply check if online.
+        If not online, updates status.
+        """
         try:
-            response = requests.get(f"{self.base_url}/")
+            requests.get(f"{self.base_url}/")
             if self.is_logged_in():
                 self.setStatus(ConnStatus.CONNECTED)
             else:
@@ -218,13 +224,13 @@ class APIClient:
     def _confirm_online_after_exception(self):
         self._confirm_online()
         if self.status == ConnStatus.DISCONNECTED:
-            raise APIClientOfflineException("Safely offline")
+            raise APIClientOfflineException("Disconnected from service: logged out")
 
     def _properly_throw_if_offline(self):
         if self.status == ConnStatus.DISCONNECTED:
             self._confirm_online()  # try to connect again
             if self.status == ConnStatus.DISCONNECTED:
-                raise APIClientOfflineException("Safely offline")
+                raise APIClientOfflineException("Disconnected from service: logged out")
 
     def _delete(self, endpoint, headers={}, params=None):
         headers = self._set_default_headers(headers)
@@ -983,7 +989,7 @@ class APIHelper:
             return data
 
 
-class API_Call_Result(Enum):
+class APICallResult(Enum):
     OK = 1  # all is good
     DISCONNECTED = 2  # all is good but not online
     NOT_LOGGED_IN = 3  # not logged in, so _this_ query is not possible
@@ -1005,28 +1011,25 @@ def fancy_handle(func):
     make sure you are doing "result = fancy_handle(joe)" not
     "result = fancy_handle(joe())"
 
-    Returns an API_Call_Result enum value. It is expected that the caller
+    Returns an APICallResult enum value. It is expected that the caller
     handles all the possible return states.
     """
     try:
         func()
-        return API_Call_Result.OK
-    except APIClientOfflineException as e:
-        return API_Call_Result.DISCONNECTED
-    except APIClientLoggedOutException as e:
-        return API_Call_Result.NOT_LOGGED_IN
+        return APICallResult.OK
+    except APIClientOfflineException:
+        return APICallResult.DISCONNECTED
+    except APIClientLoggedOutException:
+        return APICallResult.NOT_LOGGED_IN
     except APIClientRequestException as e:
         logger.error(e)
-        return API_Call_Result.GENERAL_ERROR
+        return APICallResult.GENERAL_ERROR
     except APIClientAuthenticationException as e:
         logger.error(e)
-        return API_Call_Result.PERMISSION_ISSUE
+        return APICallResult.PERMISSION_ISSUE
     except APIClientException as e:
         logger.error(e)
-        return API_Call_Result.GENERAL_ERROR
+        return APICallResult.GENERAL_ERROR
     except Exception as e:
         logger.error(e)
-        return API_Call_Result.GENERAL_ERROR
-    # self.set_ui_connectionStatus()
-    # return True
-
+        return APICallResult.GENERAL_ERROR

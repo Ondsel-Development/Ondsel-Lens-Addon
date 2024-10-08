@@ -4,7 +4,7 @@ import requests
 import webbrowser
 
 import Utils
-from APIClient import API_Call_Result
+import handlers
 from PySide.QtGui import QPixmap, QFrame, QIcon
 from PySide.QtCore import Qt, QThread, QObject, Signal, QSize
 
@@ -56,7 +56,7 @@ class CurationDisplayDelegate(QFrame):
                 if dlg.answer == ChooseDownloadActionDialog.OPEN_ON_WEB:
                     self._goto_url()
                 elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
-                    downloaded_filename = Utils.download_shared_model_to_memory(
+                    downloaded_filename = handlers.download_shared_model_to_memory(
                         self.curation.parent.api, str(self.curation._id)
                     )
                     if downloaded_filename is False:

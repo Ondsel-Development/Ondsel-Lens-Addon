@@ -8,6 +8,7 @@ import os
 import math
 import re
 import logging
+import tempfile
 
 import zipfile
 import shutil
@@ -35,6 +36,8 @@ NAME_COMMAND = "OndselLens_OndselLens"
 ACCEL = "Ctrl+L"
 NAME_COMMAND_START = "Start_Start"
 LENS_TOOLBARITEM_TEXT = "Ondsel Lens Addon"
+
+SIZE_PIXMAP = 128
 
 
 class FreeCADHandler(logging.Handler):
@@ -125,7 +128,9 @@ def extract_thumbnail(file_path):
                 pixmap = QPixmap()
                 pixmap.loadFromData(thumbnail_data)
 
-                return pixmap.scaled(128, 128, Qt.AspectRatioMode.KeepAspectRatio)
+                return pixmap.scaled(
+                    SIZE_PIXMAP, SIZE_PIXMAP, Qt.AspectRatioMode.KeepAspectRatio
+                )
 
         except (zipfile.BadZipFile, KeyError):
             # Handle the case where the thumbnail file doesn't exist

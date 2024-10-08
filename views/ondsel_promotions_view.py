@@ -6,7 +6,7 @@ from PySide.QtCore import Qt
 from delegates.promotion_delegate import PromotionDelegate
 from models.promotion import PromotionListModel, Promotion
 from qflowview.qflowview import QFlowView
-from APIClient import fancy_handle, API_Call_Result
+from APIClient import fancy_handle, APICallResult
 
 
 class OndselPromotionsView(QFlowView):
@@ -36,12 +36,12 @@ class OndselPromotionsView(QFlowView):
 
         QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
         api_result = fancy_handle(get_promoted_items)
-        if api_result == API_Call_Result.OK:
+        if api_result == APICallResult.OK:
             self.promotionListModel.promotion_list = promotions
             self.parent.form.ondselStartStatusLabel.setText("")
             self.promotionListModel.layoutChanged.emit()
 
-        elif api_result == API_Call_Result.DISCONNECTED:
+        elif api_result == APICallResult.DISCONNECTED:
             self.parent.form.ondselStartStatusLabel.setText("off-line")
             self.promotionListModel.promotion_list = []
             self.promotionListModel.layoutChanged.emit()

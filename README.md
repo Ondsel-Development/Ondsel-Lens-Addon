@@ -25,7 +25,7 @@ Open the Python console in FreeCAD and enter the following code
 
 ```
 import addonmanager_dependency_installer
-depsInstaller = addonmanager_dependency_installer.DependencyInstaller([],['pyjwt','requests','tzlocal'],[])
+depsInstaller = addonmanager_dependency_installer.DependencyInstaller([],['pyjwt','requests','tzlocal', 'mistune'],[])
 depsInstaller._install_python_packages()
 ```
 
