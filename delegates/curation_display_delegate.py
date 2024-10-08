@@ -87,12 +87,13 @@ class CurationDisplayDelegate(QFrame):
 
     def _choose_one_file(self):
         data_parent = self.curation.parent
-        choose_name = f"Choose a file from {self.curation.name}"
+        choose_name = f"Open file from the {self.curation.name} workspace"
         workspace_list = [self.curation._id]
         dlg = ChooseFromLensDialog(choose_name, workspace_list, data_parent)
         overall_response = dlg.exec()
         if overall_response == 0:
-            self._goto_url()
+            print("CANCEL")
+            return
         print("FILE CHOSEN")
         print(dlg.answer)
 

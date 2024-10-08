@@ -7,6 +7,7 @@ import urllib
 
 import Utils
 from models.curation import Curation
+from models.directory import Directory
 from models.file import File
 from models.file_version import FileVersion
 from models.share_link import ShareLink
@@ -773,6 +774,18 @@ class APIClient:
 
         result = self._request(endpoint)
         return result
+
+    @authRequired
+    def get_directory_including_public(self, directory_id):
+        endpoint = f"directories/{directory_id}"
+        result = None
+        try:
+            result = self._request(endpoint)
+        except APIClientRequestException: # oddly, we get a 400 not a 404 (not found) or 403 (no permission)
+            params = {"publicInfo": "true"}
+            result = self._request(endpoint, params=params)
+        directory = Directory.from_json(result)
+        return directory
 
     @authRequired
     def createDirectory(self, name, idParentDir, nameParentDir, workspace):

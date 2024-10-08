@@ -22,7 +22,9 @@ class ChooseWorkspaceActionDialog(QDialog):
         DL_TO_MEM: "showOneFileInOndselES",
         OPEN_ON_WEB: "openOnWeb",
     }
-    FROM_STRING_WORKSPACE_ACTIONS = {v: k for k, v in TO_STRING_DOWNLOAD_ACTIONS.items()}
+    FROM_STRING_WORKSPACE_ACTIONS = {
+        v: k for k, v in TO_STRING_DOWNLOAD_ACTIONS.items()
+    }
 
     PREF_WORKSPACE_ACTION = "workspaceAction"
 
@@ -37,7 +39,9 @@ class ChooseWorkspaceActionDialog(QDialog):
         message = QLabel(f"What should we do with '{name}'?")
 
         choose_download_to_mem = QRadioButton("Choose one file to show in Ondsel ES")
-        choose_open_on_web = QRadioButton("Explore workspace on the Ondsel Lens website")
+        choose_open_on_web = QRadioButton(
+            "Explore workspace on the Ondsel Lens website"
+        )
         self.radio_button_group = QButtonGroup(self)
         self.radio_button_group.addButton(choose_download_to_mem, self.DL_TO_MEM)
         self.radio_button_group.addButton(choose_open_on_web, self.OPEN_ON_WEB)

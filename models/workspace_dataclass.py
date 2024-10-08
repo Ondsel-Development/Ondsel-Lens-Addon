@@ -65,6 +65,22 @@ class WorkspaceDataClass:
             name = "Ondsel"
         return name
 
+    def generic_prefix_name(self) -> str:
+        name = "Unknown"
+        orgType = self.organization.type
+        if orgType == OrganizationType.OPEN:
+            name = f"org-{self.organization.refName}"
+        elif orgType == OrganizationType.PRIVATE:
+            name = f"org-{self.organization.refName}"
+        elif orgType == OrganizationType.PERSONAL:
+            name = "user-anon"
+            if len(self.groupsOrUsers) > 0:
+                name = f"user-{self.groupsOrUsers[0].groupOrUser.username}"
+        elif orgType == OrganizationType.ONDSEL:
+            name = "org-ondsel"
+        name += f"/{self.refName}"
+        return name
+
     @classmethod
     def from_json(cls, json_data):
         return import_json_forgiving_of_extra_fields(cls, json_data)
