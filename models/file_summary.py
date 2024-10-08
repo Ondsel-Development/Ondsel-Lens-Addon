@@ -3,13 +3,16 @@ from models.file_version import FileVersion
 from typing import Optional
 
 
-@dataclass(frozen=True, order=True)
+@dataclass(order=True)
 class FileSummary:
     _id: str
     custFileName: str
     modelId: str
     currentVersion: FileVersion
     thumbnailUrlCache: Optional[str] = None
+
+    def __post_init__(self):
+        self.currentVersion = FileVersion(**self.currentVersion)
 
 
 # the "Limited" variant is to prevent recursive references and simplify data structures

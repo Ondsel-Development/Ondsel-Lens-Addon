@@ -171,8 +171,16 @@ class ChooseFromLensDialog(QDialog):
 
     def restore_parent_directory_in_explore_pane(self):
         self.explore_table.setRowCount(0)  # wipes the current entries out
-        removed_item = self.directory_stack.pop()  # stack shrinks
-        dir = self.directory_stack[-1]
+        _ = self.directory_stack.pop()  # stack shrinks
+        directorySummary = self.directory_stack[-1]
+        dir, resp = self.api.fancy_auth_call(
+            self.api.get_directory_including_public, directorySummary._id
+        )
+        if resp != APICallResult.OK:  # a problem _shouldn't_ happen at this point
+            logger.warn(
+                f"connection problem: {resp} on directory {directorySummary._id}"
+            )
+            return
         self.current_directory = dir
         self.explore_items = []
         if len(self.directory_stack) >= 2:
@@ -214,12 +222,12 @@ class ChooseFromLensDialog(QDialog):
     def create_button_box(self):
         self.button_box = QDialogButtonBox(QDialogButtonBox.Cancel)
         self.button_box.addButton(QDialogButtonBox.Open)
-        self.button_box.accepted.connect(self.accept)
+        self.button_box.accepted.connect(self.okay)
         self.button_box.rejected.connect(self.cancel)
         self.btn_open = self.button_box.button(QDialogButtonBox.Open)
         self.btn_open.setDisabled(True)
 
-    def accept(self):
+    def okay(self):
         self.answer["workspace"] = self.current_workspace()
         self.answer["directory"] = self.current_directory
         self.answer["file"] = self.current_explore_item()
@@ -252,7 +260,7 @@ class ChooseFromLensDialog(QDialog):
             own_dir = self.directory_stack[-1]
             if (
                 dir._id == own_dir._id
-            ):  # if you are "going" to the last directory, that is a flag of exit
+            ):  # if you are "going" to the last directory, that is a flag-of-exit
                 back = True  # exiting OUT of the directory tree
         return back
 
@@ -271,8 +279,7 @@ class ChooseFromLensDialog(QDialog):
         self.current_explore_index = target.row()
         item = self.current_explore_item()
         if isinstance(item, FileSummary):
-            self.accept()
-            return
+            return self.okay()
         if isinstance(item, DirectorySummary):
             if self.directory_is_back_indicator(item):
                 self.restore_parent_directory_in_explore_pane()

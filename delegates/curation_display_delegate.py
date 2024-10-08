@@ -56,15 +56,15 @@ class CurationDisplayDelegate(QFrame):
                 if dlg.answer == ChooseDownloadActionDialog.OPEN_ON_WEB:
                     self._goto_url()
                 elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
-                    downloaded_filename = handlers.download_shared_model_to_memory(
+                    msg = handlers.download_shared_model_to_memory(
                         self.curation.parent.api, str(self.curation._id)
                     )
-                    if downloaded_filename is False:
+                    if msg is False:
                         logger.warn("Unable to download; opening in browser instead.")
                         self._goto_url()
                     else:
                         logger.warn(
-                            f"Downloaded {downloaded_filename} into memory. Be sure to save to disk if you want to keep the model."
+                            f"{msg}. Be sure to save to disk if you want to keep the model."
                         )
         elif self.curation.collection == "workspaces":
             data_parent = self.curation.parent
@@ -92,10 +92,21 @@ class CurationDisplayDelegate(QFrame):
         dlg = ChooseFromLensDialog(choose_name, workspace_list, data_parent)
         overall_response = dlg.exec()
         if overall_response == 0:
-            print("CANCEL")
             return
-        print("FILE CHOSEN")
-        print(dlg.answer)
+        file_detail = dlg.answer["file"]
+        print(file_detail)
+        msg = handlers.download_file_version_to_memory(
+            self.curation.parent.api,
+            file_detail._id,
+            file_detail.currentVersion._id
+        )
+        if msg is False:
+            logger.warn("Unable to download; opening in browser instead.")
+            self._goto_url()
+        else:
+            logger.warn(
+                f"{msg}.  Be sure to save to disk if you want to keep the model."
+            )
 
 
 def get_pixmap_from_url(thumbnailUrl):
