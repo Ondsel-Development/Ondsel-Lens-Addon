@@ -2,6 +2,7 @@ import inspect
 from dataclasses import dataclass, field
 from enum import StrEnum
 
+import Utils
 from models.curation import Curation
 from models.file_detail import FileDetail
 from models.message import Message
@@ -65,19 +66,13 @@ class ShareLink:
         self.model = Model(**self.model)
         self.fileDetail = FileDetail(**self.fileDetail)
         self.curation = Curation(**self.curation)
-        if self.directSharedTo is not None:
-            self.directSharedTo = [UserSummary(**user) for user in self.directSharedTo]
+        self.directSharedTo = Utils.convert_to_class_list(
+            self.directSharedTo, UserSummary
+        )
 
     @classmethod
     def from_json(cls, json_data):
-        """makes forgiving of extra fields"""
-        return cls(
-            **{
-                k: v
-                for k, v in json_data.items()
-                if k in inspect.signature(cls).parameters
-            }
-        )
+        return Utils.import_json_forgiving_of_extra_fields(cls, json_data)
 
 
 class PublicShareLinkListModel(QAbstractListModel):

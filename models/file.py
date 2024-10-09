@@ -1,6 +1,6 @@
 import inspect
 from dataclasses import dataclass, field
-from typing import Optional, Any
+from typing import Optional
 
 import Utils
 from models.directory_summary import DirectorySummary
@@ -52,11 +52,4 @@ class File:
 
     @classmethod
     def from_json(cls, json_data):
-        """makes forgiving of extra fields"""
-        return cls(
-            **{
-                k: v
-                for k, v in json_data.items()
-                if k in inspect.signature(cls).parameters
-            }
-        )
+        return Utils.import_json_forgiving_of_extra_fields(cls, json_data)
