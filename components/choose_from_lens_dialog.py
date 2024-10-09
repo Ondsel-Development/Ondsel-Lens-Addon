@@ -1,5 +1,6 @@
 from APIClient import APICallResult
 from PySide import QtWidgets, QtGui
+from PySide import QtCore
 from PySide.QtWidgets import (
     QAbstractItemView,
     QLabel,
@@ -10,6 +11,7 @@ from PySide.QtWidgets import (
     QTableWidget,
 )
 import Utils
+from components.QTableWidgetWithKbReturnSupport import QTableWidgetWithKbReturnSupport
 from models.directory import Directory
 from models.directory_summary import DirectorySummary
 from models.file_summary import FileSummary
@@ -44,13 +46,13 @@ class ChooseFromLensDialog(QDialog):
         # buttons on bottom
         self.create_button_box()
         # workspaces pane (on the left)
-        self.workspaces_table = QTableWidget(0, 1)
+        self.workspaces_table = QTableWidgetWithKbReturnSupport(0, 1)
         self.current_workspace_index = 0
         self.workspace_items = []
         self.create_workspaces_table(workspace_ids)
         # explore pane (on the right)
         self.current_directory = None
-        self.explore_table = QTableWidget(0, 3)
+        self.explore_table = QTableWidgetWithKbReturnSupport(0, 3)
         self.current_explore_index = None
         self.explore_items = []
         self.create_explore_table()
@@ -75,7 +77,6 @@ class ChooseFromLensDialog(QDialog):
 
     def create_explore_table(self):
         self.explore_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.explore_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.explore_table.setHorizontalHeaderLabels(("", "Name", "Type"))
         self.explore_table.horizontalHeader().resizeSection(0, 8)
         self.explore_table.horizontalHeader().setSectionResizeMode(
@@ -204,7 +205,6 @@ class ChooseFromLensDialog(QDialog):
         self.workspaces_table.setSelectionBehavior(
             QtWidgets.QAbstractItemView.SelectRows
         )
-        self.workspaces_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.workspaces_table.setHorizontalHeaderLabels(("Workspaces",))
         self.workspaces_table.horizontalHeader().setSectionResizeMode(
             0, QtWidgets.QHeaderView.Stretch
