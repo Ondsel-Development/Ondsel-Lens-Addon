@@ -66,7 +66,9 @@ class ShareLink:
         self.model = Model(**self.model)
         self.fileDetail = FileDetail(**self.fileDetail)
         self.curation = Curation(**self.curation)
-        self.directSharedTo = Utils.convert_to_class_list(self.directSharedTo, UserSummary)
+        self.directSharedTo = Utils.convert_to_class_list(
+            self.directSharedTo, UserSummary
+        )
 
     @classmethod
     def from_json(cls, json_data):

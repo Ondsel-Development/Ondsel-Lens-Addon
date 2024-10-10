@@ -59,6 +59,7 @@ class APIClientOfflineException(APIClientException):
 
     pass
 
+
 class APIClientNotFoundException(APIClientException):
     """
     The API properly responded but returned a 404 not OK.
@@ -781,7 +782,9 @@ class APIClient:
         result = None
         try:
             result = self._request(endpoint)
-        except APIClientRequestException: # oddly, we get a 400 not a 404 (not found) or 403 (no permission)
+        except (
+            APIClientRequestException
+        ):  # oddly, we get a 400 not a 404 (not found) or 403 (no permission)
             params = {"publicInfo": "true"}
             result = self._request(endpoint, params=params)
         directory = Directory.from_json(result)
@@ -944,9 +947,11 @@ class APIClient:
             value, response = self.api.fancy_auth_call(self.api.getOrganization, org_id)
         """
         answer = None
+
         def internal_get_method():
             nonlocal answer
             answer = api_method(key)
+
         response = fancy_handle(internal_get_method)
         if response != APICallResult.OK:
             answer = None

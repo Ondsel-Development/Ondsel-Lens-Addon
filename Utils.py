@@ -326,12 +326,9 @@ def convert_to_class_list(json_list, cls):
         temp.append(cls(**data))
     return temp
 
+
 def import_json_forgiving_of_extra_fields(cls, json_data):
     """routine for dataclass that is forgiving of extra fields"""
     return cls(
-        **{
-            k: v
-            for k, v in json_data.items()
-            if k in inspect.signature(cls).parameters
-        }
+        **{k: v for k, v in json_data.items() if k in inspect.signature(cls).parameters}
     )

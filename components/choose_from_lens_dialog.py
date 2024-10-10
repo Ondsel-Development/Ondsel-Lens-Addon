@@ -1,5 +1,6 @@
 from APIClient import APICallResult
 from PySide import QtWidgets, QtGui
+from PySide import QtCore
 from PySide.QtWidgets import (
     QAbstractItemView,
     QLabel,
@@ -10,6 +11,7 @@ from PySide.QtWidgets import (
     QTableWidget,
 )
 import Utils
+from components.QTableWidgetWithKbReturnSupport import QTableWidgetWithKbReturnSupport
 from models.directory import Directory
 from models.directory_summary import DirectorySummary
 from models.file_summary import FileSummary
@@ -44,13 +46,13 @@ class ChooseFromLensDialog(QDialog):
         # buttons on bottom
         self.create_button_box()
         # workspaces pane (on the left)
-        self.workspaces_table = QTableWidget(0, 1)
+        self.workspaces_table = QTableWidgetWithKbReturnSupport(0, 1)
         self.current_workspace_index = 0
         self.workspace_items = []
         self.create_workspaces_table(workspace_ids)
         # explore pane (on the right)
         self.current_directory = None
-        self.explore_table = QTableWidget(0, 3)
+        self.explore_table = QTableWidgetWithKbReturnSupport(0, 3)
         self.current_explore_index = None
         self.explore_items = []
         self.create_explore_table()
@@ -75,7 +77,6 @@ class ChooseFromLensDialog(QDialog):
 
     def create_explore_table(self):
         self.explore_table.setSelectionBehavior(QtWidgets.QAbstractItemView.SelectRows)
-        self.explore_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.explore_table.setHorizontalHeaderLabels(("", "Name", "Type"))
         self.explore_table.horizontalHeader().resizeSection(0, 8)
         self.explore_table.horizontalHeader().setSectionResizeMode(
@@ -140,7 +141,7 @@ class ChooseFromLensDialog(QDialog):
             self.explore_table.setItem(row, 2, QtWidgets.QTableWidgetItem(type_name))
             self.explore_items.append(f)
 
-    def _append_back_folder(self, parentDirectory):
+    def _append_back_folder(self, parent_directory: DirectorySummary):
         row = self.explore_table.rowCount()
         self.explore_table.insertRow(row)
         folder_icon = QtWidgets.QTableWidgetItem()
@@ -148,22 +149,22 @@ class ChooseFromLensDialog(QDialog):
         self.explore_table.setItem(0, 0, folder_icon)
         self.explore_table.setItem(0, 1, QtWidgets.QTableWidgetItem(".."))
         self.explore_table.setItem(0, 2, QtWidgets.QTableWidgetItem(""))
-        self.explore_items.append(parentDirectory)
+        self.explore_items.append(parent_directory)
 
-    def open_directory_in_explore_pane(self, directorySummary):
+    def open_directory_in_explore_pane(self, directory_summary):
         self.explore_table.setRowCount(0)  # wipes the current entries out
         dir, resp = self.api.fancy_auth_call(
-            self.api.get_directory_including_public, directorySummary._id
+            self.api.get_directory_including_public, directory_summary._id
         )
         if resp != APICallResult.OK:  # a problem _shouldn't_ happen at this point
             logger.warn(
-                f"connection problem: {resp} on directory {directorySummary._id}"
+                f"connection problem: {resp} on directory {directory_summary._id}"
             )
             return
-        self.directory_stack.append(directorySummary)  # stack grows
+        self.directory_stack.append(directory_summary)  # stack grows
         self.current_directory = dir
         self.explore_items = []
-        self._append_back_folder(directorySummary)
+        self._append_back_folder(directory_summary)
         self._extend_explore_pane_with_directory(dir)
         self.current_explore_index = None
         self.refreshLocation()
@@ -172,19 +173,19 @@ class ChooseFromLensDialog(QDialog):
     def restore_parent_directory_in_explore_pane(self):
         self.explore_table.setRowCount(0)  # wipes the current entries out
         _ = self.directory_stack.pop()  # stack shrinks
-        directorySummary = self.directory_stack[-1]
+        directory_summary = self.directory_stack[-1]
         dir, resp = self.api.fancy_auth_call(
-            self.api.get_directory_including_public, directorySummary._id
+            self.api.get_directory_including_public, directory_summary._id
         )
         if resp != APICallResult.OK:  # a problem _shouldn't_ happen at this point
             logger.warn(
-                f"connection problem: {resp} on directory {directorySummary._id}"
+                f"connection problem: {resp} on directory {directory_summary._id}"
             )
             return
         self.current_directory = dir
         self.explore_items = []
         if len(self.directory_stack) >= 2:
-            self._append_back_folder(dir)
+            self._append_back_folder(directory_summary)
         self._extend_explore_pane_with_directory(dir)
         self.current_explore_index = None
         self.refreshLocation()
@@ -204,7 +205,6 @@ class ChooseFromLensDialog(QDialog):
         self.workspaces_table.setSelectionBehavior(
             QtWidgets.QAbstractItemView.SelectRows
         )
-        self.workspaces_table.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.workspaces_table.setHorizontalHeaderLabels(("Workspaces",))
         self.workspaces_table.horizontalHeader().setSectionResizeMode(
             0, QtWidgets.QHeaderView.Stretch

@@ -96,9 +96,7 @@ class CurationDisplayDelegate(QFrame):
         file_detail = dlg.answer["file"]
         print(file_detail)
         msg = handlers.download_file_version_to_memory(
-            self.curation.parent.api,
-            file_detail._id,
-            file_detail.currentVersion._id
+            self.curation.parent.api, file_detail._id, file_detail.currentVersion._id
         )
         if msg is False:
             logger.warn("Unable to download; opening in browser instead.")

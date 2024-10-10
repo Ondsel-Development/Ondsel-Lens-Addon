@@ -15,12 +15,8 @@ class Directory:
     createdBy: str = None  # ObjectId of User
     createdAt: int = None
     updatedAt: int = None
-    files: list[FileSummary] = field(
-        default_factory=list, repr=True
-    )
-    directories: list[DirectorySummary] = field(
-        default_factory=list, repr=True
-    )
+    files: list[FileSummary] = field(default_factory=list, repr=True)
+    directories: list[DirectorySummary] = field(default_factory=list, repr=True)
     parentDirectory: Optional[DirectorySummary] = None
     # 'workspace', 'createdBy', 'createdAt', and 'updatedAt' have defaults because omitted on "public" queries
 
@@ -30,7 +26,9 @@ class Directory:
         if self.parentDirectory:
             self.parentDirectory = DirectorySummary(**self.parentDirectory)
         self.files = Utils.convert_to_class_list(self.files, FileSummary)
-        self.directories = Utils.convert_to_class_list(self.directories, DirectorySummary)
+        self.directories = Utils.convert_to_class_list(
+            self.directories, DirectorySummary
+        )
 
     @classmethod
     def from_json(cls, json_data):

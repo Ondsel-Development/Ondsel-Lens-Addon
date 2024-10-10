@@ -19,8 +19,8 @@ class LicenseType(StrEnum):
 
 @dataclass(order=True)
 class WorkspaceDataClass:
-    """ On the API and DB, this model is simply called `Workspace` or `workspaces`. But to prevent confusion in
-    the add-on, it has been explicitly named `WorkspaceDataClass` here. """
+    """On the API and DB, this model is simply called `Workspace` or `workspaces`. But to prevent confusion in
+    the add-on, it has been explicitly named `WorkspaceDataClass` here."""
 
     _id: str
     name: str
@@ -32,9 +32,7 @@ class WorkspaceDataClass:
     organization: OrganizationSummary
     rootDirectory: DirectorySummary
     curation: Optional[Curation]
-    groupsOrUsers: list[GroupsOrUsers] = field(
-        default_factory=list, repr=True
-    )
+    groupsOrUsers: list[GroupsOrUsers] = field(default_factory=list, repr=True)
     refNameHash: int = 0
     license: Optional[LicenseType] = LicenseType.ARR
     createdBy: str = None
@@ -84,4 +82,3 @@ class WorkspaceDataClass:
     @classmethod
     def from_json(cls, json_data):
         return import_json_forgiving_of_extra_fields(cls, json_data)
-
