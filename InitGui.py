@@ -7,18 +7,20 @@
 import PySide.QtCore as QtCore
 import FreeCADGui as Gui
 
+import Utils
 from lens_command import (
-    LensCommand,
+    LensLauncherCommand,
     LensWorkbenchManipulator,
     start_mdi_tab,
     init_toolbar_icon,
-    ensure_mdi_tab,
+    ensure_mdi_tab, LensUploadAsCommand,
 )
 import integrations.reloadablefile.reloadable as reloadable
 import register_lens_handler
 
 
-Gui.addCommand("OndselLens_OndselLens", LensCommand())
+Gui.addCommand(Utils.LENS_LAUNCHER_NAME_COMMAND, LensLauncherCommand())
+Gui.addCommand(Utils.LENS_UPLOADAS_NAME_COMMAND, LensUploadAsCommand())
 Gui.addWorkbenchManipulator(LensWorkbenchManipulator())
 
 

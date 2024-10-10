@@ -25,6 +25,7 @@ icon_path = f"{mod_path}/Resources/icons/"
 local_package_path = f"{mod_path}/package.xml"
 icon_ondsel_path_connected = icon_path + "OndselWorkbench.svg"
 icon_ondsel_path_disconnected = icon_path + "OndselWorkbench-disconnected.svg"
+icon_uploadas_path = icon_path + "file-upload.svg"
 
 PARAM_GROUP = "User parameter:BaseApp/Ondsel"
 
@@ -32,10 +33,13 @@ URL_SCHEME = "ondsel"
 
 DEBUG_LEVEL = logging.INFO
 
-NAME_COMMAND = "OndselLens_OndselLens"
-ACCEL = "Ctrl+L"
-NAME_COMMAND_START = "Start_Start"
-LENS_TOOLBARITEM_TEXT = "Ondsel Lens Addon"
+LENS_LAUNCHER_NAME_COMMAND = "OndselLens_OndselLens"
+LENS_LAUNCHER_ACCEL = "Ctrl+L"
+LENS_LAUNCHER_MENU_TEXT = "Ondsel Lens Addon"
+
+LENS_UPLOADAS_NAME_COMMAND = "OndselLens_UploadAs"
+LENS_UPLOADAS_ACCEL = "Ctrl+Alt+S"
+LENS_UPLOADAS_MENU_TEXT = "Ondsel Upload As..."
 
 SIZE_PIXMAP = 128
 

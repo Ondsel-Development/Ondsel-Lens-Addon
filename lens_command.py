@@ -4,12 +4,12 @@ import FreeCADGui as Gui
 from PySide import QtGui, QtWidgets, QtCore
 
 
-class LensCommand:
+class LensLauncherCommand:
     def GetResources(self):
         return {
             "Pixmap": Utils.icon_ondsel_path_disconnected,
-            "Accel": "Ctrl+L",
-            "MenuText": Utils.LENS_TOOLBARITEM_TEXT,
+            "Accel": Utils.LENS_LAUNCHER_ACCEL,
+            "MenuText": Utils.LENS_LAUNCHER_MENU_TEXT,
             "ToolTip": "Show the Ondsel Lens Addon in an MDI view.",
         }
 
@@ -20,14 +20,36 @@ class LensCommand:
         return True
 
 
+class LensUploadAsCommand:
+    def GetResources(self):
+        return {
+            "Pixmap": Utils.icon_uploadas_path,
+            "Accel": Utils.LENS_UPLOADAS_ACCEL,
+            "MenuText": Utils.LENS_UPLOADAS_MENU_TEXT,
+            "ToolTip": "Upload the active document to a Workspace at Ondsel",
+        }
+
+    def Activated(self):
+        print("Upload As...")
+
+    def IsActive(self):
+        if Gui.ActiveDocument:
+            return True
+        return False
+
+
 class LensWorkbenchManipulator:
     def modifyMenuBar(self):
         return [
-            {"insert": Utils.NAME_COMMAND, "menuItem": "Std_WhatsThis", "after": ""}
+            {"insert": Utils.LENS_LAUNCHER_NAME_COMMAND, "menuItem": "Std_WhatsThis", "after": ""},
+            {"insert": Utils.LENS_UPLOADAS_NAME_COMMAND, "menuItem": "Std_SaveAs", "after": ""},
         ]
 
     def modifyToolBars(self):
-        return [{"append": Utils.NAME_COMMAND, "toolBar": "File"}]
+        return [
+            {"append": Utils.LENS_LAUNCHER_NAME_COMMAND, "toolBar": "File"},
+            {"append": Utils.LENS_UPLOADAS_NAME_COMMAND, "toolBar": "File"},
+        ]
 
 
 def find_subwindow(main_window):
