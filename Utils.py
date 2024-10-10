@@ -3,11 +3,12 @@
 # * Copyright (c) 2023 Ondsel                                           *
 # *                                                                     *
 # ***********************************************************************
-
+import inspect
 import os
 import math
 import re
 import logging
+import tempfile
 
 import zipfile
 import shutil
@@ -24,6 +25,7 @@ icon_path = f"{mod_path}/Resources/icons/"
 local_package_path = f"{mod_path}/package.xml"
 icon_ondsel_path_connected = icon_path + "OndselWorkbench.svg"
 icon_ondsel_path_disconnected = icon_path + "OndselWorkbench-disconnected.svg"
+icon_uploadas_path = icon_path + "file-upload.svg"
 
 PARAM_GROUP = "User parameter:BaseApp/Ondsel"
 
@@ -31,10 +33,13 @@ URL_SCHEME = "ondsel"
 
 DEBUG_LEVEL = logging.INFO
 
-NAME_COMMAND = "OndselLens_OndselLens"
-ACCEL = "Ctrl+L"
-NAME_COMMAND_START = "Start_Start"
-LENS_TOOLBARITEM_TEXT = "Ondsel Lens Addon"
+LENS_LAUNCHER_NAME_COMMAND = "OndselLens_OndselLens"
+LENS_LAUNCHER_ACCEL = "Ctrl+L"
+LENS_LAUNCHER_MENU_TEXT = "Ondsel Lens Addon"
+
+LENS_UPLOADAS_NAME_COMMAND = "OndselLens_UploadAs"
+LENS_UPLOADAS_ACCEL = "Ctrl+Alt+S"
+LENS_UPLOADAS_MENU_TEXT = "Ondsel Upload As..."
 
 SIZE_PIXMAP = 128
 
@@ -319,6 +324,15 @@ def version_greater_than(latestVersion, currentVersion):
 def convert_to_class_list(json_list, cls):
     """Converts a list of JSON objects into a list of Class objects"""
     temp = []
+    if json_list is None:
+        return json_list  # for Optional[list[cls]], leave a None as None
     for data in json_list:
         temp.append(cls(**data))
     return temp
+
+
+def import_json_forgiving_of_extra_fields(cls, json_data):
+    """routine for dataclass that is forgiving of extra fields"""
+    return cls(
+        **{k: v for k, v in json_data.items() if k in inspect.signature(cls).parameters}
+    )

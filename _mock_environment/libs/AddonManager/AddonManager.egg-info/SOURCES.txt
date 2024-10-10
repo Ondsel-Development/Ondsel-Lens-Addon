@@ -1,0 +1,10 @@
+pyproject.toml
+setup.cfg
+setup.py
+AddonManager/MockAddonManager.py
+AddonManager/__init__.py
+AddonManager.egg-info/PKG-INFO
+AddonManager.egg-info/SOURCES.txt
+AddonManager.egg-info/dependency_links.txt
+AddonManager.egg-info/requires.txt
+AddonManager.egg-info/top_level.txt

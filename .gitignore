@@ -9,3 +9,5 @@ Cache/
 *.FCStd
 *.FCBak
 .idea/
+venv/
+PySide/

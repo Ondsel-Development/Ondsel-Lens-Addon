@@ -2339,7 +2339,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     for button in allButtons:
                         allActions = button.actions()
                         if len(allActions) > 0:
-                            if allActions[0].text() == Utils.LENS_TOOLBARITEM_TEXT:
+                            if allActions[0].text() == Utils.LENS_LAUNCHER_MENU_TEXT:
                                 self.toolBarItemAction = allActions[0]
                                 return True
         return False
