@@ -85,7 +85,7 @@ class ChooseFromLensDialog(QDialog):
         self.setLayout(overall_layout)
         #
         self.timer = QtCore.QTimer(self)
-        self.timer.singleShot(10, self.populate_root_dir_in_explore_pane)
+        self.timer.singleShot(100, self.populate_root_dir_in_explore_pane)
 
     def current_workspace(self):
         """if the workspace has been pulled already, it simply returns it. Otherwise an API call is made"""
