@@ -83,19 +83,19 @@ class ChooseFromLensDialog(QDialog):
         overall_layout.addLayout(center_layout)
         overall_layout.addWidget(self.button_box)
         self.setLayout(overall_layout)
+        #
+        self.timer = QtCore.QTimer(self)
+        self.timer.singleShot(10, self.populate_root_dir_in_explore_pane)
 
     def current_workspace(self):
         """if the workspace has been pulled already, it simply returns it. Otherwise an API call is made"""
         ws = self.workspace_items[self.current_workspace_index]
         if ws is None:
-            with Utils.wait_cursor():
-                summary = self.workspace_summaries[self.current_workspace_index]
-                ws, resp = self.api.fancy_auth_call(
-                    self.api.get_workspace_including_public, summary.id
-                )
-            if (
-                resp != APICallResult.OK
-            ):  # a problem that _shouldn't_ happen at this point
+            summary = self.workspace_summaries[self.current_workspace_index]
+            ws, resp = self.api.fancy_auth_call(
+                self.api.get_workspace_including_public, summary.id
+            )
+            if resp != APICallResult.OK:
                 logger.error(f"connection problem: {resp} on workspace {summary.id}")
                 return None
             self.workspace_items[self.current_workspace_index] = ws
@@ -126,24 +126,27 @@ class ChooseFromLensDialog(QDialog):
         For the given workspace selected, refresh the contents of the explore pane.
         This function is run any time a new workspace is selected.
         """
-        workspace = self.current_workspace()
-        directorySummary = workspace.rootDirectory
-        self.explore_table.setRowCount(0)  # wipes the current entries out
-        dir, resp = self.api.fancy_auth_call(
-            self.api.get_directory_including_public, directorySummary._id
-        )
-        if resp != APICallResult.OK:  # a problem _shouldn't_ happen at this point
-            logger.warn(
-                f"connection problem: {resp} on directory {directorySummary._id}"
-            )
-            return
-        self.directory_stack = [dir]
-        self.current_directory = dir
-        self.explore_items = []
-        self._extend_explore_pane_with_directory(dir)
-        self.current_explore_index = None
-        self.refreshLocation()
-        self.btn_open.setDisabled(True)
+        with Utils.wait_cursor():
+            workspace = self.current_workspace()
+            if workspace is not None:
+                directorySummary = workspace.rootDirectory
+                self.explore_table.setRowCount(0)  # wipes the current entries out
+                self.directory_stack = []
+                dir, resp = self.api.fancy_auth_call(
+                    self.api.get_directory_including_public, directorySummary._id
+                )
+                if resp != APICallResult.OK:
+                    logger.error(
+                        f"connection problem: {resp} on directory {directorySummary._id}"
+                    )
+                else:
+                    self.directory_stack.append(dir)
+                    self.current_directory = dir
+                    self.explore_items = []
+                    self._extend_explore_pane_with_directory(dir)
+                self.current_explore_index = None
+                self.refreshLocation()
+                self.btn_open.setDisabled(True)
 
     def _extend_explore_pane_with_directory(self, dir):
         for d in dir.directories:
@@ -183,44 +186,46 @@ class ChooseFromLensDialog(QDialog):
         self.explore_items.append(parent_directory)
 
     def open_directory_in_explore_pane(self, directory_summary):
-        self.explore_table.setRowCount(0)  # wipes the current entries out
-        dir, resp = self.api.fancy_auth_call(
-            self.api.get_directory_including_public, directory_summary._id
-        )
-        if resp != APICallResult.OK:  # a problem _shouldn't_ happen at this point
-            logger.warn(
-                f"connection problem: {resp} on directory {directory_summary._id}"
+        with Utils.wait_cursor():
+            self.explore_table.setRowCount(0)  # wipes the current entries out
+            dir, resp = self.api.fancy_auth_call(
+                self.api.get_directory_including_public, directory_summary._id
             )
-            return
-        self.directory_stack.append(directory_summary)  # stack grows
-        self.current_directory = dir
-        self.explore_items = []
-        self._append_back_folder(directory_summary)
-        self._extend_explore_pane_with_directory(dir)
-        self.current_explore_index = None
-        self.refreshLocation()
-        self.btn_open.setDisabled(True)
+            if resp != APICallResult.OK:  # a problem _shouldn't_ happen at this point
+                logger.error(
+                    f"connection problem: {resp} on directory {directory_summary._id}"
+                )
+            else:
+                self.directory_stack.append(directory_summary)  # stack grows
+                self.current_directory = dir
+                self.explore_items = []
+                self._append_back_folder(directory_summary)
+                self._extend_explore_pane_with_directory(dir)
+            self.current_explore_index = None
+            self.refreshLocation()
+            self.btn_open.setDisabled(True)
 
     def restore_parent_directory_in_explore_pane(self):
-        self.explore_table.setRowCount(0)  # wipes the current entries out
-        _ = self.directory_stack.pop()  # stack shrinks
-        directory_summary = self.directory_stack[-1]
-        dir, resp = self.api.fancy_auth_call(
-            self.api.get_directory_including_public, directory_summary._id
-        )
-        if resp != APICallResult.OK:  # a problem _shouldn't_ happen at this point
-            logger.warn(
-                f"connection problem: {resp} on directory {directory_summary._id}"
+        with Utils.wait_cursor():
+            self.explore_table.setRowCount(0)  # wipes the current entries out
+            _ = self.directory_stack.pop()  # stack shrinks
+            directory_summary = self.directory_stack[-1]
+            dir, resp = self.api.fancy_auth_call(
+                self.api.get_directory_including_public, directory_summary._id
             )
-            return
-        self.current_directory = dir
-        self.explore_items = []
-        if len(self.directory_stack) >= 2:
-            self._append_back_folder(directory_summary)
-        self._extend_explore_pane_with_directory(dir)
-        self.current_explore_index = None
-        self.refreshLocation()
-        self.btn_open.setDisabled(True)
+            if resp != APICallResult.OK:  # a problem _shouldn't_ happen at this point
+                logger.error(
+                    f"connection problem: {resp} on directory {directory_summary._id}"
+                )
+            else:
+                self.current_directory = dir
+                self.explore_items = []
+                if len(self.directory_stack) >= 2:
+                    self._append_back_folder(directory_summary)
+                self._extend_explore_pane_with_directory(dir)
+            self.current_explore_index = None
+            self.refreshLocation()
+            self.btn_open.setDisabled(True)
 
     def create_workspaces_table(self):
         """populates the workspaces pane. this function is only designed to be run once at startup"""
@@ -242,6 +247,7 @@ class ChooseFromLensDialog(QDialog):
                 None
             )  # each entry is populated during selection
         self.current_workspace_index = 0
+        self.workspaces_table.selectRow(0)
         self.workspaces_table.cellClicked.connect(self.highlighted_workspace_pane_cell)
 
     def create_button_box(self):
@@ -263,20 +269,22 @@ class ChooseFromLensDialog(QDialog):
 
     def refreshLocation(self):
         ws = self.current_workspace()
-        item = self.current_explore_item()
-        route_name = ws.generic_prefix_name()
-        dir_path = "/"
-        if len(self.directory_stack) > 1:
-            dir_path += "/".join([d.name for d in self.directory_stack[1:]]) + "/"
-        if item is None:
-            text = f"{route_name}{dir_path}"
-        elif isinstance(item, FileSummary):
-            text = f"{route_name}{dir_path}{item.custFileName}"
-        else:
-            if self.directory_is_back_indicator(item):
+        text = "error detected. see Report View for details"
+        if ws is not None:
+            item = self.current_explore_item()
+            route_name = ws.generic_prefix_name()
+            dir_path = "/"
+            if len(self.directory_stack) > 1:
+                dir_path += "/".join([d.name for d in self.directory_stack[1:]]) + "/"
+            if item is None:
                 text = f"{route_name}{dir_path}"
+            elif isinstance(item, FileSummary):
+                text = f"{route_name}{dir_path}{item.custFileName}"
             else:
-                text = f"{route_name}{dir_path}{item.name}/"
+                if self.directory_is_back_indicator(item):
+                    text = f"{route_name}{dir_path}"
+                else:
+                    text = f"{route_name}{dir_path}{item.name}/"
         self.location_label.setText(text)
 
     def directory_is_back_indicator(self, dir):
