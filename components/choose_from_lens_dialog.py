@@ -15,6 +15,7 @@ from components.QTableWidgetWithKbReturnSupport import QTableWidgetWithKbReturnS
 from models.directory import Directory
 from models.directory_summary import DirectorySummary
 from models.file_summary import FileSummary
+from models.workspace_summary import WorkspaceSummary
 
 logger = Utils.getLogger(__name__)
 
@@ -24,16 +25,32 @@ class ChooseFromLensDialog(QDialog):
     CHOSEN = 1
 
     SELECT_FILE_ONLY = 0
+    SELECT_WS_DIR_FILENAME = 1
 
     folder_icon = QtGui.QIcon(Utils.icon_path + "folder.svg")
     document_icon = QtGui.QIcon(Utils.icon_path + "file-outline.svg")
 
-    def __init__(self, name, workspace_ids, data_parent, parent=None):
+    def __init__(
+        self,
+        workspace_summaries: list[WorkspaceSummary],
+        data_parent,
+        target=None,
+        parent=None,
+    ):
         super().__init__(parent)
         self.quit_on_close = False
         self.api = data_parent.api
-        conn_status = self.api.getStatus()
-        self.setWindowTitle(name)
+        if target is None:
+            self.target = self.SELECT_FILE_ONLY
+        else:
+            self.target = target
+        if self.target == self.SELECT_FILE_ONLY:
+            dialog_name = "Open file from a workspace"
+        elif self.target == self.SELECT_WS_DIR_FILENAME:
+            dialog_name = "Open a directory from a workspace"
+        else:
+            dialog_name = "unknown"
+        self.setWindowTitle(dialog_name)
         #
         self.directory_stack = []
         self.answer = {
@@ -42,21 +59,21 @@ class ChooseFromLensDialog(QDialog):
             "file": None,
         }
         # location at top
-        self.location_label = QLabel("location goes here")
+        self.location_label = QLabel("Choose a workspace")
         # buttons on bottom
         self.create_button_box()
         # workspaces pane (on the left)
         self.workspaces_table = QTableWidgetWithKbReturnSupport(0, 1)
         self.current_workspace_index = 0
         self.workspace_items = []
-        self.create_workspaces_table(workspace_ids)
+        self.workspace_summaries = workspace_summaries
+        self.create_workspaces_table()
         # explore pane (on the right)
         self.current_directory = None
         self.explore_table = QTableWidgetWithKbReturnSupport(0, 3)
         self.current_explore_index = None
         self.explore_items = []
         self.create_explore_table()
-        self.populate_root_dir_in_explore_pane()
         #
         center_layout = QHBoxLayout()
         center_layout.addWidget(self.workspaces_table, stretch=1)
@@ -68,7 +85,20 @@ class ChooseFromLensDialog(QDialog):
         self.setLayout(overall_layout)
 
     def current_workspace(self):
-        return self.workspace_items[self.current_workspace_index]
+        """if the workspace has been pulled already, it simply returns it. Otherwise an API call is made"""
+        ws = self.workspace_items[self.current_workspace_index]
+        if ws is None:
+            summary = self.workspace_summaries[self.current_workspace_index]
+            ws, resp = self.api.fancy_auth_call(
+                self.api.get_workspace_including_public, summary.id
+            )
+            if (
+                resp != APICallResult.OK
+            ):  # a problem that _shouldn't_ happen at this point
+                logger.error(f"connection problem: {resp} on workspace {summary.id}")
+                return None
+            self.workspace_items[self.current_workspace_index] = ws
+        return ws
 
     def current_explore_item(self):
         if self.current_explore_index is not None:
@@ -93,7 +123,7 @@ class ChooseFromLensDialog(QDialog):
     def populate_root_dir_in_explore_pane(self):
         """
         For the given workspace selected, refresh the contents of the explore pane.
-        This function is run during init and any time a new workspace is selected.
+        This function is run any time a new workspace is selected.
         """
         workspace = self.current_workspace()
         directorySummary = workspace.rootDirectory
@@ -191,17 +221,8 @@ class ChooseFromLensDialog(QDialog):
         self.refreshLocation()
         self.btn_open.setDisabled(True)
 
-    def create_workspaces_table(self, workspace_ids):
+    def create_workspaces_table(self):
         """populates the workspaces pane. this function is only designed to be run once at startup"""
-        self.workspace_items = []
-        for id in workspace_ids:
-            ws, resp = self.api.fancy_auth_call(
-                self.api.get_workspace_including_public, id
-            )
-            if resp != APICallResult.OK:  # a problem _shouldn't_ happen at this point
-                logger.warn(f"connection problem: {resp} on workspace {id}")
-                return
-            self.workspace_items.append(ws)
         self.workspaces_table.setSelectionBehavior(
             QtWidgets.QAbstractItemView.SelectRows
         )
@@ -211,11 +232,14 @@ class ChooseFromLensDialog(QDialog):
         )
         self.workspaces_table.verticalHeader().hide()
         self.workspaces_table.setShowGrid(False)
-        for ws in self.workspace_items:
-            ws_desc = f"{ws.describe_owner()} | {ws.name}"
+        for ws in self.workspace_summaries:
+            ws_desc = f"{ws.name} [{ws.refName}]"
             row = self.workspaces_table.rowCount()
             self.workspaces_table.insertRow(row)
             self.workspaces_table.setItem(row, 0, QtWidgets.QTableWidgetItem(ws_desc))
+            self.workspace_items.append(
+                None
+            )  # each entry is populated during selection
         self.current_workspace_index = 0
         self.workspaces_table.cellClicked.connect(self.highlighted_workspace_pane_cell)
 

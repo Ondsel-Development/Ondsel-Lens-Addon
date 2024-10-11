@@ -476,11 +476,20 @@ class APIClient:
 
     @authRequired
     def get_file_version_details(
-        self, file_id, version_id, allowPublicQuery=False
+        self, file_id, version_id, public=False
     ) -> (File, FileVersion):
         endpoint = f"file/{file_id}"
-        file_JSON = self._request(endpoint)
-        file = File.from_json(file_JSON)
+        if public:
+            params = {"publicInfo": "true"}  # yes, a string, not a bool
+            try:
+                file_json = self._request(endpoint, params=params)
+            except (
+                APIClientRequestException
+            ):  # if public fails, fall back to a private attempt
+                file_json = self._request(endpoint)
+        else:
+            file_json = self._request(endpoint)
+        file = File.from_json(file_json)
         version = None
         for ver in file.versions:
             if ver._id == version_id:

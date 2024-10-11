@@ -6,6 +6,7 @@ from models.nav_ref import NavRef
 from models.file_summary import FileSummary_CurationLimited
 from typing import Optional, Any
 from PySide.QtCore import Qt, QAbstractListModel
+from models.workspace_summary import WorkspaceSummary
 
 
 @dataclass(order=True)
@@ -58,6 +59,13 @@ class Curation:
         elif self.nav.target == "ondsel":
             url = None
         return url
+
+    def generateWorkspaceSummary(self, open: bool):
+        """create a WorkspaceSummary object for the current curation; as far as is practical"""
+        ws = WorkspaceSummary(
+            _id=self._id, name=self.name, refName=self.slug, open=open
+        )
+        return ws
 
     @classmethod
     def from_json(cls, json_data):

@@ -87,16 +87,17 @@ class CurationDisplayDelegate(QFrame):
 
     def _choose_one_file(self):
         data_parent = self.curation.parent
-        choose_name = f"Open file from the {self.curation.name} workspace"
-        workspace_list = [self.curation._id]
-        dlg = ChooseFromLensDialog(choose_name, workspace_list, data_parent)
+        workspace_list = [self.curation.generateWorkspaceSummary(True)]
+        dlg = ChooseFromLensDialog(workspace_list, data_parent)
         overall_response = dlg.exec()
         if overall_response == 0:
             return
         file_detail = dlg.answer["file"]
-        print(file_detail)
         msg = handlers.download_file_version_to_memory(
-            self.curation.parent.api, file_detail._id, file_detail.currentVersion._id
+            self.curation.parent.api,
+            file_detail._id,
+            file_detail.currentVersion._id,
+            True,
         )
         if msg is False:
             logger.warn("Unable to download; opening in browser instead.")
