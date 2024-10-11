@@ -12,11 +12,13 @@ import tempfile
 
 import zipfile
 import shutil
+from contextlib import contextmanager
 from urllib.parse import urlparse
 import requests
 
-from PySide.QtGui import QPixmap
+from PySide.QtGui import QPixmap, QCursor
 from PySide.QtCore import Qt
+from PySide.QtWidgets import QApplication
 
 import FreeCAD
 
@@ -332,3 +334,12 @@ def import_json_forgiving_of_extra_fields(cls, json_data):
     return cls(
         **{k: v for k, v in json_data.items() if k in inspect.signature(cls).parameters}
     )
+
+
+@contextmanager
+def wait_cursor():
+    try:
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        yield
+    finally:
+        QApplication.restoreOverrideCursor()

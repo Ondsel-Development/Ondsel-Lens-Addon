@@ -88,10 +88,11 @@ class ChooseFromLensDialog(QDialog):
         """if the workspace has been pulled already, it simply returns it. Otherwise an API call is made"""
         ws = self.workspace_items[self.current_workspace_index]
         if ws is None:
-            summary = self.workspace_summaries[self.current_workspace_index]
-            ws, resp = self.api.fancy_auth_call(
-                self.api.get_workspace_including_public, summary.id
-            )
+            with Utils.wait_cursor():
+                summary = self.workspace_summaries[self.current_workspace_index]
+                ws, resp = self.api.fancy_auth_call(
+                    self.api.get_workspace_including_public, summary.id
+                )
             if (
                 resp != APICallResult.OK
             ):  # a problem that _shouldn't_ happen at this point
