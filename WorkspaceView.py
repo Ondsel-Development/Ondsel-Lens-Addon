@@ -79,7 +79,7 @@ from PySide.QtGui import (
 
 from PySide.QtCore import QByteArray
 
-from PySide.QtWidgets import QTreeView
+from PySide.QtWidgets import QTreeView, QFrame
 
 from WorkspaceListDelegate import WorkspaceListDelegate
 
@@ -95,11 +95,12 @@ FILENAME_USER_CFG = "user.cfg"
 FILENAME_SYS_CFG = "system.cfg"
 PREFIX_PARAM_ROOT = "/Root/"
 
-IDX_TAB_WORKSPACES = 0
-IDX_TAB_ONDSEL_START = 1
-IDX_TAB_BOOKMARKS = 2
-IDX_TAB_SEARCH = 3
-IDX_TAB_PUBLIC_SHARES = 4
+IDX_TAB_ACCOUNT = 0
+IDX_TAB_WORKSPACES = 1
+IDX_TAB_ONDSEL_START = 2
+IDX_TAB_BOOKMARKS = 3
+IDX_TAB_SEARCH = 4
+IDX_TAB_PUBLIC_SHARES = 5
 
 PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
 
@@ -338,10 +339,12 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
         tabWidget = self.form.findChildren(QtGui.QTabWidget)[0]
         tabBar = tabWidget.tabBar()
+        self.tabBar = tabBar
+
         wsIcon = QtGui.QIcon(Utils.icon_path + "folder-multiple-outline.svg")
         tabBar.setTabIcon(IDX_TAB_WORKSPACES, wsIcon)
-        wsIcon = QtGui.QIcon(Utils.icon_path + "play-outline.svg")
-        tabBar.setTabIcon(IDX_TAB_ONDSEL_START, wsIcon)
+        osIcon = QtGui.QIcon(Utils.icon_path + "play-outline.svg")
+        tabBar.setTabIcon(IDX_TAB_ONDSEL_START, osIcon)
         bookmarkIcon = QtGui.QIcon(Utils.icon_path + "bookmark-outline.svg")
         tabBar.setTabIcon(IDX_TAB_BOOKMARKS, bookmarkIcon)
         searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
@@ -352,7 +355,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.setWidget(self.form)
         self.setWindowTitle("Ondsel Lens")
 
-        self.createOndselButtonMenus()
+        # self.createOndselButtonMenus()
 
         self.ondselIcon = QIcon(Utils.icon_path + "OndselWorkbench.svg")
         self.ondselIconDisconnected = QIcon(
@@ -361,10 +364,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.ondselIconLoggedOut = QIcon(
             Utils.icon_path + "OndselWorkbench-loggedout.svg"
         )
-        self.form.userBtn.setIconSize(QtCore.QSize(32, 32))
-        self.form.userBtn.setToolButtonStyle(QtCore.Qt.ToolButtonTextBesideIcon)
-        self.form.userBtn.clicked.connect(self.form.userBtn.showMenu)
-        self.form.backToStartBtn.hide()
 
         self.form.buttonBack.clicked.connect(self.backClicked)
 
@@ -439,6 +438,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.txtExplain.setHtml(explainText)
         self.form.txtExplain.setReadOnly(True)
         self.form.txtExplain.hide()
+
+        # initialize account tab
+        self.initializeAccountTab()
 
         # initialize ondsel-start tab
         self.initializeOndselStart()
@@ -533,59 +535,119 @@ class WorkspaceView(QtWidgets.QScrollArea):
     #     token = jwt.encode(payload, secret_key, algorithm="HS256")
     #     return token
 
-    def createOndselButtonMenus(self):
-        # Ondsel Button's menu when logged in
-        self.userMenu = QMenu(self.form.userBtn)
-        userActions = QActionGroup(self.userMenu)
+    def initializeAccountTab(self):
 
-        a = QAction("Visit Ondsel Lens", userActions)
-        a.triggered.connect(self.ondselAccount)
-        self.userMenu.addAction(a)
+        self.general_account_menu = QtWidgets.QStackedWidget()
 
-        # self.synchronizeAction = QAction("Synchronize", userActions)
-        # self.synchronizeAction.setVisible(False)
-        # self.userMenu.addAction(self.synchronizeAction)
+        # CONNECTED
+        connected_menu = QtWidgets.QWidget()
+        connected_layout = QtWidgets.QVBoxLayout()
+        visit_ondsel_lens = QtWidgets.QPushButton("Visit Ondsel Lens")
+        visit_ondsel_lens.clicked.connect(self.ondselAccount)
+        connected_layout.addWidget(visit_ondsel_lens)
+        settings_label = QtWidgets.QLabel("Settings")
+        connected_layout.addWidget(settings_label)
+        clear_cache_action = QtWidgets.QLabel("Clear Cache on logout")
+        connected_layout.addWidget(clear_cache_action)
+        preferences_label = QtWidgets.QLabel("Preferences")
+        connected_layout.addWidget(preferences_label)
+        download_onsel_prefs_action = QtWidgets.QLabel(
+            "Download Ondsel ES default preferences"
+        )
+        connected_layout.addWidget(download_onsel_prefs_action)
+        logout = QtWidgets.QPushButton("Log out")
+        logout.clicked.connect(self.logout)
+        connected_layout.addWidget(logout)
+        connected_menu.setLayout(connected_layout)
 
-        # Prefer to do this in the dashboard
-        # self.newWorkspaceAction = QAction("Add new workspace", userActions)
-        # self.newWorkspaceAction.triggered.connect(self.newWorkspaceBtnClicked)
-        # self.userMenu.addAction(self.newWorkspaceAction)
+
+        logged_out_menu = QtWidgets.QWidget()
+        logged_out_layout = QtWidgets.QVBoxLayout()
+        login_button = QtWidgets.QPushButton("Login")
+        login_button.clicked.connect(self.login_btn_clicked)
+        logged_out_layout.addWidget(login_button)
+        signup_button = QtWidgets.QPushButton("Sign Up")
+        signup_button.clicked.connect(self.showOndselSignUpPage)
+        logged_out_layout.addWidget(signup_button)
+        logged_out_menu.setLayout(logged_out_layout)
+
+        disconnected_menu = QtWidgets.QWidget()
+        disconnected_layout = QtWidgets.QVBoxLayout()
+        not_connected_label = QtWidgets.QLabel("Not Connected to Internet")
+        disconnected_layout.addWidget(not_connected_label)
+        disconnected_menu.setLayout(disconnected_layout)
+
+        self.general_account_menu.addWidget(connected_menu) # 0
+        self.general_account_menu.addWidget(logged_out_menu) # 1
+        self.general_account_menu.addWidget(disconnected_menu) # 2
+        general_account_layout = QtWidgets.QVBoxLayout()
+        general_account_layout.addWidget(self.general_account_menu)
+        self.form.accountFrame.setLayout(general_account_layout)
+
+
+    def accountTabSetLayout(self):
+        status = self.api.status
+        if status == ConnStatus.CONNECTED:
+            self.general_account_menu.setCurrentIndex(0)
+        elif status == ConnStatus.LOGGED_OUT:
+            self.general_account_menu.setCurrentIndex(1)
+        elif status == ConnStatus.DISCONNECTED:
+            self.general_account_menu.setCurrentIndex(2)
+
+
+
+        # self.form.accountFrame.setLayout(self.userMenuLayout)
+
+        # self.userMenu = QMenu(self.form.accountFrame)
+
+        #
+        #
+        # userActions = QActionGroup(self.userMenu)
+
+
+        # a.triggered.connect(self.ondselAccount)
+        # self.userMenu.addAction(a)
 
         # Settings
-        submenuSettings = QMenu("Settings", self.userMenu)
-        clearCacheAction = QAction("Clear Cache on logout", submenuSettings)
-        clearCacheAction.setCheckable(True)
-        clearCacheAction.setChecked(p.GetBool("clearCache", False))
-        clearCacheAction.triggered.connect(lambda state: p.SetBool("clearCache", state))
-        submenuSettings.addAction(clearCacheAction)
-        self.userMenu.addMenu(submenuSettings)
+        # submenuSettings = QMenu("Settings", self.userMenu)
+        # clearCacheAction = QAction("Clear Cache on logout", submenuSettings)
+        # clearCacheAction.setCheckable(True)
+        # clearCacheAction.setChecked(p.GetBool("clearCache", False))
+        # clearCacheAction.triggered.connect(lambda state: p.SetBool("clearCache", state))
+        # submenuSettings.addAction(clearCacheAction)
+        # self.userMenu.addMenu(submenuSettings)
 
-        submenuPrefs = QMenu("Preferences", self.userMenu)
-        downloadOnselPrefsAction = QAction(
-            "Download Ondsel ES default preferences", submenuPrefs
-        )
-        downloadOnselPrefsAction.setEnabled(FreeCAD.ConfigGet("ExeVendor") == "Ondsel")
-        downloadOnselPrefsAction.triggered.connect(self.downloadOndselDefaultPrefs)
-        submenuPrefs.addAction(downloadOnselPrefsAction)
-        self.userMenu.addMenu(submenuPrefs)
+        # submenuPrefs = QMenu("Preferences", self.userMenu)
+        # downloadOnselPrefsAction = QAction(
+        #     "Download Ondsel ES default preferences", submenuPrefs
+        # )
+        # downloadOnselPrefsAction.setEnabled(FreeCAD.ConfigGet("ExeVendor") == "Ondsel")
+        # downloadOnselPrefsAction.triggered.connect(self.downloadOndselDefaultPrefs)
+        # submenuPrefs.addAction(downloadOnselPrefsAction)
+        # self.userMenu.addMenu(submenuPrefs)
 
-        a4 = QAction("Log out", userActions)
-        a4.triggered.connect(self.logout)
-        self.userMenu.addAction(a4)
+        # a4 = QAction("Log out", userActions)
+        # a4.triggered.connect(self.logout)
+        # self.userMenu.addAction(a4)
 
         # Ondsel Button's menu when user not logged in
-        self.guestMenu = QMenu(self.form.userBtn)
-        guestActions = QActionGroup(self.guestMenu)
+        # self.guestMenu = QMenu(self.form.accountFrame)
+        # guestActions = QActionGroup(self.guestMenu)
 
-        a5 = QAction("Login", guestActions)
-        a5.triggered.connect(self.login_btn_clicked)
-        self.guestMenu.addAction(a5)
 
-        a6 = QAction("Sign up", guestActions)
-        a6.triggered.connect(self.showOndselSignUpPage)
-        self.guestMenu.addAction(a6)
+
+        # a5 = QAction("Login", guestActions)
+        # a5.triggered.connect(self.login_btn_clicked)
+        # self.guestMenu.addAction(a5)
+        #
+        # a6 = QAction("Sign up", guestActions)
+        # a6.triggered.connect(self.showOndselSignUpPage)
+        # self.guestMenu.addAction(a6)
 
         # self.guestMenu.addAction(self.newWorkspaceAction)
+
+
+
 
     # ####
     # Authentication
@@ -803,14 +865,12 @@ class WorkspaceView(QtWidgets.QScrollArea):
         status = self.api.status
         status_txt = "Starting Up"
         name = self.api.getNameUser()
-        menu = self.guestMenu
         icon = self.ondselIconDisconnected
 
         if self.toolBarItemAction is None:
             self.find_our_toolbaritem_action()
 
         if status == ConnStatus.CONNECTED or status == ConnStatus.DISCONNECTED:
-            menu = self.userMenu
             login_data = self.get_login_data()
             user = login_data.get("user", {})
             users_name = user.get("name", "?")
@@ -827,10 +887,10 @@ class WorkspaceView(QtWidgets.QScrollArea):
             icon = self.ondselIconLoggedOut
             status_txt = "Logged Out"
 
-        return status, status_txt, name, menu, icon
+        return status, status_txt, name, icon
 
     def set_ui_connectionStatus(self):
-        status, status_txt, name, menu, icon = self.get_status_name_menu_and_icon()
+        status, status_txt, name, icon = self.get_status_name_menu_and_icon()
         if self.toolBarItemAction is not None:
             tool_tip = (
                 "<p style='white-space:pre; margin-bottom:0.5em;'>"
@@ -842,16 +902,10 @@ class WorkspaceView(QtWidgets.QScrollArea):
             )
             self.toolBarItemAction.setToolTip(tool_tip)
             self.toolBarItemAction.setIcon(icon)
-        if status is None:
-            self.form.userBtn.setText("(starting)")
-        elif status == ConnStatus.LOGGED_OUT:
-            self.form.userBtn.setText(name)  # api says "Local" when logged out
-        elif status == ConnStatus.CONNECTED:
-            self.form.userBtn.setText(name)
-        else:  # DISCONNECTED
-            self.form.userBtn.setText(name + " (disconnected)")
-        self.form.userBtn.setIcon(icon)
-        self.form.userBtn.setMenu(menu)
+        self.tabBar.setTabIcon(IDX_TAB_ACCOUNT, icon)
+        self.tabBar.setTabText(IDX_TAB_ACCOUNT, name)
+        self.accountTabSetLayout()
+
 
     def enterWorkspace(self, index):
         logger.debug("entering workspace")
