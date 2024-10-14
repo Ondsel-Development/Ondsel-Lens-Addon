@@ -411,9 +411,15 @@
         <layout class="QHBoxLayout" name="horizontalLayout_3">
          <item>
           <widget class="QFrame" name="ondselPromotionsFrame">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+             <horstretch>3</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
            <property name="minimumSize">
             <size>
-             <width>500</width>
+             <width>480</width>
              <height>0</height>
             </size>
            </property>
@@ -427,7 +433,20 @@
           </widget>
          </item>
          <item>
-          <widget class="QTextBrowser" name="ondselHomePageTextBrowser"/>
+          <widget class="QTextBrowser" name="ondselHomePageTextBrowser">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Minimum" vsizetype="Expanding">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>240</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
          </item>
         </layout>
        </item>
