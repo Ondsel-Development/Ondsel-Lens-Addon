@@ -57,6 +57,7 @@ from Workspace import (
     ServerWorkspaceModel,
     FileStatus,
 )
+from markdown import markdown_to_html
 from views.ondsel_promotions_view import OndselPromotionsView
 from views.public_shares_view import PublicSharesView
 
@@ -473,7 +474,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         org = self.form.ondselPromotionsScrollArea.ondsel_org
         if org is not None:
             markdown = org["curation"]["longDescriptionMd"]
-            html = mistune.html(markdown)
+            html = markdown_to_html(markdown)
         self.form.ondselHomePageTextBrowser.setHtml(html)
         self.form.ondselPromotionsFrame.layout().addWidget(
             self.form.ondselPromotionsScrollArea
