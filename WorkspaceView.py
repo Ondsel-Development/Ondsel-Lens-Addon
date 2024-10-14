@@ -23,8 +23,6 @@ from inspect import cleandoc
 import jwt
 from jwt.exceptions import ExpiredSignatureError
 
-import mistune
-
 import handlers
 from PySide import QtCore, QtGui, QtWidgets
 from PySide.QtGui import QStandardItemModel
