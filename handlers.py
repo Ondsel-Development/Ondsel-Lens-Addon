@@ -39,14 +39,14 @@ def download_shared_model_to_memory(api, id_shared_model):
     return f"Done downloading file '{real_filename}'"
 
 
-def download_file_version_to_memory(api, file_id, version_id):
+def download_file_version_to_memory(api, file_id, version_id, public):
     unique_filename = None
     real_filename = None
 
     def get_file_detail():
         nonlocal unique_filename, real_filename
         file_detail, version_detail = api.get_file_version_details(
-            file_id, version_id, True
+            file_id, version_id, public
         )
         unique_filename = version_detail.uniqueFileName
         real_filename = file_detail.custFileName

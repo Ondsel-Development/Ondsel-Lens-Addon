@@ -3,19 +3,22 @@
 # * Copyright (c) 2023 Ondsel                                           *
 # *                                                                     *
 # ***********************************************************************
-
+import inspect
 import os
 import math
 import re
 import logging
+import tempfile
 
 import zipfile
 import shutil
+from contextlib import contextmanager
 from urllib.parse import urlparse
 import requests
 
-from PySide.QtGui import QPixmap
+from PySide.QtGui import QPixmap, QCursor
 from PySide.QtCore import Qt
+from PySide.QtWidgets import QApplication
 
 import FreeCAD
 
@@ -319,6 +322,24 @@ def version_greater_than(latestVersion, currentVersion):
 def convert_to_class_list(json_list, cls):
     """Converts a list of JSON objects into a list of Class objects"""
     temp = []
+    if json_list is None:
+        return json_list  # for Optional[list[cls]], leave a None as None
     for data in json_list:
         temp.append(cls(**data))
     return temp
+
+
+def import_json_forgiving_of_extra_fields(cls, json_data):
+    """routine for dataclass that is forgiving of extra fields"""
+    return cls(
+        **{k: v for k, v in json_data.items() if k in inspect.signature(cls).parameters}
+    )
+
+
+@contextmanager
+def wait_cursor():
+    try:
+        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
+        yield
+    finally:
+        QApplication.restoreOverrideCursor()

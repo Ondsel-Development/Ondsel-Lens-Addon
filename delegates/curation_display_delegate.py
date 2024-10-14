@@ -9,6 +9,8 @@ from PySide.QtGui import QPixmap, QFrame, QIcon
 from PySide.QtCore import Qt, QThread, QObject, Signal, QSize
 
 from components.choose_download_action_dialog import ChooseDownloadActionDialog
+from components.choose_from_lens_dialog import ChooseFromLensDialog
+from components.choose_workspace_action_dialog import ChooseWorkspaceActionDialog
 
 logger = Utils.getLogger(__name__)
 
@@ -54,16 +56,25 @@ class CurationDisplayDelegate(QFrame):
                 if dlg.answer == ChooseDownloadActionDialog.OPEN_ON_WEB:
                     self._goto_url()
                 elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
-                    downloaded_filename = handlers.download_shared_model_to_memory(
+                    msg = handlers.download_shared_model_to_memory(
                         self.curation.parent.api, str(self.curation._id)
                     )
-                    if downloaded_filename is False:
+                    if msg is False:
                         logger.warn("Unable to download; opening in browser instead.")
                         self._goto_url()
                     else:
                         logger.warn(
-                            f"Downloaded {downloaded_filename} into memory. Be sure to save to disk if you want to keep the model."
+                            f"{msg}. Be sure to save to disk if you want to keep the model."
                         )
+        elif self.curation.collection == "workspaces":
+            data_parent = self.curation.parent
+            dlg = ChooseWorkspaceActionDialog(self.curation.name, data_parent)
+            overall_response = dlg.exec()
+            if overall_response != 0:
+                if dlg.answer == ChooseWorkspaceActionDialog.OPEN_ON_WEB:
+                    self._goto_url()
+                elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
+                    self._choose_one_file()
         else:
             self._goto_url()
 
@@ -73,6 +84,28 @@ class CurationDisplayDelegate(QFrame):
         logger.info(f"open {url}")
         if not webbrowser.open(url):
             logger.warn(f"Failed to open {url} in the browser")
+
+    def _choose_one_file(self):
+        data_parent = self.curation.parent
+        workspace_list = [self.curation.generateWorkspaceSummary(True)]
+        dlg = ChooseFromLensDialog(workspace_list, data_parent)
+        overall_response = dlg.exec()
+        if overall_response == 0:
+            return
+        file_detail = dlg.answer["file"]
+        msg = handlers.download_file_version_to_memory(
+            self.curation.parent.api,
+            file_detail._id,
+            file_detail.currentVersion._id,
+            True,
+        )
+        if msg is False:
+            logger.warn("Unable to download; opening in browser instead.")
+            self._goto_url()
+        else:
+            logger.warn(
+                f"{msg}.  Be sure to save to disk if you want to keep the model."
+            )
 
 
 def get_pixmap_from_url(thumbnailUrl):
