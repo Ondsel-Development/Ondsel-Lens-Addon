@@ -181,6 +181,12 @@ class ReloadableObject:
         if not self.is_valid_url(url):
             return
 
+        if Utils.is_share_link(url):
+            # Add suffix to get the step file directly
+            url = url + "/download"
+
+        logger.debug(f"url: {url}")
+
         try:
             response = requests.get(url)
             response.raise_for_status()
