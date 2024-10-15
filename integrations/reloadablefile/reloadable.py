@@ -31,6 +31,7 @@ import datetime
 import os
 import requests
 import tempfile
+import re
 
 logger = Utils.getLogger(__name__)
 
@@ -159,6 +160,21 @@ class ReloadableObject:
         else:
             pass
 
+    def determine_name_file(self, url, content_disposition):
+        """Determine the name for the file.
+
+        The url is used as backup, but if there is a filename in the content
+        disposition header, we use that.
+        """
+        name_file = os.path.basename(url)
+
+        if content_disposition:
+            matches_filename = re.findall(r'filename="(.+)"', content_disposition)
+            if matches_filename:
+                name_file = matches_filename[0]
+
+        return name_file
+
     def set_object_to_url(self, obj):
         url = obj.FileUrl
 
@@ -168,12 +184,17 @@ class ReloadableObject:
         try:
             response = requests.get(url)
             response.raise_for_status()
-            content_type = response.headers.get("Content-Type")
-            if content_type != "text/plain; charset=utf-8":
-                logger.warn(f"URL {url} does not point to a STEP file")
-                return
+            # There are different viewpoints on what the content type should
+            # be.  Currently we allow all content types and the code below is
+            # commented out.
 
-            name_file = os.path.basename(url)
+            # content_type = response.headers.get("Content-Type")
+            # if content_type != "text/plain; charset=utf-8":
+            #     logger.warn(f"URL {url} does not point to a STEP file")
+            #     return
+            name_file = self.determine_name_file(
+                url, response.headers.get("Content-Disposition")
+            )
 
             with tempfile.TemporaryDirectory() as temp_dir:
                 path_file = os.path.join(temp_dir, name_file)
