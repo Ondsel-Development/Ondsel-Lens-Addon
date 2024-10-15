@@ -2483,7 +2483,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
             message = handlers.download_shared_model_to_memory(self.api, id1)
             logger.info(message)
         else:
-            message = handlers.download_file_version_to_memory(self.api, id1, id2)
+            message = handlers.download_file_version_to_memory(self.api, id1, id2, True)
             logger.info(message)
 
 

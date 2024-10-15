@@ -1,3 +1,4 @@
+import Utils
 from PySide.QtCore import Qt
 from PySide.QtGui import (
     QApplication,
@@ -43,24 +44,23 @@ class SearchResultsView(QFlowView):
                     self.parent
                 )  # this gives live api access to the item delegate
 
-        QApplication.setOverrideCursor(QCursor(Qt.WaitCursor))
-        api_result = fancy_handle(do_search)
-        if api_result == APICallResult.OK:
-            self.curationListModel.curation_list = resulting_curations
-            if len(resulting_curations) == 0:
-                self.parent.form.searchResultMessageLabel.setText("no results")
-            else:
-                self.parent.form.searchResultMessageLabel.setText("")
+        with Utils.wait_cursor():
+            api_result = fancy_handle(do_search)
+            if api_result == APICallResult.OK:
+                self.curationListModel.curation_list = resulting_curations
+                if len(resulting_curations) == 0:
+                    self.parent.form.searchResultMessageLabel.setText("no results")
+                else:
+                    self.parent.form.searchResultMessageLabel.setText("")
+                    self.curationListModel.layoutChanged.emit()
+
+            elif api_result == APICallResult.DISCONNECTED:
+                self.parent.form.searchResultMessageLabel.setText("offline")
+                self.curationListModel.curation_list = []
                 self.curationListModel.layoutChanged.emit()
 
-        elif api_result == APICallResult.DISCONNECTED:
-            self.parent.form.searchResultMessageLabel.setText("offline")
-            self.curationListModel.curation_list = []
-            self.curationListModel.layoutChanged.emit()
-
-        else:
-            # because search is public, .NOT_LOGGED_IN will never happen
-            self.parent.form.searchResultMessageLabel.setText("unexpected error")
-            self.curationListModel.curation_list = []
-            self.curationListModel.layoutChanged.emit()
-        QApplication.restoreOverrideCursor()
+            else:
+                # because search is public, .NOT_LOGGED_IN will never happen
+                self.parent.form.searchResultMessageLabel.setText("unexpected error")
+                self.curationListModel.curation_list = []
+                self.curationListModel.layoutChanged.emit()
