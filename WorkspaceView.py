@@ -545,22 +545,33 @@ class WorkspaceView(QtWidgets.QScrollArea):
         visit_ondsel_lens = QtWidgets.QPushButton("Visit Ondsel Lens")
         visit_ondsel_lens.clicked.connect(self.ondselAccount)
         connected_layout.addWidget(visit_ondsel_lens)
-        settings_label = QtWidgets.QLabel("Settings")
-        connected_layout.addWidget(settings_label)
-        clear_cache_action = QtWidgets.QLabel("Clear Cache on logout")
-        connected_layout.addWidget(clear_cache_action)
-        preferences_label = QtWidgets.QLabel("Preferences")
-        connected_layout.addWidget(preferences_label)
-        download_onsel_prefs_action = QtWidgets.QLabel(
+        download_ondsel_prefs_action = QtWidgets.QPushButton(
             "Download Ondsel ES default preferences"
         )
-        connected_layout.addWidget(download_onsel_prefs_action)
+        download_ondsel_prefs_action.clicked.connect(self.downloadOndselDefaultPrefs)
+        connected_layout.addWidget(download_ondsel_prefs_action)
         logout = QtWidgets.QPushButton("Log out")
         logout.clicked.connect(self.logout)
         connected_layout.addWidget(logout)
+        #
+        settings_frame = QtWidgets.QGroupBox("Settings")
+        settings_layout = QtWidgets.QVBoxLayout()
+        clear_cache_action = QtWidgets.QCheckBox("Clear Cache on logout")
+        clear_cache_action.setChecked(p.GetBool("clearCache", False))
+        clear_cache_action.stateChanged.connect(
+            lambda state: p.SetBool("clearCache", state)
+        )
+        settings_layout.addWidget(clear_cache_action)
+        settings_frame.setLayout(settings_layout)
+        connected_layout.addWidget(settings_frame)
+        #
+        connected_vertical_spacer = QtWidgets.QSpacerItem(
+            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+        )
+        connected_layout.addItem(connected_vertical_spacer)
         connected_menu.setLayout(connected_layout)
 
-
+        # LOGGED OUT
         logged_out_menu = QtWidgets.QWidget()
         logged_out_layout = QtWidgets.QVBoxLayout()
         login_button = QtWidgets.QPushButton("Login")
@@ -569,21 +580,26 @@ class WorkspaceView(QtWidgets.QScrollArea):
         signup_button = QtWidgets.QPushButton("Sign Up")
         signup_button.clicked.connect(self.showOndselSignUpPage)
         logged_out_layout.addWidget(signup_button)
+        logged_out_vertical_spacer = QtWidgets.QSpacerItem(
+            20, 40, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding
+        )
+        logged_out_layout.addItem(logged_out_vertical_spacer)
         logged_out_menu.setLayout(logged_out_layout)
 
+        # DISCONNECTED
         disconnected_menu = QtWidgets.QWidget()
         disconnected_layout = QtWidgets.QVBoxLayout()
         not_connected_label = QtWidgets.QLabel("Not Connected to Internet")
         disconnected_layout.addWidget(not_connected_label)
         disconnected_menu.setLayout(disconnected_layout)
 
-        self.general_account_menu.addWidget(connected_menu) # 0
-        self.general_account_menu.addWidget(logged_out_menu) # 1
-        self.general_account_menu.addWidget(disconnected_menu) # 2
+        # Place it all under a Stacked Widget
+        self.general_account_menu.addWidget(connected_menu)  # 0
+        self.general_account_menu.addWidget(logged_out_menu)  # 1
+        self.general_account_menu.addWidget(disconnected_menu)  # 2
         general_account_layout = QtWidgets.QVBoxLayout()
         general_account_layout.addWidget(self.general_account_menu)
         self.form.accountFrame.setLayout(general_account_layout)
-
 
     def accountTabSetLayout(self):
         status = self.api.status
@@ -593,61 +609,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
             self.general_account_menu.setCurrentIndex(1)
         elif status == ConnStatus.DISCONNECTED:
             self.general_account_menu.setCurrentIndex(2)
-
-
-
-        # self.form.accountFrame.setLayout(self.userMenuLayout)
-
-        # self.userMenu = QMenu(self.form.accountFrame)
-
-        #
-        #
-        # userActions = QActionGroup(self.userMenu)
-
-
-        # a.triggered.connect(self.ondselAccount)
-        # self.userMenu.addAction(a)
-
-        # Settings
-        # submenuSettings = QMenu("Settings", self.userMenu)
-        # clearCacheAction = QAction("Clear Cache on logout", submenuSettings)
-        # clearCacheAction.setCheckable(True)
-        # clearCacheAction.setChecked(p.GetBool("clearCache", False))
-        # clearCacheAction.triggered.connect(lambda state: p.SetBool("clearCache", state))
-        # submenuSettings.addAction(clearCacheAction)
-        # self.userMenu.addMenu(submenuSettings)
-
-        # submenuPrefs = QMenu("Preferences", self.userMenu)
-        # downloadOnselPrefsAction = QAction(
-        #     "Download Ondsel ES default preferences", submenuPrefs
-        # )
-        # downloadOnselPrefsAction.setEnabled(FreeCAD.ConfigGet("ExeVendor") == "Ondsel")
-        # downloadOnselPrefsAction.triggered.connect(self.downloadOndselDefaultPrefs)
-        # submenuPrefs.addAction(downloadOnselPrefsAction)
-        # self.userMenu.addMenu(submenuPrefs)
-
-        # a4 = QAction("Log out", userActions)
-        # a4.triggered.connect(self.logout)
-        # self.userMenu.addAction(a4)
-
-        # Ondsel Button's menu when user not logged in
-        # self.guestMenu = QMenu(self.form.accountFrame)
-        # guestActions = QActionGroup(self.guestMenu)
-
-
-
-        # a5 = QAction("Login", guestActions)
-        # a5.triggered.connect(self.login_btn_clicked)
-        # self.guestMenu.addAction(a5)
-        #
-        # a6 = QAction("Sign up", guestActions)
-        # a6.triggered.connect(self.showOndselSignUpPage)
-        # self.guestMenu.addAction(a6)
-
-        # self.guestMenu.addAction(self.newWorkspaceAction)
-
-
-
 
     # ####
     # Authentication
@@ -905,7 +866,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.tabBar.setTabIcon(IDX_TAB_ACCOUNT, icon)
         self.tabBar.setTabText(IDX_TAB_ACCOUNT, name)
         self.accountTabSetLayout()
-
 
     def enterWorkspace(self, index):
         logger.debug("entering workspace")
