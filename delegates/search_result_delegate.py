@@ -2,13 +2,12 @@ from PySide import QtGui
 from PySide.QtGui import (
     QCursor,
 )
-from PySide.QtCore import Qt, QSize
+from PySide.QtCore import Qt
 import FreeCADGui as Gui
 
 import Utils
 from delegates.curation_display_delegate import (
     CurationDisplayDelegate,
-    get_pixmap_from_url,
 )
 from models.curation import CurationListModel
 
@@ -30,7 +29,7 @@ class SearchResultDelegate(CurationDisplayDelegate):
         # decorate the new item with data
         #
         self.widget.collectionLabel.setText(curation.nav.user_friendly_target_name())
-        self.widget.titleLabel.setText(curation.name)
+        self.widget.titleLabel.setText(Utils.wrapify(curation.name))
         self.mousePressEvent = lambda event: self._take_action()
         self.setCursor(QCursor(Qt.PointingHandCursor))
         self.start_image_load()

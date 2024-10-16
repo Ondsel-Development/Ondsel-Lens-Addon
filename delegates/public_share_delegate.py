@@ -31,7 +31,7 @@ class PublicShareLinkDelegate(CurationDisplayDelegate):
         # decorate the new item with data
         #
         self.widget.collectionLabel.setText(curation.nav.user_friendly_target_name())
-        self.widget.titleLabel.setText(curation.name)
+        self.widget.titleLabel.setText(Utils.wrapify(curation.name))
         self.mousePressEvent = lambda event: self._take_action()
         self.setCursor(QCursor(Qt.PointingHandCursor))
         self.start_image_load()
