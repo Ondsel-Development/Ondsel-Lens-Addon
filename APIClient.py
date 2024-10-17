@@ -103,6 +103,8 @@ class APIClient:
         self.version = version
         self.parent = parent
         self.status = ConnStatus.DISCONNECTED
+        self.api_version = None  # None = still unknown
+        self.addon_version = Utils.get_addon_version()
 
         if access_token is None:
             self.email = email
@@ -122,12 +124,13 @@ class APIClient:
         if hasattr(self.parent, "api"):  # during parent startup; don't set status yet.
             self.parent.set_ui_connectionStatus()
 
-    def getStatus(self):
+    def getStatus(self, startup=False):
         """
         Gets the current connection status;
         This is an active check to see if really online.
+        `startup` should be set to True only once when add-on starts.
         """
-        self._confirm_online()
+        self._confirm_online(startup)
         return self.status
 
     def getNameUser(self):
@@ -197,24 +200,42 @@ class APIClient:
         )
 
     def _set_default_headers(self, headers):
-        headers["Authorization"] = f"Bearer {self.access_token}"
+        if self.access_token is not None:
+            headers["Authorization"] = f"Bearer {self.access_token}"
         headers["Accept"] = "application/json"
         headers["X-Lens-Source"] = self.source
         headers["X-Lens-Version"] = self.version
+        # TODO: put back
+        # headers["X-Lens-Additional-Data"] = {"addonVersion": self.addon_version}
+        return headers
 
+    def _add_special_event_to_headers(self, headers, event_name, event_detail=None):
+        if "X-Lens-Additional-Data" not in headers:
+            headers["X-Lens-Additional-Data"] = {"addonVersion": self.addon_version}
+        headers["X-Lens-Additional-Data"]["specialEvent"] = True
+        headers["X-Lens-Additional-Data"]["specialEventName"] = event_name
+        if event_detail is not None:
+            headers["X-Lens-Additional-Data"]["specialEventDetail"] = event_detail
         return headers
 
     def _set_content_type(self):
         headers = {"Content-Type": "application/json"}
         return headers
 
-    def _confirm_online(self):
+    def _confirm_online(self, startup=False):
         """
-        Calls lens api root to simply check if online.
+        Calls lens api status to simply check if online.
         If not online, updates status.
         """
+        logger.info(f"startup={startup}")
+        response = None
         try:
-            requests.get(f"{self.base_url}/")
+            headers = self._set_default_headers({})
+            # TODO: put back
+            # if startup:
+            #     headers = self._add_special_event_to_headers(headers, "addon-startup")
+            logger.info(headers)
+            response = requests.get(f"{self.base_url}/status", headers=headers)
             if self.is_logged_in():
                 self.setStatus(ConnStatus.CONNECTED)
             else:
@@ -222,6 +243,11 @@ class APIClient:
         except requests.exceptions.RequestException as e:
             if e.response is None:
                 self.setStatus(ConnStatus.DISCONNECTED)
+        try:
+            if response:
+                self.api_version = response.json()["version"]
+        except Exception as e:
+            logger.debug(f"status response interpretation error: {e}")
 
     def _confirm_online_after_exception(self):
         self._confirm_online()

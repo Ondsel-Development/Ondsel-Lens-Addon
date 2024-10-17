@@ -466,6 +466,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.timer.start()
 
         self.handle_request(self.check_for_update)
+        self.api.getStatus(startup=True)
 
     def initializeOndselStart(self):
         self.form.ondselStartStatusLabel.setText("loading content...")
