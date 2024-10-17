@@ -912,16 +912,17 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 self.form.workspaceListView.setVisible(True)
 
     def backClicked(self):
-        if self.current_workspace is None:
-            return
-        subPath = self.currentWorkspaceModel.subPath
+        with wait_cursor():
+            if self.current_workspace is None:
+                return
+            subPath = self.currentWorkspaceModel.subPath
 
-        if subPath == "":
-            self.leaveWorkspace()
-        else:
-            self.currentWorkspaceModel.openParentFolder()
-            self.setWorkspaceNameLabel()
-            self.hideFileDetails()
+            if subPath == "":
+                self.leaveWorkspace()
+            else:
+                self.currentWorkspaceModel.openParentFolder()
+                self.setWorkspaceNameLabel()
+                self.hideFileDetails()
 
     def handle_request(self, func):
         """Handle a function that raises an exception from requests."""
@@ -1033,8 +1034,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.workspaceNameLabel.setText(workspacePath)
 
     def fileListDoubleClicked(self, index):
-        self.openFile(index)
-        self.setWorkspaceNameLabel()
+        with wait_cursor():
+            self.openFile(index)
+            self.setWorkspaceNameLabel()
 
     # ####
     # Downloading files
@@ -1287,16 +1289,17 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def fileListClicked(self, index):
         # This function is also executed once in case of a double click. It is best to
         # do as little modifications to the state as possible.
-        file_item = self.currentWorkspaceModel.data(index)
-        fileName = file_item.name
-        # self.currentModelId = None
-        if Utils.isOpenableByFreeCAD(file_item.getPath()):
-            if self.is_connected():
-                self.fileListClickedConnected(file_item)
+        with wait_cursor():
+            file_item = self.currentWorkspaceModel.data(index)
+            fileName = file_item.name
+            # self.currentModelId = None
+            if Utils.isOpenableByFreeCAD(file_item.getPath()):
+                if self.is_connected():
+                    self.fileListClickedConnected(file_item)
+                else:
+                    self.fileListClickedDisconnected(fileName)
             else:
-                self.fileListClickedDisconnected(fileName)
-        else:
-            self.hideFileDetails()
+                self.hideFileDetails()
 
     def getServerThumbnail(self, fileName, path, fileId):
         # check if we have stored the thumbnail locally already.
