@@ -8,8 +8,8 @@ import os
 import math
 import re
 import logging
-import tempfile
 
+from urllib.parse import urlparse
 import zipfile
 import shutil
 from contextlib import contextmanager
@@ -343,3 +343,35 @@ def wait_cursor():
         yield
     finally:
         QApplication.restoreOverrideCursor()
+
+
+def is_lens_url(url):
+    parsed_url_lens = urlparse(env.lens_url)
+    parsed_url = urlparse(url)
+
+    return (
+        parsed_url.scheme == parsed_url_lens.scheme
+        and parsed_url.netloc == parsed_url_lens.netloc
+    )
+
+
+def is_hex_digit(character):
+    return character in "0123456789abcdefABCDEF"
+
+
+def is_share_link(url):
+    if not is_lens_url(url):
+        return False
+
+    parsed_url = urlparse(url)
+    parts_path = parsed_url.path.split("/")
+    if len(parts_path) < 3:
+        return False
+
+    identifier = parts_path[-1]
+
+    return (
+        parts_path[-2] == "share"
+        and len(identifier) == 24
+        and all(is_hex_digit(c) for c in identifier)
+    )

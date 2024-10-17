@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Select a File or Enter a URL</string>
+   <string>Select a STEP file or enter a STEP URL</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
 
@@ -24,6 +24,9 @@
      <layout class="QHBoxLayout" name="horizontalLayoutSourceType">
       <item>
        <widget class="QRadioButton" name="radioButtonFile">
+        <property name="toolTip">
+         <string>Enable for a local STEP file</string>
+        </property>
         <property name="text">
          <string>Local File</string>
         </property>
@@ -34,6 +37,9 @@
       </item>
       <item>
        <widget class="QRadioButton" name="radioButtonURL">
+        <property name="toolTip">
+         <string>Enable for a STEP URL</string>
+        </property>
         <property name="text">
          <string>URL</string>
         </property>
@@ -46,33 +52,40 @@
    <!-- File Path input section -->
    <item>
     <widget class="QWidget" name="widgetFileInput">
-        <layout class="QHBoxLayout" name="horizontalLayoutFile">
-            <item>
-                <widget class="QLineEdit" name="lineEditFilePath"/>
-            </item>
-            <item>
-                <widget class="QPushButton" name="buttonBrowse">
-                    <property name="text">
-                        <string>...</string>
-                    </property>
-                </widget>
-            </item>
-        </layout>
+    <layout class="QHBoxLayout" name="horizontalLayoutFile">
+     <item>
+      <widget class="QLineEdit" name="lineEditFilePath">
+       <property name="toolTip">
+        <string>Choose a STEP file</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="buttonBrowse">
+       <property name="text">
+        <string>...</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
     </widget>
    </item>
 
    <!-- URL input section -->
    <item>
     <widget class="QWidget" name="widgetUrlInput">
-        <layout class="QHBoxLayout" name="horizontalLayoutURL">
-            <item>
-                <widget class="QLineEdit" name="lineEditUrl">
-                    <property name="placeholderText">
-                        <string>Enter URL</string>
-                    </property>
-                </widget>
-            </item>
-        </layout>
+    <layout class="QHBoxLayout" name="horizontalLayoutURL">
+     <item>
+      <widget class="QLineEdit" name="lineEditUrl">
+       <property name="toolTip">
+        <string>Enter a URL to a STEP file</string>
+       </property>
+       <property name="placeholderText">
+        <string>Enter URL</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
     </widget>
    </item>
 
