@@ -865,8 +865,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def enterWorkspace(self, index):
         logger.debug("entering workspace")
-        self.current_workspace = self.workspacesModel.data(index)
-        self.setWorkspaceModel()
+        with wait_cursor():
+            self.current_workspace = self.workspacesModel.data(index)
+            self.setWorkspaceModel()
 
     def setWorkspaceModel(self):
         self.currentWorkspaceModel = ServerWorkspaceModel(
@@ -1423,7 +1424,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 FILENAME_SYS_CFG,
             )
 
-        self.handle_api_call(tryStorePrefs, "No preferences stored.")
+        with wait_cursor():
+            self.handle_api_call(tryStorePrefs, "No preferences stored.")
 
     def convertParam(self, type, paramGroup, value):
         if type == "FCBool":
