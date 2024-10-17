@@ -42,6 +42,12 @@ PROP_URL = "FileUrl"
 PROP_IMPORT_TIME = "ImportDateTime"
 PROP_SOURCE_TYPE = "SourceType"
 
+PROP_TYPE_HIDDEN = ["Hidden"]
+PROP_TYPE_NONE = ["None"]
+# For some reason the values below don't work
+# PROP_TYPE_HIDDEN = App.PropertyType.Prop_Hidden
+# PROP_TYPE_NONE = App.PropertyType.Prop_Hidden
+
 SOURCE_TYPE_FILEPATH = "FilePath"
 SOURCE_TYPE_URL = "URL"
 
@@ -76,10 +82,13 @@ class ReloadableObject:
 
         obj.SourceType = [SOURCE_TYPE_FILEPATH, SOURCE_TYPE_URL]
 
-        obj.setEditorMode(PROP_URL, App.PropertyType.Prop_Hidden)
-        obj.setEditorMode(PROP_IMPORT_TIME, App.PropertyType.Prop_Hidden)
+        obj.setEditorMode(PROP_URL, PROP_TYPE_HIDDEN)
+        obj.setEditorMode(PROP_IMPORT_TIME, PROP_TYPE_HIDDEN)
 
         obj.Proxy = self
+
+    def force_reload(self):
+        self.should_reload = True
 
     def is_valid_url(self, url):
         parsed_url = urlparse(url)
@@ -97,6 +106,19 @@ class ReloadableObject:
         lowered = path_file.lower()
         return lowered.endswith(".stp") or lowered.endswith(".step")
 
+    def reload(self, obj):
+        # Something has changed and we should reload the source
+        # There are several "sources" that can indicate that the reloadable should reload:
+        # - A (relevant) property change
+        # - The task panel when either the file url or file path is set
+        # - A file that is outdated
+        #
+        # Then there are two places where reload is actually called:
+        # - The task panel when clicking Ok or Apply
+        # - A (relevant) property change
+        if self.should_reload:
+            self.load_source(obj)
+
     def onChanged(self, obj, prop):
 
         # take no action unless it's a property we care about
@@ -104,27 +126,24 @@ class ReloadableObject:
             return
 
         # User has either changed the source or the source type
-        if prop == PROP_FILEPATH and self.is_valid_step_file(obj.FilePath):
-            self.should_reload = True
-        elif prop == PROP_URL and self.is_valid_url(obj.FileUrl):
-            self.should_reload = True
+        if prop == PROP_FILEPATH:
+            self.force_reload()
+        elif prop == PROP_URL:
+            self.force_reload()
         elif prop == PROP_SOURCE_TYPE:
             if obj.SourceType == SOURCE_TYPE_URL:
-                obj.setEditorMode(PROP_URL, App.PropertyType.Prop_None)
-                obj.setEditorMode(PROP_FILEPATH, App.PropertyType.Prop_Hidden)
+                obj.setEditorMode(PROP_URL, PROP_TYPE_NONE)
+                obj.setEditorMode(PROP_FILEPATH, PROP_TYPE_HIDDEN)
             else:
-                obj.setEditorMode(PROP_FILEPATH, App.PropertyType.Prop_None)
-                obj.setEditorMode(PROP_URL, App.PropertyType.Prop_Hidden)
-            self.should_reload = True
-
-        # Something has changed and we should reload the source
-        if self.should_reload:
-            self.load_source(obj)
+                obj.setEditorMode(PROP_FILEPATH, PROP_TYPE_NONE)
+                obj.setEditorMode(PROP_URL, PROP_TYPE_HIDDEN)
+            self.force_reload()
+        self.reload(obj)
 
     def execute(self, obj):
         if obj.SourceType == SOURCE_TYPE_FILEPATH:
             if self.has_file_changed(obj):
-                self.should_reload = True
+                self.force_reload()
                 if hasattr(obj, "ViewObject"):
                     obj.ViewObject.signalChangeIcon()
 
@@ -157,7 +176,11 @@ class ReloadableObject:
             # update the label
             label = os.path.splitext(os.path.basename(path_file))[0]
             obj.Label = label
+        elif path_file:
+            self.reset_shape(obj)
+            logger.error(f"{path_file} is not a valid STEP file")
         else:
+            self.reset_shape(obj)
             pass
 
     def determine_name_file(self, url, content_disposition):
@@ -175,17 +198,22 @@ class ReloadableObject:
 
         return name_file
 
+    def reset_shape(self, obj):
+        obj.Label = "Reloadable"
+        obj.Shape = Part.Shape()
+
     def set_object_to_url(self, obj):
         url = obj.FileUrl
 
         if not self.is_valid_url(url):
+            if url:
+                logger.error(f"{url} is not a valid URL")
+            self.reset_shape(obj)
             return
 
         if Utils.is_share_link(url):
             # Add suffix to get the step file directly
             url = url + "/download"
-
-        logger.debug(f"url: {url}")
 
         try:
             response = requests.get(url)
@@ -202,6 +230,10 @@ class ReloadableObject:
                 url, response.headers.get("Content-Disposition")
             )
 
+            if name_file == "":
+                logger.error("Cannot determine a name for the STEP file")
+                return
+
             with tempfile.TemporaryDirectory() as temp_dir:
                 path_file = os.path.join(temp_dir, name_file)
 
@@ -210,10 +242,10 @@ class ReloadableObject:
 
                 self.set_object_to_file(obj, path_file)
 
-        except requests.exceptions.ConnectionError:
-            pass
-
-        except requests.exceptions.RequestException as e:
+        except (
+            requests.exceptions.ConnectionError,
+            requests.exceptions.RequestException,
+        ) as e:
             logger.error(f"An error occurred while downloading: {e}")
 
     def load_file(self, obj, path_file):
@@ -226,7 +258,10 @@ class ReloadableObject:
     def import_step_file(self, obj, path_file):
         # Import the STEP file and create a shape
         shape = Part.Shape()
-        shape.read(path_file)
+        try:
+            shape.read(path_file)
+        except OSError:
+            logger.error("Error in reading STEP")
         return shape
 
     def dumps(self):
@@ -298,11 +333,6 @@ class TaskPanel:
         self.form.radioButtonURL.setChecked(True)
         self.form.buttonBrowse.clicked.connect(self.browse_file)
 
-        self.form.radioButtonURL.toggled.connect(lambda: self.dirty())
-        self.form.radioButtonFile.toggled.connect(lambda: self.dirty())
-        self.form.lineEditFilePath.textChanged.connect(lambda: self.dirty())
-        self.form.lineEditUrl.textChanged.connect(lambda: self.dirty())
-
         self.get_values(obj)
 
     def get_values(self, obj):
@@ -316,27 +346,39 @@ class TaskPanel:
         elif obj.SourceType == SOURCE_TYPE_FILEPATH:
             self.form.radioButtonFile.setChecked(True)
 
-        # check if we're dirty
-        if obj.SourceType == SOURCE_TYPE_URL and obj.FileUrl != "":
-            self.is_dirty = True
-        elif obj.SourceType == SOURCE_TYPE_FILEPATH:
-            self.is_dirty = obj.Proxy.has_file_changed(obj)
-
-    def dirty(self):
-        self.is_dirty = True
-
     def set_values(self):
-        if not self.is_dirty:
-            return
-
-        if self.form.radioButtonURL.isChecked():
+        # Do not trigger a property changed if the property is the same
+        if (
+            self.form.radioButtonURL.isChecked()
+            and self.obj.SourceType != SOURCE_TYPE_URL
+        ):
             self.obj.SourceType = SOURCE_TYPE_URL
-        else:
+        elif (
+            self.form.radioButtonFile.isChecked()
+            and self.obj.SourceType != SOURCE_TYPE_FILEPATH
+        ):
             self.obj.SourceType = SOURCE_TYPE_FILEPATH
+        else:
+            # The type was not changed, so do nothing
+            pass
 
-        self.obj.FileUrl = self.form.lineEditUrl.text()
-        self.obj.FilePath = self.form.lineEditFilePath.text()
-        self.is_dirty = False
+        # Trigger a reload if the relevant property is changed.  Note that the
+        # order matters in which force_reload() is called and the property is
+        # set because if the property is set, then a reload may already be
+        # triggered.  Therefore, indicate first that we want a reload no matter
+        # whether the property change triggers a reload.  In case a reload does
+        # happen because of a property change, calling reload below will not
+        # trigger an actual reload a second time.
+        if self.obj.SourceType == SOURCE_TYPE_URL:
+            self.obj.Proxy.force_reload()
+            self.obj.FileUrl = self.form.lineEditUrl.text()
+        elif self.obj.SourceType == SOURCE_TYPE_FILEPATH:
+            self.obj.Proxy.force_reload()
+            self.obj.FilePath = self.form.lineEditFilePath.text()
+        else:
+            logger.error("Unexpected source type")
+
+        self.obj.Proxy.reload(self.obj)
 
     def browse_file(self):
         dialog = create_file_dialog(self.form)
