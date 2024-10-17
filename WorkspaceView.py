@@ -82,6 +82,8 @@ from PySide.QtWidgets import QTreeView
 
 from WorkspaceListDelegate import WorkspaceListDelegate
 
+from Utils import wait_cursor
+
 
 logger = Utils.getLogger(__name__)
 
@@ -439,25 +441,30 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.txtExplain.setReadOnly(True)
         self.form.txtExplain.hide()
 
-        # initialize ondsel-start tab
-        self.initializeOndselStart()
+        with wait_cursor():
+            # initialize ondsel-start tab
+            self.initializeOndselStart()
 
-        # initialize bookmarks tab
-        self.initializeBookmarks()
+            # initialize bookmarks tab
+            self.initializeBookmarks()
 
-        # initialize search tab
-        self.form.searchResultScrollArea = SearchResultsView(self)
-        self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
+            # initialize search tab
+            self.form.searchResultScrollArea = SearchResultsView(self)
+            self.form.searchResultFrame.layout().addWidget(
+                self.form.searchResultScrollArea
+            )
 
-        # initialize public-shares tab
-        self.initializePublicShares()
+            # initialize public-shares tab
+            # We are only loading the public shares if the user clicks on the
+            # tab.  In that case we initialize it only once.
+            self.initialized_public_shares = False
 
-        self.initializeUpdateLens()
+            self.initializeUpdateLens()
 
-        self.try_login()
-        self.switchView()
+            self.try_login()
+            self.switchView()
 
-        self.workspacesModel.refreshModel()
+            self.workspacesModel.refreshModel()
 
         # Set a timer to check regularly the server
         self.timer = QtCore.QTimer()
@@ -504,9 +511,13 @@ class WorkspaceView(QtWidgets.QScrollArea):
         bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
 
     def initializePublicShares(self):
-        self.form.publicSharesStatusLabel.setText("loading content...")
-        self.form.publicSharesScrollArea = PublicSharesView(self)
-        self.form.publicSharesFrame.layout().addWidget(self.form.publicSharesScrollArea)
+        if not self.initialized_public_shares:
+            self.form.publicSharesStatusLabel.setText("loading content...")
+            self.form.publicSharesScrollArea = PublicSharesView(self)
+            self.form.publicSharesFrame.layout().addWidget(
+                self.form.publicSharesScrollArea
+            )
+            self.initialized_public_shares = True
 
     def initializeUpdateLens(self):
         self.form.frameUpdate.hide()
@@ -1589,7 +1600,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def loadPrefs(self, prefsId):
         # throws APIClientException
-        result = self.api.downloadPrefs(prefsId)
+        with wait_cursor():
+            result = self.api.downloadPrefs(prefsId)
         if result:
             backupFiles = self.backupPrefs()
             self.setPrefs(result)
@@ -2243,15 +2255,19 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 viewBookmarks.setModel(bookmarkModel)
                 viewBookmarks.expandAll()
 
-            api_result = fancy_handle(tryRefresh)
-            if api_result == APICallResult.OK:
-                self.form.bookmarkStatusLabel.setText("")
-            elif api_result == APICallResult.DISCONNECTED:
-                self.form.bookmarkStatusLabel.setText("Disconnected")
-            elif api_result == APICallResult.NOT_LOGGED_IN:
-                self.hideBookmarks()
-            else:
-                self.hideBookmarks("See report log.")
+            with wait_cursor():
+                api_result = fancy_handle(tryRefresh)
+                if api_result == APICallResult.OK:
+                    self.form.bookmarkStatusLabel.setText("")
+                elif api_result == APICallResult.DISCONNECTED:
+                    self.form.bookmarkStatusLabel.setText("Disconnected")
+                elif api_result == APICallResult.NOT_LOGGED_IN:
+                    self.hideBookmarks()
+                else:
+                    self.hideBookmarks("See report log.")
+        elif index == IDX_TAB_PUBLIC_SHARES:
+            with wait_cursor():
+                self.initializePublicShares()
 
     def hideBookmarks(self, message="You must be logged in to see bookmarks."):
         self.form.bookmarkStatusLabel.setText(message)
