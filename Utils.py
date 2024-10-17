@@ -13,6 +13,7 @@ import tempfile
 import zipfile
 import shutil
 from contextlib import contextmanager
+from enum import StrEnum
 from urllib.parse import urlparse
 import requests
 
@@ -40,6 +41,17 @@ NAME_COMMAND_START = "Start_Start"
 LENS_TOOLBARITEM_TEXT = "Ondsel Lens Addon"
 
 SIZE_PIXMAP = 128
+
+class EventName(StrEnum):
+    ADDON_STARTUP = "addon-startup"
+    SEARCH_TAB_DOWNLOAD_SHARELINK = "from-searchtab-download-sharelink-file"
+    SEARCH_TAB_DOWNLOAD_WORKSPACE_FILE = "from-searchtab-download-workspace-file"
+    PUBLIC_SHARE_TAB_DOWNLOAD_SHARELINK = "from-publicsharelinktab-download-sharelink-file"
+    PUBLIC_SHARE_TAB_DOWNLOAD_WORKSPACE_FILE = "from-publicsharelinktab-download-workspace-file"
+    ONDSEL_START_TAB_DOWNLOAD_SHARELINK = "from-ondselstarttab-download-sharelink-file"
+    ONDSEL_START_TAB_DOWNLOAD_WORKSPACE_FILE = "from-ondselstarttab-download-workspace-file"
+    SCHEMA_LAUNCH_SHARELINK = "schema-launch-sharelink-file"
+    SCHEMA_LAUNCH_WORKSPACE_FILE = "schema-launch-workspace-file"
 
 
 class FreeCADHandler(logging.Handler):
