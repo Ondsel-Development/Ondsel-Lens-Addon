@@ -2426,10 +2426,10 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def handle_lens_url(self, url):
         sub_scheme, id1, id2 = self.parse_url(url)
         if sub_scheme == "share":
-            message = handlers.download_shared_model_to_memory(self.api, id1)
+            message = handlers.download_shared_model_to_memory(self.api, id1, Utils.EventName.SCHEMA_LAUNCH_SHARELINK)
             logger.info(message)
         else:
-            message = handlers.download_file_version_to_memory(self.api, id1, id2, True)
+            message = handlers.download_file_version_to_memory(self.api, id1, id2, True, Utils.EventName.SCHEMA_LAUNCH_WORKSPACE_FILE)
             logger.info(message)
 
 

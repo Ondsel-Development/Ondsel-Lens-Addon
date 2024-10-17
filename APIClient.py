@@ -6,6 +6,7 @@ import json
 import urllib
 
 import Utils
+from Utils import EventName
 from models.curation import Curation
 from models.directory import Directory
 from models.file import File
@@ -200,22 +201,23 @@ class APIClient:
         )
 
     def _set_default_headers(self, headers):
-        if self.access_token is not None:
-            headers["Authorization"] = f"Bearer {self.access_token}"
+        headers["Authorization"] = f"Bearer {self.access_token}"
         headers["Accept"] = "application/json"
         headers["X-Lens-Source"] = self.source
         headers["X-Lens-Version"] = self.version
-        # TODO: put back
-        # headers["X-Lens-Additional-Data"] = {"addonVersion": self.addon_version}
+        if "X-Lens-Additional-Data" not in headers:
+            headers["X-Lens-Additional-Data"] = json.dumps({"addonVersion": self.addon_version})
         return headers
 
     def _add_special_event_to_headers(self, headers, event_name, event_detail=None):
-        if "X-Lens-Additional-Data" not in headers:
-            headers["X-Lens-Additional-Data"] = {"addonVersion": self.addon_version}
-        headers["X-Lens-Additional-Data"]["specialEvent"] = True
-        headers["X-Lens-Additional-Data"]["specialEventName"] = event_name
+        new_dict = {
+            "addonVersion": self.addon_version,
+            "specialEvent": True,
+            "specialEventName": event_name
+        }
         if event_detail is not None:
-            headers["X-Lens-Additional-Data"]["specialEventDetail"] = event_detail
+            new_dict["specialEventDetail"] = event_detail
+        headers["X-Lens-Additional-Data"] = json.dumps(new_dict)
         return headers
 
     def _set_content_type(self):
@@ -227,15 +229,12 @@ class APIClient:
         Calls lens api status to simply check if online.
         If not online, updates status.
         """
-        logger.info(f"startup={startup}")
         response = None
         try:
             headers = self._set_default_headers({})
-            # TODO: put back
-            # if startup:
-            #     headers = self._add_special_event_to_headers(headers, "addon-startup")
-            logger.info(headers)
-            response = requests.get(f"{self.base_url}/status", headers=headers)
+            if startup:
+                headers = self._add_special_event_to_headers(headers, EventName.ADDON_STARTUP)
+            response = requests.get(f"{self.base_url}/status", headers=headers, params={})
             if self.is_logged_in():
                 self.setStatus(ConnStatus.CONNECTED)
             else:
@@ -969,6 +968,19 @@ class APIClient:
             new_curation = Curation.from_json(item["curation"])
             curations.append(new_curation)
         return curations
+
+    @authRequired
+    def report_special_event(self, event_name, event_detail):
+        """
+        When possible, event details should be added to existing API calls. But when not possible
+        (such as reporting an S3 download), then the /status endpoint can be used to send generic user
+        engagement events.
+        """
+        endpoint = "status"
+        headers = self._set_default_headers({})
+        headers = self._add_special_event_to_headers(headers, event_name, event_detail)
+        _ = self._request(endpoint, headers=headers, params={})
+        return
 
     @authRequired
     def fancy_auth_call(self, api_method, key):
