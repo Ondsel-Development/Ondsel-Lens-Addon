@@ -3,6 +3,7 @@ import webbrowser
 
 import Utils
 import handlers
+from handlers import HandlerException
 from PySide.QtGui import QPixmap, QFrame, QIcon
 from PySide.QtCore import Qt, QThread, QObject, Signal, QSize
 
@@ -50,6 +51,16 @@ class CurationDisplayDelegate(QFrame):
             self.widget.iconLabel.setPixmap(pixmap)
             self.widget.iconLabel.setStyleSheet("background-color:rgb(219,219,211)")
 
+    def _try_download(self, func):
+        with wait_cursor():
+            try:
+                name_file = func()
+                handlers.warn_downloaded_file(name_file)
+            except HandlerException as e:
+                logger.warn(e)
+                logger.warn("Unable to download; opening in browser instead.")
+                self._goto_url()
+
     def _take_action(self):
         if self.curation.collection == "shared-models":
             with wait_cursor():
@@ -60,18 +71,11 @@ class CurationDisplayDelegate(QFrame):
                 if dlg.answer == ChooseDownloadActionDialog.OPEN_ON_WEB:
                     self._goto_url()
                 elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
-                    with wait_cursor():
-                        msg = handlers.download_shared_model_to_memory(
+                    self._try_download(
+                        lambda: handlers.download_shared_model_to_memory(
                             self.curation.parent.api, str(self.curation._id)
                         )
-                    if msg is False:
-                        logger.warn("Unable to download; opening in browser instead.")
-                        self._goto_url()
-                    else:
-                        logger.warn(
-                            f"{msg}. Be sure to save to disk if you want"
-                            "to keep the model."
-                        )
+                    )
         elif self.curation.collection == "workspaces":
             with wait_cursor():
                 data_parent = self.curation.parent
@@ -100,20 +104,14 @@ class CurationDisplayDelegate(QFrame):
         if overall_response == 0:
             return
         file_detail = dlg.answer["file"]
-        with wait_cursor():
-            msg = handlers.download_file_version_to_memory(
+        self._try_download(
+            lambda: handlers.download_file_version_to_memory(
                 self.curation.parent.api,
                 file_detail._id,
                 file_detail.currentVersion._id,
                 True,
             )
-        if msg is False:
-            logger.warn("Unable to download; opening in browser instead.")
-            self._goto_url()
-        else:
-            logger.warn(
-                f"{msg}.  Be sure to save to disk if you want to keep the model."
-            )
+        )
 
 
 def get_pixmap_from_url(thumbnailUrl):
