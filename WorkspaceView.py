@@ -2447,14 +2447,26 @@ class WorkspaceView(QtWidgets.QScrollArea):
         else:
             return None
 
+    def handle_download(self, func):
+        with wait_cursor():
+            try:
+                name_file = func()
+                handlers.warn_downloaded_file(name_file)
+            except handlers.HandlerException as e:
+                logger.warning(e)
+
     def handle_lens_url(self, url):
         sub_scheme, id1, id2 = self.parse_url(url)
         if sub_scheme == "share":
-            message = handlers.download_shared_model_to_memory(self.api, id1)
-            logger.info(message)
+            self.handle_download(
+                lambda: handlers.download_shared_model_to_memory(self.api, id1)
+            )
         else:
-            message = handlers.download_file_version_to_memory(self.api, id1, id2, True)
-            logger.info(message)
+            self.handle_download(
+                lambda: handlers.download_file_version_to_memory(
+                    self.api, id1, id2, True
+                )
+            )
 
 
 # class NewWorkspaceDialog(QtGui.QDialog):

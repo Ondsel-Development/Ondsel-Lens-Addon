@@ -1,4 +1,3 @@
-import inspect
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -14,30 +13,31 @@ from models.workspace_summary import WorkspaceSummary
 @dataclass(order=True)
 class File:
     """
-    A File is ... a file. It is not necessarily a CAD model. It has versions forming a commit history.
-    Files only exist within a single workspace.
-    A file may have zero or more ShareLinks and Models associated with it.
+    A File is ... a file. It is not necessarily a CAD model. It has versions
+    forming a commit history.  Files only exist within a single workspace.  A
+    file may have zero or more ShareLinks and Models associated with it.
     """
 
     _id: str
     custFileName: str
     currentVersionId: str
     userId: str
-    modelId: Optional[str]
-    model: ModelSummary
-    isSystemGenerated: Optional[bool]
     createdAt: int
     updatedAt: int
-    directory: Optional[DirectorySummary]
-    workspace: Optional[WorkspaceSummary]
     versions: list[FileVersion] = field(default_factory=list, repr=False)
     relatedUserDetails: list[UserSummary] = field(default_factory=list, repr=False)
     followingActiveSharedModels: list[ShareLinkSummary] = field(
         default_factory=list, repr=False
     )
+    modelId: Optional[str] = field(default=None)
+    model: Optional[ModelSummary] = field(default=None)
+    isSystemGenerated: Optional[bool] = field(default=False)
+    directory: Optional[DirectorySummary] = field(default=None)
+    workspace: Optional[WorkspaceSummary] = field(default=None)
 
     def __post_init__(self):
-        self.model = ModelSummary(**self.model)
+        if self.model is not None:
+            self.model = ModelSummary(**self.model)
         if self.directory is not None:
             self.directory = DirectorySummary(**self.directory)
         if self.workspace is not None:
