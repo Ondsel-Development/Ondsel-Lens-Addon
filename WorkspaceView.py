@@ -1194,7 +1194,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 else:
                     refreshUI()
 
-        self.handle_api_call(trySetVersion, "Failed to download version.")
+        with wait_cursor():
+            self.handle_api_call(trySetVersion, "Failed to download version.")
 
     def updateThumbnail(self, fileItem):
         fileName = fileItem.name
@@ -1852,8 +1853,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
         dialog = SharingLinkEditDialog(link_data, self)
 
         if dialog.exec_() == QtGui.QDialog.Accepted:
-            link_properties = dialog.getLinkProperties()
-            self.handle_update_sharelink(lambda: func(link_properties))
+            with wait_cursor():
+                link_properties = dialog.getLinkProperties()
+                self.handle_update_sharelink(lambda: func(link_properties))
 
     def linksListDoubleClicked(self, index):
         self.editShareLinkClicked(index)
@@ -1882,7 +1884,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
         )
         if result == QtGui.QMessageBox.Yes:
-            self.handle_update_sharelink(lambda: model.delete_link(linkId))
+            with wait_cursor():
+                self.handle_update_sharelink(lambda: model.delete_link(linkId))
 
     def showLinksContextMenu(self, pos):
         index = self.form.linksView.indexAt(pos)
@@ -2042,7 +2045,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             comboBox.setCurrentIndex(versionModel.getCurrentIndex())
             self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
 
-        self.handle_api_call(trySetVersion, "Setting active version failed.")
+        with wait_cursor():
+            self.handle_api_call(trySetVersion, "Setting active version failed.")
 
     def ondselAccount(self):
         url = f"{Utils.env.lens_url}login"
