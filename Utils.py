@@ -103,6 +103,14 @@ def joinPath(first, second):
     # return os.path.normpath(os.path.join(first, second))
 
 
+def get_extension(name_file):
+    ext = os.path.splitext(name_file)[1]
+    if ext:
+        if ext[0] == ".":
+            ext = ext[1:]
+    return ext
+
+
 def isOpenableByFreeCAD(filename):
     "check if FreeCAD can handle this file type"
 
@@ -111,11 +119,11 @@ def isOpenableByFreeCAD(filename):
     if os.path.basename(filename)[0] == ".":
         return False
     extensions = [key.lower() for key in FreeCAD.getImportType().keys()]
-    ext = os.path.splitext(filename)[1].lower()
-    if ext:
-        if ext[0] == ".":
-            ext = ext[1:]
-    return ext in extensions
+    return get_extension(filename).lower() in extensions
+
+
+def is_freecad_document(name_file):
+    return get_extension(name_file).lower() == "fcstd"
 
 
 def extract_thumbnail(file_path):
