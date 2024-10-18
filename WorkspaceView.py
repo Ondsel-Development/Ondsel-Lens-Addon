@@ -76,7 +76,7 @@ from PySide.QtGui import (
     QPixmap,
 )
 
-from PySide.QtCore import QByteArray
+from PySide.QtCore import QByteArray, QCoreApplication
 
 from PySide.QtWidgets import QTreeView
 
@@ -466,6 +466,23 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.timer.start()
 
         self.handle_request(self.check_for_update)
+        self.api.getStatus(startup=True)
+        QCoreApplication.instance().aboutToQuit.connect(self.send_exit_status)
+
+    def send_exit_status(self):
+        try:
+            if self.api.status == ConnStatus.CONNECTED:
+                self.api.report_special_event(
+                    Utils.EventName.ONDSELES_EXIT,
+                    {"duration": Utils.get_cad_run_time_seconds()},
+                )
+            else:
+                self.api.report_special_event_anon(
+                    Utils.EventName.ONDSELES_EXIT,
+                    {"duration": Utils.get_cad_run_time_seconds()},
+                )
+        except Exception as e:
+            logger.debug(e)
 
     def initializeOndselStart(self):
         self.form.ondselStartStatusLabel.setText("loading content...")
@@ -2425,10 +2442,14 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def handle_lens_url(self, url):
         sub_scheme, id1, id2 = self.parse_url(url)
         if sub_scheme == "share":
-            message = handlers.download_shared_model_to_memory(self.api, id1)
+            message = handlers.download_shared_model_to_memory(
+                self.api, id1, Utils.EventName.SCHEMA_LAUNCH_SHARELINK
+            )
             logger.info(message)
         else:
-            message = handlers.download_file_version_to_memory(self.api, id1, id2, True)
+            message = handlers.download_file_version_to_memory(
+                self.api, id1, id2, True, Utils.EventName.SCHEMA_LAUNCH_WORKSPACE_FILE
+            )
             logger.info(message)
 
 
