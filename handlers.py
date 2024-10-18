@@ -13,10 +13,13 @@ def download_shared_model_to_memory(api, id_shared_model, event_name):
         shared_model = api.getSharedModel(id_shared_model)
 
     def record_download():
-        api.report_special_event(event_name, {
-            "destination": "memory",
-            "sharelink": id_shared_model,
-        })
+        api.report_special_event(
+            event_name,
+            {
+                "destination": "memory",
+                "sharelink": id_shared_model,
+            },
+        )
 
     api_result = fancy_handle(get_shared_model)
     if api_result == APICallResult.OK:
@@ -59,12 +62,15 @@ def download_file_version_to_memory(api, file_id, version_id, public, event_name
         real_filename = file_detail.custFileName
 
     def record_download():
-        api.report_special_event(event_name, {
-            "destination": "memory",
-            "file": file_id,
-            "version_id": version_id,
-            "public": public,
-        })
+        api.report_special_event(
+            event_name,
+            {
+                "destination": "memory",
+                "file": file_id,
+                "version_id": version_id,
+                "public": public,
+            },
+        )
 
     api_result = fancy_handle(get_file_detail)
     if api_result == APICallResult.OK:

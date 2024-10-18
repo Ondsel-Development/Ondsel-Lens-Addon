@@ -129,7 +129,7 @@ class APIClient:
         """
         Gets the current connection status;
         This is an active check to see if really online.
-        `startup` should be set to True only once when add-on starts.
+        `startup` should be set to True only when add-on starts.
         """
         self._confirm_online(startup)
         return self.status
@@ -206,14 +206,16 @@ class APIClient:
         headers["X-Lens-Source"] = self.source
         headers["X-Lens-Version"] = self.version
         if "X-Lens-Additional-Data" not in headers:
-            headers["X-Lens-Additional-Data"] = json.dumps({"addonVersion": self.addon_version})
+            headers["X-Lens-Additional-Data"] = json.dumps(
+                {"addonVersion": self.addon_version}
+            )
         return headers
 
     def _add_special_event_to_headers(self, headers, event_name, event_detail=None):
         new_dict = {
             "addonVersion": self.addon_version,
             "specialEvent": True,
-            "specialEventName": event_name
+            "specialEventName": event_name,
         }
         if event_detail is not None:
             new_dict["specialEventDetail"] = event_detail
@@ -233,8 +235,18 @@ class APIClient:
         try:
             headers = self._set_default_headers({})
             if startup:
-                headers = self._add_special_event_to_headers(headers, EventName.ADDON_STARTUP)
-            response = requests.get(f"{self.base_url}/status", headers=headers, params={})
+                if Utils.cad_start_event_sent:
+                    headers = self._add_special_event_to_headers(
+                        headers, EventName.ADDON_RESTART
+                    )
+                else:
+                    Utils.cad_start_event_sent = True
+                    headers = self._add_special_event_to_headers(
+                        headers, EventName.ONDSELES_STARTUP
+                    )
+            response = requests.get(
+                f"{self.base_url}/status", headers=headers, params={}
+            )
             if self.is_logged_in():
                 self.setStatus(ConnStatus.CONNECTED)
             else:
@@ -975,6 +987,16 @@ class APIClient:
         When possible, event details should be added to existing API calls. But when not possible
         (such as reporting an S3 download), then the /status endpoint can be used to send generic user
         engagement events.
+        """
+        endpoint = "status"
+        headers = self._set_default_headers({})
+        headers = self._add_special_event_to_headers(headers, event_name, event_detail)
+        _ = self._request(endpoint, headers=headers, params={})
+        return
+
+    def report_special_event_anon(self, event_name, event_detail):
+        """
+        a variant of report_special_event that works anonymously
         """
         endpoint = "status"
         headers = self._set_default_headers({})
