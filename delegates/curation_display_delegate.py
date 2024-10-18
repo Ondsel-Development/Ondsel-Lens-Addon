@@ -23,7 +23,9 @@ class CurationDisplayDelegate(QFrame):
         if index is None:
             return  # if none, this is a dummy object
         self.curation = None  # to be properly set by the child class
-        self.download_sharelink_event_name = "invalid-download-sharelink-file"  # should be reset by child class
+        self.download_sharelink_event_name = (
+            "invalid-download-sharelink-file"  # should be reset by child class
+        )
         self.download_workspace_file_event_name = "invalid-download-workspace-file"
 
     def start_image_load(self):
@@ -59,7 +61,9 @@ class CurationDisplayDelegate(QFrame):
                     self._goto_url()
                 elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
                     msg = handlers.download_shared_model_to_memory(
-                        self.curation.parent.api, str(self.curation._id), self.download_sharelink_event_name
+                        self.curation.parent.api,
+                        str(self.curation._id),
+                        self.download_sharelink_event_name,
                     )
                     if msg is False:
                         logger.warn("Unable to download; opening in browser instead.")
@@ -100,7 +104,7 @@ class CurationDisplayDelegate(QFrame):
             file_detail._id,
             file_detail.currentVersion._id,
             True,
-            self.download_workspace_file_event_name
+            self.download_workspace_file_event_name,
         )
         if msg is False:
             logger.warn("Unable to download; opening in browser instead.")

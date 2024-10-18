@@ -22,7 +22,9 @@ class SearchResultDelegate(CurationDisplayDelegate):
     def __init__(self, index=None):
         super().__init__()
         self.download_sharelink_event_name = EventName.SEARCH_TAB_DOWNLOAD_SHARELINK
-        self.download_workspace_file_event_name = EventName.SEARCH_TAB_DOWNLOAD_WORKSPACE_FILE
+        self.download_workspace_file_event_name = (
+            EventName.SEARCH_TAB_DOWNLOAD_WORKSPACE_FILE
+        )
         curation = index.data(CurationListModel.CurationRole)
         self.curation = curation
         ui_path = Utils.mod_path + "/delegates/CurationItem.ui"
