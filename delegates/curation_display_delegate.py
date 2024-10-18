@@ -64,8 +64,8 @@ class CurationDisplayDelegate(QFrame):
     def _take_action(self):
         if self.curation.collection == "shared-models":
             with wait_cursor():
-                data_parent = self.curation.parent
-                dlg = ChooseDownloadActionDialog(self.curation.name, data_parent)
+                api = self.curation.parent.api
+                dlg = ChooseDownloadActionDialog(self.curation.name, api)
             overall_response = dlg.exec()
             if overall_response != 0:
                 if dlg.answer == ChooseDownloadActionDialog.OPEN_ON_WEB:
