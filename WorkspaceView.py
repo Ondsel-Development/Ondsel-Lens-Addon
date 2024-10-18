@@ -63,6 +63,8 @@ from views.public_shares_view import PublicSharesView
 
 from views.search_results_view import SearchResultsView
 
+from components.choose_download_action_dialog import ChooseDownloadActionDialog
+
 from PySide.QtGui import (
     QStyledItemDelegate,
     QStyle,
@@ -508,7 +510,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         bookmarkView.setItemDelegate(BookmarkDelegate())
         bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
         bookmarkView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
 
     def initializePublicShares(self):
         if not self.initialized_public_shares:
@@ -2282,70 +2283,36 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.bookmarkStatusLabel.setText(message)
         self.form.viewBookmarks.setModel(QStandardItemModel())
 
-    def downloadBookmarkFile(self, idSharedModel):
-        # throws an APIClientException
-        path = Utils.joinPath(PATH_BOOKMARKS, idSharedModel)
-        sharedModel = self.api.getSharedModel(idSharedModel)
-        model = sharedModel["model"]
-        if sharedModel["canDownloadDefaultModel"]:
-            uniqueFileName = model["uniqueFileName"]
-            fileModel = model["file"]
-            fileName = fileModel["custFileName"]
-            pathFile = Utils.joinPath(path, fileName)
-            self.api.downloadFileFromServer(uniqueFileName, pathFile)
-            return pathFile
-        else:
-            objUrl = model["objUrl"]
-            fileName = Utils.getFileNameFromURL(objUrl)
-            pathFile = Utils.joinPath(path, fileName)
-            self.api.downloadObjectFileFromServer(objUrl, pathFile)
-            return pathFile
-
-    def openBookmark(self, idSharedModel):
-        # throws an APIClientException
-        pathFile = self.downloadBookmarkFile(idSharedModel)
-        self.tryOpenPathFile(pathFile)
-
     def bookmarkDoubleClicked(self, index):
         viewBookmarks = self.form.viewBookmarks
         bookmarkModel = viewBookmarks.model()
         typeItem = bookmarkModel.data(index, ROLE_TYPE)
         if typeItem == TYPE_BOOKMARK:
             idShareModel = bookmarkModel.data(index, ROLE_SHARE_MODEL_ID)
-            api_result = fancy_handle(lambda: self.openBookmark(idShareModel))
+            nameShareModel = bookmarkModel.data(index)
+            dlg = ChooseDownloadActionDialog(nameShareModel, self.api)
+            overall_response = dlg.exec()
+            if overall_response != 0:
+                if dlg.answer == ChooseDownloadActionDialog.OPEN_ON_WEB:
+                    self.openShareLinkOnline(idShareModel)
+                elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
+                    self.download_to_mem_sharelink(idShareModel)
 
-            if api_result == APICallResult.OK:
-                pass
-            if api_result == APICallResult.DISCONNECTED:
-                logger.info("Not connected")
-            elif api_result == APICallResult.NOT_LOGGED_IN:
-                logger.info("Not logged in")
-                self.hideBookmarks()
-            else:
-                self.hideBookmarks("see report log")
+    def download_to_mem_sharelink(self, idShareModel):
+        with wait_cursor():
+            try:
+                name_file = handlers.download_shared_model_to_memory(
+                    self.api, idShareModel
+                )
+                handlers.warn_downloaded_file(name_file)
+            except handlers.HandlerException as e:
+                logger.warn(e)
+                logger.warn("Unable to download; opening in browser instead.")
+                self.openShareLinkOnline(idShareModel)
 
     def openShareLinkOnline(self, idShareModel):
         url = f"{self.api.get_base_url()}share/{idShareModel}"
         self.open_url(url)
-
-    def showBookmarkContextMenu(self, pos):
-        viewBookmarks = self.form.viewBookmarks
-        index = viewBookmarks.indexAt(pos)
-        if index.isValid():
-            bookmarkModel = viewBookmarks.model()
-            typeItem = bookmarkModel.data(index, ROLE_TYPE)
-            if typeItem == TYPE_BOOKMARK:
-                menu = QtGui.QMenu()
-                openAction = menu.addAction("Open bookmark")
-                viewAction = menu.addAction("View the bookmark in Lens")
-
-                action = menu.exec_(viewBookmarks.viewport().mapToGlobal(pos))
-
-                idShareModel = bookmarkModel.data(index, ROLE_SHARE_MODEL_ID)
-                if action == openAction:
-                    self.handle(lambda: self.openBookmark(idShareModel))
-                elif action == viewAction:
-                    self.openShareLinkOnline(idShareModel)
 
     def find_our_toolbaritem_action(self):
         # first try to find and set the toolbar
