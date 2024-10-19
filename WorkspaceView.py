@@ -339,18 +339,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.setObjectName("workspaceView")
         self.form = FreeCADGui.PySideUic.loadUi(f"{Utils.mod_path}/WorkspaceView.ui")
 
-        tabWidget = self.form.findChildren(QtGui.QTabWidget)[0]
-        tabBar = tabWidget.tabBar()
-        wsIcon = QtGui.QIcon(Utils.icon_path + "folder-multiple-outline.svg")
-        tabBar.setTabIcon(IDX_TAB_WORKSPACES, wsIcon)
-        wsIcon = QtGui.QIcon(Utils.icon_path + "play-outline.svg")
-        tabBar.setTabIcon(IDX_TAB_ONDSEL_START, wsIcon)
-        bookmarkIcon = QtGui.QIcon(Utils.icon_path + "bookmark-outline.svg")
-        tabBar.setTabIcon(IDX_TAB_BOOKMARKS, bookmarkIcon)
-        searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
-        tabBar.setTabIcon(IDX_TAB_SEARCH, searchIcon)
-        publicIcon = QtGui.QIcon(Utils.icon_path + "dots-square.svg")
-        tabBar.setTabIcon(IDX_TAB_PUBLIC_SHARES, publicIcon)
+        self.initialize_tabs()
 
         self.setWidget(self.form)
         self.setWindowTitle("Ondsel Lens")
@@ -476,6 +465,42 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
         self.handle_request(self.check_for_update)
 
+    def initialize_tabs(self):
+        tabWidget = self.form.tabWidget
+        tabBar = tabWidget.tabBar()
+
+        # workspaces
+        wsIcon = QtGui.QIcon(Utils.icon_path + "folder-multiple-outline.svg")
+        tabBar.setTabIcon(IDX_TAB_WORKSPACES, wsIcon)
+        tabWidget.setTabToolTip(
+            IDX_TAB_WORKSPACES,
+            "Explore and create 3D CAD designs in your Lens workspaces",
+        )
+
+        # Ondsel start
+        wsIcon = QtGui.QIcon(Utils.icon_path + "play-outline.svg")
+        tabBar.setTabIcon(IDX_TAB_ONDSEL_START, wsIcon)
+        tabWidget.setTabToolTip(
+            IDX_TAB_ONDSEL_START,
+            "Explore users, workspaces, and share links curated by Ondsel",
+        )
+
+        # Bookmarks
+        bookmarkIcon = QtGui.QIcon(Utils.icon_path + "bookmark-outline.svg")
+        tabBar.setTabIcon(IDX_TAB_BOOKMARKS, bookmarkIcon)
+        tabWidget.setTabToolTip(IDX_TAB_BOOKMARKS, "Explore your Lens bookmarks")
+
+        searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
+        tabBar.setTabIcon(IDX_TAB_SEARCH, searchIcon)
+        tabWidget.setTabToolTip(
+            IDX_TAB_SEARCH,
+            "Search for users, workspaces, organizations, and share links",
+        )
+
+        publicIcon = QtGui.QIcon(Utils.icon_path + "dots-square.svg")
+        tabBar.setTabIcon(IDX_TAB_PUBLIC_SHARES, publicIcon)
+        tabWidget.setTabToolTip(IDX_TAB_PUBLIC_SHARES, "Explore public share links")
+
     def initializeOndselStart(self):
         self.form.ondselStartStatusLabel.setText("loading content...")
         self.form.ondselPromotionsScrollArea = OndselPromotionsView(self)
@@ -491,18 +516,13 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def initializeBookmarks(self):
         tabWidget = self.form.tabWidget
-        self.form.bookmarkStatusLabel = QtGui.QLabel("hello")
+        self.form.bookmarkStatusLabel = QtGui.QLabel("No bookmarks")
         self.form.tabBookmarks.layout().addWidget(self.form.bookmarkStatusLabel)
         self.form.viewBookmarks = BookmarkView(tabWidget)
         bookmarkView = self.form.viewBookmarks
         self.form.tabBookmarks.layout().addWidget(bookmarkView)
 
         tabWidget.currentChanged.connect(self.onTabChanged)
-        tabWidget.setTabToolTip(
-            IDX_TAB_WORKSPACES,
-            "Explore and create 3D CAD designs in your Lens workspaces",
-        )
-        tabWidget.setTabToolTip(IDX_TAB_BOOKMARKS, "Explore your Lens bookmarks")
         bookmarkView.setRootIsDecorated(False)
         bookmarkView.setToolTip("Bookmarks per organization")
         bookmarkView.setExpandsOnDoubleClick(False)
