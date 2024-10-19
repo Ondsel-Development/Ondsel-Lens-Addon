@@ -207,13 +207,17 @@ class APIClient:
         headers["X-Lens-Version"] = self.version
         if "X-Lens-Additional-Data" not in headers:
             headers["X-Lens-Additional-Data"] = json.dumps(
-                {"addonVersion": self.addon_version}
+                {
+                    "addonVersion": self.addon_version,
+                    "session": Utils.cad_session_id,
+                }
             )
         return headers
 
-    def _add_special_event_to_headers(self, headers, event_name, event_detail=None):
+    def _set_special_event_to_headers(self, headers, event_name, event_detail=None):
         new_dict = {
             "addonVersion": self.addon_version,
+            "session": Utils.cad_session_id,
             "specialEvent": True,
             "specialEventName": event_name,
         }
@@ -236,14 +240,19 @@ class APIClient:
             headers = self._set_default_headers({})
             if startup:
                 if Utils.cad_start_event_sent:
-                    headers = self._add_special_event_to_headers(
+                    headers = self._set_special_event_to_headers(
                         headers, EventName.ADDON_RESTART
                     )
                 else:
                     Utils.cad_start_event_sent = True
-                    headers = self._add_special_event_to_headers(
-                        headers, EventName.ONDSELES_STARTUP
-                    )
+                    if Utils.get_source_api_request() == "ondseles":
+                        headers = self._set_special_event_to_headers(
+                            headers, EventName.ONDSELES_STARTUP
+                        )
+                    else:
+                        headers = self._set_special_event_to_headers(
+                            headers, EventName.ADDON_START
+                        )
             response = requests.get(
                 f"{self.base_url}/status", headers=headers, params={}
             )
@@ -990,7 +999,7 @@ class APIClient:
         """
         endpoint = "status"
         headers = self._set_default_headers({})
-        headers = self._add_special_event_to_headers(headers, event_name, event_detail)
+        headers = self._set_special_event_to_headers(headers, event_name, event_detail)
         _ = self._request(endpoint, headers=headers, params={})
         return
 
@@ -1000,7 +1009,7 @@ class APIClient:
         """
         endpoint = "status"
         headers = self._set_default_headers({})
-        headers = self._add_special_event_to_headers(headers, event_name, event_detail)
+        headers = self._set_special_event_to_headers(headers, event_name, event_detail)
         _ = self._request(endpoint, headers=headers, params={})
         return
 

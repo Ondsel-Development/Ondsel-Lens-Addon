@@ -470,17 +470,15 @@ class WorkspaceView(QtWidgets.QScrollArea):
         QCoreApplication.instance().aboutToQuit.connect(self.send_exit_status)
 
     def send_exit_status(self):
+        if Utils.get_source_api_request() != "ondseles":
+            # Do nothing if not an Ondsel compiled/built product. Other products
+            # will do their own diagnostics and quality measures.
+            return
         try:
-            if self.api.status == ConnStatus.CONNECTED:
-                self.api.report_special_event(
-                    Utils.EventName.ONDSELES_EXIT,
-                    {"duration": Utils.get_cad_run_time_seconds()},
-                )
-            else:
-                self.api.report_special_event_anon(
-                    Utils.EventName.ONDSELES_EXIT,
-                    {"duration": Utils.get_cad_run_time_seconds()},
-                )
+            self.api.report_special_event_anon(
+                Utils.EventName.ONDSELES_EXIT,
+                {"duration": Utils.get_cad_run_time_seconds()},
+            )
         except Exception as e:
             logger.debug(e)
 

@@ -10,6 +10,7 @@ import math
 import re
 import logging
 import tempfile
+import uuid
 
 import zipfile
 import shutil
@@ -47,6 +48,7 @@ SIZE_PIXMAP = 128
 class EventName(StrEnum):
     ONDSELES_STARTUP = "ondseles-startup"
     ONDSELES_EXIT = "ondseles-exit"
+    ADDON_START = "addon-start"
     ADDON_RESTART = "addon-restart"
     SEARCH_TAB_DOWNLOAD_SHARELINK = "from-searchtab-download-sharelink-file"
     SEARCH_TAB_DOWNLOAD_WORKSPACE_FILE = "from-searchtab-download-workspace-file"
@@ -81,6 +83,7 @@ class FreeCADHandler(logging.Handler):
 
 _cad_start_time = None
 cad_start_event_sent = False
+cad_session_id = str(uuid.uuid4())
 
 
 def set_cad_start_time():
