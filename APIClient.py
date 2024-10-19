@@ -6,6 +6,7 @@ import json
 import urllib
 
 import Utils
+from Utils import EventName
 from models.curation import Curation
 from models.directory import Directory
 from models.file import File
@@ -103,6 +104,8 @@ class APIClient:
         self.version = version
         self.parent = parent
         self.status = ConnStatus.DISCONNECTED
+        self.api_version = None  # None = still unknown
+        self.addon_version = Utils.get_addon_version()
 
         if access_token is None:
             self.email = email
@@ -122,12 +125,13 @@ class APIClient:
         if hasattr(self.parent, "api"):  # during parent startup; don't set status yet.
             self.parent.set_ui_connectionStatus()
 
-    def getStatus(self):
+    def getStatus(self, startup=False):
         """
         Gets the current connection status;
         This is an active check to see if really online.
+        `startup` should be set to True only when add-on starts.
         """
-        self._confirm_online()
+        self._confirm_online(startup)
         return self.status
 
     def getNameUser(self):
@@ -201,20 +205,48 @@ class APIClient:
         headers["Accept"] = "application/json"
         headers["X-Lens-Source"] = self.source
         headers["X-Lens-Version"] = self.version
+        if "X-Lens-Additional-Data" not in headers:
+            headers["X-Lens-Additional-Data"] = json.dumps(
+                {"addonVersion": self.addon_version}
+            )
+        return headers
 
+    def _add_special_event_to_headers(self, headers, event_name, event_detail=None):
+        new_dict = {
+            "addonVersion": self.addon_version,
+            "specialEvent": True,
+            "specialEventName": event_name,
+        }
+        if event_detail is not None:
+            new_dict["specialEventDetail"] = event_detail
+        headers["X-Lens-Additional-Data"] = json.dumps(new_dict)
         return headers
 
     def _set_content_type(self):
         headers = {"Content-Type": "application/json"}
         return headers
 
-    def _confirm_online(self):
+    def _confirm_online(self, startup=False):
         """
-        Calls lens api root to simply check if online.
+        Calls lens api status to simply check if online.
         If not online, updates status.
         """
+        response = None
         try:
-            requests.get(f"{self.base_url}/")
+            headers = self._set_default_headers({})
+            if startup:
+                if Utils.cad_start_event_sent:
+                    headers = self._add_special_event_to_headers(
+                        headers, EventName.ADDON_RESTART
+                    )
+                else:
+                    Utils.cad_start_event_sent = True
+                    headers = self._add_special_event_to_headers(
+                        headers, EventName.ONDSELES_STARTUP
+                    )
+            response = requests.get(
+                f"{self.base_url}/status", headers=headers, params={}
+            )
             if self.is_logged_in():
                 self.setStatus(ConnStatus.CONNECTED)
             else:
@@ -222,6 +254,11 @@ class APIClient:
         except requests.exceptions.RequestException as e:
             if e.response is None:
                 self.setStatus(ConnStatus.DISCONNECTED)
+        try:
+            if response:
+                self.api_version = response.json()["version"]
+        except Exception as e:
+            logger.debug(f"status response interpretation error: {e}")
 
     def _confirm_online_after_exception(self):
         self._confirm_online()
@@ -943,6 +980,29 @@ class APIClient:
             new_curation = Curation.from_json(item["curation"])
             curations.append(new_curation)
         return curations
+
+    @authRequired
+    def report_special_event(self, event_name, event_detail):
+        """
+        When possible, event details should be added to existing API calls. But when not possible
+        (such as reporting an S3 download), then the /status endpoint can be used to send generic user
+        engagement events.
+        """
+        endpoint = "status"
+        headers = self._set_default_headers({})
+        headers = self._add_special_event_to_headers(headers, event_name, event_detail)
+        _ = self._request(endpoint, headers=headers, params={})
+        return
+
+    def report_special_event_anon(self, event_name, event_detail):
+        """
+        a variant of report_special_event that works anonymously
+        """
+        endpoint = "status"
+        headers = self._set_default_headers({})
+        headers = self._add_special_event_to_headers(headers, event_name, event_detail)
+        _ = self._request(endpoint, headers=headers, params={})
+        return
 
     @authRequired
     def fancy_auth_call(self, api_method, key):

@@ -7,6 +7,7 @@ from PySide.QtCore import Qt, QSize
 import FreeCADGui as Gui
 
 import Utils
+from Utils import EventName
 from delegates.curation_display_delegate import (
     CurationDisplayDelegate,
     get_pixmap_from_url,
@@ -21,6 +22,12 @@ class PromotionDelegate(CurationDisplayDelegate):
 
     def __init__(self, index=None):
         super().__init__()
+        self.download_sharelink_event_name = (
+            EventName.ONDSEL_START_TAB_DOWNLOAD_SHARELINK
+        )
+        self.download_workspace_file_event_name = (
+            EventName.ONDSEL_START_TAB_DOWNLOAD_WORKSPACE_FILE
+        )
         promotion = index.data(PromotionListModel.PromotionRole)
         self.promotion = promotion
         curation = promotion.curation

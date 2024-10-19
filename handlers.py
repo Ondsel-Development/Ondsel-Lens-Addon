@@ -5,12 +5,21 @@ import FreeCAD
 from APIClient import fancy_handle, APICallResult
 
 
-def download_shared_model_to_memory(api, id_shared_model):
+def download_shared_model_to_memory(api, id_shared_model, event_name):
     shared_model = None
 
     def get_shared_model():
         nonlocal shared_model
         shared_model = api.getSharedModel(id_shared_model)
+
+    def record_download():
+        api.report_special_event(
+            event_name,
+            {
+                "destination": "memory",
+                "sharelink": id_shared_model,
+            },
+        )
 
     api_result = fancy_handle(get_shared_model)
     if api_result == APICallResult.OK:
@@ -36,10 +45,11 @@ def download_shared_model_to_memory(api, id_shared_model):
         ver["uniqueFileName"] for ver in versions if str(ver["_id"]) == version_id
     ][0]
     download_to_memory(api, unique_filename, real_filename)
+    _ = fancy_handle(record_download)
     return f"Done downloading file '{real_filename}'"
 
 
-def download_file_version_to_memory(api, file_id, version_id, public):
+def download_file_version_to_memory(api, file_id, version_id, public, event_name):
     unique_filename = None
     real_filename = None
 
@@ -50,6 +60,17 @@ def download_file_version_to_memory(api, file_id, version_id, public):
         )
         unique_filename = version_detail.uniqueFileName
         real_filename = file_detail.custFileName
+
+    def record_download():
+        api.report_special_event(
+            event_name,
+            {
+                "destination": "memory",
+                "file": file_id,
+                "version_id": version_id,
+                "public": public,
+            },
+        )
 
     api_result = fancy_handle(get_file_detail)
     if api_result == APICallResult.OK:
@@ -65,6 +86,7 @@ def download_file_version_to_memory(api, file_id, version_id, public):
     else:
         return f"General error found attempting to download file. See Report View tab."
     download_to_memory(api, unique_filename, real_filename)
+    _ = fancy_handle(record_download)
     return f"Done downloading file '{real_filename}'"
 
 

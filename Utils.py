@@ -3,6 +3,7 @@
 # * Copyright (c) 2023 Ondsel                                           *
 # *                                                                     *
 # ***********************************************************************
+import datetime
 import inspect
 import os
 import math
@@ -13,6 +14,7 @@ from urllib.parse import urlparse
 import zipfile
 import shutil
 from contextlib import contextmanager
+from enum import StrEnum
 from urllib.parse import urlparse
 import requests
 
@@ -42,6 +44,26 @@ LENS_TOOLBARITEM_TEXT = "Ondsel Lens Addon"
 SIZE_PIXMAP = 128
 
 
+class EventName(StrEnum):
+    ONDSELES_STARTUP = "ondseles-startup"
+    ONDSELES_EXIT = "ondseles-exit"
+    ADDON_RESTART = "addon-restart"
+    SEARCH_TAB_DOWNLOAD_SHARELINK = "from-searchtab-download-sharelink-file"
+    SEARCH_TAB_DOWNLOAD_WORKSPACE_FILE = "from-searchtab-download-workspace-file"
+    PUBLIC_SHARE_TAB_DOWNLOAD_SHARELINK = (
+        "from-publicsharelinktab-download-sharelink-file"
+    )
+    PUBLIC_SHARE_TAB_DOWNLOAD_WORKSPACE_FILE = (
+        "from-publicsharelinktab-download-workspace-file"
+    )
+    ONDSEL_START_TAB_DOWNLOAD_SHARELINK = "from-ondselstarttab-download-sharelink-file"
+    ONDSEL_START_TAB_DOWNLOAD_WORKSPACE_FILE = (
+        "from-ondselstarttab-download-workspace-file"
+    )
+    SCHEMA_LAUNCH_SHARELINK = "schema-launch-sharelink-file"
+    SCHEMA_LAUNCH_WORKSPACE_FILE = "schema-launch-workspace-file"
+
+
 class FreeCADHandler(logging.Handler):
     def __init__(self):
         logging.Handler.__init__(self)
@@ -55,6 +77,22 @@ class FreeCADHandler(logging.Handler):
             c.PrintWarning(msg)
         else:
             c.PrintMessage(msg)
+
+
+_cad_start_time = None
+cad_start_event_sent = False
+
+
+def set_cad_start_time():
+    global _cad_start_time
+    _cad_start_time = datetime.datetime.now()
+
+
+def get_cad_run_time_seconds():
+    global _cad_start_time
+    if not isinstance(_cad_start_time, datetime.datetime):
+        return 0
+    return (datetime.datetime.now() - _cad_start_time).total_seconds()
 
 
 class __OndselEnv:
