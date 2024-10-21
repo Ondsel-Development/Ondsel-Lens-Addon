@@ -239,6 +239,8 @@ class APIClient:
         try:
             headers = self._set_default_headers({})
             if startup:
+                if "Authorization" in headers:
+                    del headers["Authorization"]
                 if Utils.cad_start_event_sent:
                     headers = self._set_special_event_to_headers(
                         headers, EventName.ADDON_RESTART
@@ -1010,7 +1012,14 @@ class APIClient:
         endpoint = "status"
         headers = self._set_default_headers({})
         headers = self._set_special_event_to_headers(headers, event_name, event_detail)
-        _ = self._request(endpoint, headers=headers, params={})
+        if "Authorization" in headers:
+            del headers["Authorization"]
+        try:
+            _ = requests.get(
+                f"{self.base_url}/status", headers=headers, params={}
+            )
+        except Exception as e:
+            logger.debug(e)
         return
 
     @authRequired
