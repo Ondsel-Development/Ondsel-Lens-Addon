@@ -10,6 +10,12 @@
     <height>256</height>
    </rect>
   </property>
+  <property name="sizePolicy">
+   <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+    <horstretch>0</horstretch>
+    <verstretch>0</verstretch>
+   </sizepolicy>
+  </property>
   <property name="minimumSize">
    <size>
     <width>0</width>
@@ -131,7 +137,7 @@ border: 5px solid black;
    <item>
     <widget class="QLabel" name="titleLabel">
      <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+      <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
        <horstretch>0</horstretch>
        <verstretch>0</verstretch>
       </sizepolicy>
@@ -140,6 +146,12 @@ border: 5px solid black;
       <size>
        <width>128</width>
        <height>48</height>
+      </size>
+     </property>
+     <property name="maximumSize">
+      <size>
+       <width>174</width>
+       <height>16777215</height>
       </size>
      </property>
      <property name="text">

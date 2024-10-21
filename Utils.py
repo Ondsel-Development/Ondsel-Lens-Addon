@@ -336,6 +336,39 @@ def import_json_forgiving_of_extra_fields(cls, json_data):
     )
 
 
+def wrapify(text):
+    """insert generic text-wrap (ZERO-WIDTH-SPACE) 200B UTF8 char to help with wrapping long filenames"""
+
+    def is_not_wrappable(rune):
+        return not (is_eol_wrappable(rune) or is_start_wrappable(rune))
+
+    def is_eol_wrappable(rune):
+        """a wrappable punctuation mark and the mark could be at the end of the current line"""
+        return rune in ["_", "/", ",", "-"]
+
+    def is_start_wrappable(rune):
+        """a wrappable punctuation mark and the mark could start the beginning of next line"""
+        return rune in [".", "("]
+
+    new_text = ""
+    prev_rune = "9"  # choose a character that would never trigger a wrapping
+    for rune in text:
+        if is_eol_wrappable(rune) and is_not_wrappable(prev_rune):
+            new_text += rune
+            new_text += "\u200B"
+        elif prev_rune.islower() and rune.isupper():
+            # lowercase to uppercase transition such as aA
+            new_text += "\u200B"
+            new_text += rune
+        elif is_start_wrappable(rune) and is_not_wrappable(prev_rune):
+            new_text += "\u200B"
+            new_text += rune
+        else:
+            new_text += rune
+        prev_rune = rune
+    return new_text
+
+
 @contextmanager
 def wait_cursor():
     try:
