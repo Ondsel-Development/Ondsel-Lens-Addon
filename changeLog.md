@@ -31,3 +31,6 @@ Update to renamed repository
 
 # 2024.09.13.02
 Fix small errors
+
+<version>
+Large update with an MDI view with various tabs that allow browsing Lens.
