@@ -23,7 +23,7 @@ def register_url_scheme_macos(scheme):
     def handle_url(url):
         logger.debug(f"Handle URL {url}")
         import lens_command
-        import WorkspaceView
+        import OndselLensAddon
 
         lens_command.start_mdi_tab()
         if WorkspaceView.wsv:

@@ -1,57 +1,7 @@
 import Utils
 
 from PySide import QtCore
-
-# import os
-# from datetime import datetime
-# import json
-# import shutil
-# import re
-# import requests
-# import uuid
-# import base64
-# import webbrowser
-
-# from inspect import cleandoc
-
-# import jwt
-# from jwt.exceptions import ExpiredSignatureError
-# import FreeCAD
-# import FreeCADGui as Gui
-# import AddonManager
-
-# from DataModels import (
-#     WorkspaceListModel,
-#     CACHE_PATH,
-#     getBookmarkModel,
-#     ROLE_TYPE,
-#     TYPE_ORG,
-#     TYPE_BOOKMARK,
-#     ROLE_SHARE_MODEL_ID,
-# )
-# from VersionModel import OndselVersionModel
-# from LinkModel import ShareLinkModel
-# from APIClient import (
-#     APIClient,
-#     APIClientException,
-#     APIClientAuthenticationException,
-#     APIClientConnectionError,
-#     APIClientRequestException,
-# )
-# from Workspace import (
-#     WorkspaceModel,
-#     LocalWorkspaceModel,
-#     ServerWorkspaceModel,
-#     FileStatus,
-# )
-
 from PySide.QtGui import QStyledItemDelegate, QStyle
-
-# from PySide.QtCore import QByteArray
-
-# from PySide.QtWidgets import QTreeView
-
-# import IntegrationStart
 
 logger = Utils.getLogger(__name__)
 

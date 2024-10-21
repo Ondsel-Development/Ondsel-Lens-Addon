@@ -2,10 +2,8 @@ import tempfile
 
 import FreeCAD
 
-from APIClient import fancy_handle, APICallResult
-
 import Utils
-
+from APIClient import fancy_handle, APICallResult
 
 logger = Utils.getLogger(__name__)
 
@@ -101,3 +99,12 @@ def warn_downloaded_file(name_file):
         f"Done downloading '{name_file}'. "
         "Be sure to save to disk if you want to keep the model."
     )
+
+
+def restoreFile(pathFile):
+    # iterate over the files
+    for doc in FreeCAD.listDocuments().values():
+        if doc.FileName == pathFile:
+            doc.restore()
+            return True
+    return False

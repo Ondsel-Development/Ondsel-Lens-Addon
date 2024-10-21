@@ -1,5 +1,5 @@
 import Utils
-import WorkspaceView
+import OndselLensAddon
 import FreeCADGui as Gui
 from PySide import QtGui, QtWidgets, QtCore
 
@@ -35,7 +35,7 @@ def find_subwindow(main_window):
 
     subwindows = main_window.findChildren(QtWidgets.QMdiSubWindow)
     for subwindow in subwindows:
-        if subwindow.widget().centralWidget().objectName() == "WorkspaceView":
+        if subwindow.widget().centralWidget().objectName() == "OndselLensAddon":
             return subwindow
     return None
 
@@ -47,10 +47,10 @@ def start_mdi_tab():
         mdi_area = main_window.findChild(QtWidgets.QMdiArea)
         mdi_area.setActiveSubWindow(subwindow)
     else:
-        if WorkspaceView.wsv:
-            del WorkspaceView.wsv
-        WorkspaceView.wsv = WorkspaceView.WorkspaceView(main_window)
-        main_window.addWindow(WorkspaceView.wsv)
+        if OndselLensAddon.wsv:
+            del OndselLensAddon.wsv
+        OndselLensAddon.wsv = OndselLensAddon.OndselLensAddon(main_window)
+        main_window.addWindow(OndselLensAddon.wsv)
         subwindow = find_subwindow(main_window)
         if subwindow:
             subwindow.setWindowTitle("Ondsel Lens")
@@ -59,8 +59,8 @@ def start_mdi_tab():
 
 
 def init_toolbar_icon():
-    if WorkspaceView.wsv:
-        WorkspaceView.wsv.init_toolbar_icon()
+    if OndselLensAddon.wsv:
+        OndselLensAddon.wsv.init_toolbar_icon()
 
 
 def ensure_mdi_tab():

@@ -1,3 +1,10 @@
+import os
+import shutil
+import uuid
+import requests
+from enum import Enum, auto
+from inspect import cleandoc
+
 from PySide.QtCore import (
     QAbstractListModel,
     Qt,
@@ -7,37 +14,13 @@ from PySide.QtCore import (
     QThread,
 )
 from PySide.QtGui import QPixmap
+
 import Utils
-import os
-import shutil
-import uuid
-import requests
-import APIClient
-
-from enum import Enum, auto
-
-from inspect import cleandoc
-
-from DataModels import CACHE_PATH
-
 from VersionModel import VersionModel
-
 import check_links
-
-from APIClient import fancy_handle, APICallResult
+from APIClient import fancy_handle, APICallResult, APIClientTierException
 
 logger = Utils.getLogger(__name__)
-
-# class WorkspaceModelFactory:
-#    @staticmethod
-#    def createWorkspace(workspaceDict, **kwargs):
-#        if workspaceDict["type"] == "Ondsel":
-#            return ServerWorkspaceModel(workspaceDict, **kwargs)
-#        elif workspaceDict["type"] == "Local":
-#            return LocalWorkspaceModel(workspaceDict, **kwargs)
-#        elif workspaceDict["type"] == "External":
-#            return None
-
 
 NO_REFRESH = False
 
@@ -92,7 +75,7 @@ class WorkspaceModel(QAbstractListModel):
         self._id = workspaceDict["_id"]
 
         self.name = workspaceDict["name"]
-        self.path = CACHE_PATH + self._id
+        self.path = Utils.CACHE_PATH + self._id
         self.subPath = kwargs.get("subPath", "")
         self.files = []
 
@@ -676,7 +659,7 @@ class ServerWorkspaceModel(WorkspaceModel):
             check_links.find_paths_links_file(file_path)
             and self.apiClient.is_user_solo()
         ):
-            raise APIClient.APIClientTierException(
+            raise APIClientTierException(
                 "This document contains links to parts in another document. Only "
                 "single-document files are supported in your current lens account. "
             )

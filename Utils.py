@@ -8,8 +8,6 @@ import os
 import math
 import re
 import logging
-import tempfile
-
 import zipfile
 import shutil
 from contextlib import contextmanager
@@ -40,6 +38,12 @@ NAME_COMMAND_START = "Start_Start"
 LENS_TOOLBARITEM_TEXT = "Ondsel Lens Addon"
 
 SIZE_PIXMAP = 128
+
+MAX_LENGTH_BASE_FILENAME = 30
+MAX_LENGTH_WORKSPACE_NAME = 33
+ELLIPSES = "..."
+
+CACHE_PATH = FreeCAD.getUserCachePath() + "Ondsel-Lens/"
 
 
 class FreeCADHandler(logging.Handler):
@@ -342,6 +346,17 @@ def import_json_forgiving_of_extra_fields(cls, json_data):
     return cls(
         **{k: v for k, v in json_data.items() if k in inspect.signature(cls).parameters}
     )
+
+
+def renderFileName(fileName):
+    base, extension = os.path.splitext(fileName)
+    if len(base) > MAX_LENGTH_BASE_FILENAME:
+        lengthSuffix = 5
+        lengthEllipses = len(ELLIPSES)
+        lengthPrefix = MAX_LENGTH_BASE_FILENAME - lengthSuffix - lengthEllipses
+        return base[:lengthPrefix] + ELLIPSES + base[-lengthSuffix:] + extension
+    else:
+        return fileName
 
 
 @contextmanager

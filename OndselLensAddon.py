@@ -7,41 +7,48 @@
 
 import os
 from datetime import datetime
-import re
-
 import json
 import shutil
 import requests
 import uuid
 import base64
 import webbrowser
-import random
-import math
-
 from inspect import cleandoc
 
 import jwt
 from jwt.exceptions import ExpiredSignatureError
 
-import handlers
 from PySide import QtCore, QtGui, QtWidgets
 from PySide.QtGui import QStandardItemModel
+from PySide.QtGui import (
+    QStyledItemDelegate,
+    QMessageBox,
+    QApplication,
+    QIcon,
+    QAction,
+    QActionGroup,
+    QMenu,
+    QSizePolicy,
+    QPixmap,
+)
+from PySide.QtCore import QByteArray
+from PySide.QtWidgets import QTreeView
 
 import FreeCAD
 import FreeCADGui
 import AddonManager
 
 import Utils
-
+from Utils import wait_cursor
 from DataModels import (
-    WorkspaceListModel,
-    CACHE_PATH,
     getBookmarkModel,
     ROLE_TYPE,
     TYPE_ORG,
     TYPE_BOOKMARK,
     ROLE_SHARE_MODEL_ID,
 )
+from models.workspace_list_model import WorkspaceListModel
+
 from VersionModel import OndselVersionModel
 from LinkModel import ShareLinkModel
 from APIClient import (
@@ -52,46 +59,27 @@ from APIClient import (
     APICallResult,
     fancy_handle,
 )
-from Workspace import (
-    WorkspaceModel,
-    ServerWorkspaceModel,
-    FileStatus,
+import handlers
+from components.login_dialog import LoginDialog
+from components.sharelink_edit_dialog import SharingLinkEditDialog
+from components.workspace_dialogs import (
+    confirmDownload,
+    CreateDirDialog,
+    EnterCommitMessageDialog,
 )
+from delegates.file_list_delegate import FileListDelegate
+from delegates.linked_list_delegate import LinkListDelegate
 from markdown import markdown_to_html
+from models.workspace_model import ServerWorkspaceModel, FileStatus
 from views.ondsel_promotions_view import OndselPromotionsView
 from views.public_shares_view import PublicSharesView
-
 from views.search_results_view import SearchResultsView
-
 from components.choose_download_action_dialog import ChooseDownloadActionDialog
-
-from PySide.QtGui import (
-    QStyledItemDelegate,
-    QStyle,
-    QMessageBox,
-    QApplication,
-    QIcon,
-    QAction,
-    QActionGroup,
-    QMenu,
-    QSizePolicy,
-    QPixmap,
-)
-
-from PySide.QtCore import QByteArray
-
-from PySide.QtWidgets import QTreeView
-
-from WorkspaceListDelegate import WorkspaceListDelegate
-
-from Utils import wait_cursor
+from delegates.workspace_list_delegate import WorkspaceListDelegate
 
 
 logger = Utils.getLogger(__name__)
 
-MAX_LENGTH_BASE_FILENAME = 30
-MAX_LENGTH_WORKSPACE_NAME = 33
-ELLIPSES = "..."
 MAX_INT32 = (1 << 31) - 1
 CONFIG_PATH = FreeCAD.getUserConfigDir()
 FILENAME_USER_CFG = "user.cfg"
@@ -104,7 +92,7 @@ IDX_TAB_BOOKMARKS = 2
 IDX_TAB_SEARCH = 3
 IDX_TAB_PUBLIC_SHARES = 4
 
-PATH_BOOKMARKS = Utils.joinPath(CACHE_PATH, "bookmarks")
+PATH_BOOKMARKS = Utils.joinPath(Utils.CACHE_PATH, "bookmarks")
 
 INTERVAL_TIMER_MS = 60000
 INTERVAL_TOOLBAR_TIMER_MS = 500
@@ -161,126 +149,6 @@ class UpdateManager:
         addonManager.Activated()
 
 
-# Simple delegate drawing an icon and text
-class FileListDelegate(QStyledItemDelegate):
-    def paint(self, painter, option, index):
-        # Get the data for the current index
-        if not index.isValid():
-            return
-
-        fileName, status, isFolder = index.data(
-            WorkspaceModel.NameStatusAndIsFolderRole
-        )
-
-        if option.state & QStyle.State_Selected:
-            painter.fillRect(option.rect, option.palette.highlight())
-        icon_rect = QtCore.QRect(option.rect.left(), option.rect.top(), 16, 16)
-        text_rect = QtCore.QRect(
-            option.rect.left() + 20,
-            option.rect.top(),
-            option.rect.width() - 20,
-            option.rect.height(),
-        )
-        if isFolder:
-            icon = QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/folder.svg"))
-        else:
-            icon = QtGui.QIcon.fromTheme(
-                "back", QtGui.QIcon(":/icons/document-new.svg")
-            )
-        icon.paint(painter, icon_rect)
-        textToDisplay = renderFileName(fileName)
-        if status:
-            textToDisplay += " (" + str(status) + ")"
-
-        fontMetrics = painter.fontMetrics()
-        elidedText = fontMetrics.elidedText(
-            textToDisplay, QtGui.Qt.ElideRight, option.rect.width()
-        )
-        painter.drawText(text_rect, QtCore.Qt.AlignLeft, elidedText)
-
-
-def renderFileName(fileName):
-    base, extension = os.path.splitext(fileName)
-    if len(base) > MAX_LENGTH_BASE_FILENAME:
-        lengthSuffix = 5
-        lengthEllipses = len(ELLIPSES)
-        lengthPrefix = MAX_LENGTH_BASE_FILENAME - lengthSuffix - lengthEllipses
-        return base[:lengthPrefix] + ELLIPSES + base[-lengthSuffix:] + extension
-    else:
-        return fileName
-
-
-class LinkListDelegate(QStyledItemDelegate):
-    iconShareClicked = QtCore.Signal(QtCore.QModelIndex)
-    iconEditClicked = QtCore.Signal(QtCore.QModelIndex)
-    iconDeleteClicked = QtCore.Signal(QtCore.QModelIndex)
-
-    def paint(self, painter, option, index):
-        if not index.isValid():
-            return
-        name = index.data(QtCore.Qt.DisplayRole)
-
-        if option.state & QStyle.State_Selected:
-            painter.fillRect(option.rect, option.palette.highlight())
-        icon_copy_rect = QtCore.QRect(
-            option.rect.right() - 60, option.rect.top(), 16, 16
-        )
-        icon_edit_rect = QtCore.QRect(
-            option.rect.right() - 40, option.rect.top(), 16, 16
-        )
-        icon_delete_rect = QtCore.QRect(
-            option.rect.right() - 20, option.rect.top(), 16, 16
-        )
-        text_rect = QtCore.QRect(
-            option.rect.left() + 4,
-            option.rect.top(),
-            option.rect.width() - 60,
-            option.rect.height(),
-        )
-
-        icon_copy = QtGui.QIcon.fromTheme("back", QtGui.QIcon(":/icons/edit-copy.svg"))
-        icon_edit = QtGui.QIcon.fromTheme(
-            "back", QtGui.QIcon(":/icons/Std_DlgParameter.svg")
-        )
-        icon_delete = QtGui.QIcon.fromTheme(
-            "back", QtGui.QIcon(":/icons/edit_Cancel.svg")
-        )
-
-        icon_copy.paint(painter, icon_copy_rect)
-        icon_edit.paint(painter, icon_edit_rect)
-        icon_delete.paint(painter, icon_delete_rect)
-        painter.drawText(text_rect, QtCore.Qt.AlignLeft, name)
-
-    def editorEvent(self, event, model, option, index):
-        if not index.isValid():
-            return False
-        if (
-            event.type() == QtCore.QEvent.MouseButtonPress
-            and event.button() == QtCore.Qt.LeftButton
-        ):
-            icon_share_rect = QtCore.QRect(
-                option.rect.right() - 60, option.rect.top(), 16, 16
-            )
-            icon_edit_rect = QtCore.QRect(
-                option.rect.right() - 40, option.rect.top(), 16, 16
-            )
-            icon_delete_rect = QtCore.QRect(
-                option.rect.right() - 20, option.rect.top(), 16, 16
-            )
-
-            if icon_share_rect.contains(event.pos()):
-                self.iconShareClicked.emit(index)
-                return True
-            elif icon_edit_rect.contains(event.pos()):
-                self.iconEditClicked.emit(index)
-                return True
-            elif icon_delete_rect.contains(event.pos()):
-                self.iconDeleteClicked.emit(index)
-                return True
-        # If the click wasn't on any icon, select the item as normal
-        return super().editorEvent(event, model, option, index)
-
-
 class BookmarkView(QTreeView):
     def drawBranches(self, painter, rect, index):
         pass
@@ -326,10 +194,10 @@ class BookmarkDelegate(QStyledItemDelegate):
             return super().sizeHint(option, index)
 
 
-class WorkspaceView(QtWidgets.QScrollArea):
+class OndselLensAddon(QtWidgets.QScrollArea):
 
     def __init__(self, mw):
-        super(WorkspaceView, self).__init__(mw)
+        super(OndselLensAddon, self).__init__(mw)
 
         self.current_workspace = None
         self.currentWorkspaceModel = None
@@ -759,7 +627,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.hideBookmarks()
 
         if p.GetBool("clearCache", False):
-            shutil.rmtree(CACHE_PATH)
+            shutil.rmtree(Utils.CACHE_PATH)
             self.current_workspace = None
             self.currentWorkspaceModel = None
             self.form.fileList.setModel(None)
@@ -968,40 +836,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         """
         func()
         self.set_ui_connectionStatus()
-        # connected_before_call = self.is_connected()
-        # try:
-        #     func()
-        #     if not connected_before_call:
-        #         # since the call succeeds, it may mean we are connected again
-        #         if self.is_connected():
-        #             # check if we are connected right now
-        #             logger.info("The connection to the Lens service is restored.")
-        #     return False
-        # except APIClientConnectionError as e:
-        #     if connected_before_call:
-        #         if logger.level <= logging.DEBUG:
-        #             logger.warn(e)
-        #         else:
-        #             logger.warn("Disconnected from the Lens service.")
-        # except APIClientRequestException as e:
-        #     if connected_before_call:
-        #         if logger.level <= logging.DEBUG:
-        #             logger.warn(e)
-        #         else:
-        #             logger.warn("Error encountered from the Lens service.")
-        # except APIClientAuthenticationException as e:
-        #     logger.warn(e)
-        #     logger.warn("Logging out")
-        #     self.logout()
-        # except APIClientTierException as e:
-        #     self.show_tier_dialog(str(e))
-        # except APIClientException as e:
-        #     logger.error("Uncaught exception:")
-        #     logger.error(e)
-        #     logger.warn("Logging out")
-        #     self.logout()
-        # self.set_ui_connectionStatus()
-        # return True
 
     def show_tier_dialog(self, message):
         dialog = QMessageBox()
@@ -1046,11 +880,13 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def setWorkspaceNameLabel(self):
         wsm = self.currentWorkspaceModel
         workspacePath = wsm.getWorkspacePath()
-        if len(workspacePath) > MAX_LENGTH_WORKSPACE_NAME:
-            lengthPrefix = (MAX_LENGTH_WORKSPACE_NAME - len(ELLIPSES)) // 2
+        if len(workspacePath) > Utils.MAX_LENGTH_WORKSPACE_NAME:
+            lengthPrefix = (Utils.MAX_LENGTH_WORKSPACE_NAME - len(Utils.ELLIPSES)) // 2
             lengthSuffix = lengthPrefix
             workspacePath = (
-                workspacePath[:lengthPrefix] + ELLIPSES + workspacePath[-lengthSuffix:]
+                workspacePath[:lengthPrefix]
+                + Utils.ELLIPSES
+                + workspacePath[-lengthSuffix:]
             )
         self.form.workspaceNameLabel.setText(workspacePath)
 
@@ -1058,27 +894,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         with wait_cursor():
             self.openFile(index)
             self.setWorkspaceNameLabel()
-
-    # ####
-    # Downloading files
-    # ####
-
-    def confirmFileTransfer(self, message, transferMessage):
-        msg_box = QMessageBox()
-        msg_box.setWindowTitle("Confirmation")
-        msg_box.setText(
-            f"{message} {transferMessage}\nAre you sure you want to proceed?"
-        )
-        msg_box.setIcon(QMessageBox.Warning)
-        msg_box.setStandardButtons(QMessageBox.Yes | QMessageBox.No)
-        msg_box.setDefaultButton(QMessageBox.No)
-
-        return msg_box.exec_() == QMessageBox.Yes
-
-    def confirmDownload(self, message):
-        return self.confirmFileTransfer(
-            message, "Downloading will override this local version."
-        )
 
     def downloadFileIndex(self, index):
         wsm = self.currentWorkspaceModel
@@ -1093,7 +908,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         wsm = self.currentWorkspaceModel
         if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
             msg = "The local copy is outdated compared to the active version."
-            if not self.confirmDownload(msg):
+            if not confirmDownload(msg):
                 wsm.refreshModel()
                 return False
         elif fileItem.status == FileStatus.UNTRACKED:
@@ -1102,7 +917,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
             return False
         elif fileItem.status == FileStatus.SERVER_COPY_OUTDATED:
             msg = "The local copy is newer than the active version."
-            if not self.confirmDownload(msg):
+            if not confirmDownload(msg):
                 wsm.refreshModel()
                 return False
 
@@ -1131,7 +946,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         wsm = self.currentWorkspaceModel
         if fileItem.status == FileStatus.LOCAL_COPY_OUTDATED:
             msg = "The local copy is outdated compared to the active version."
-            if not self.confirmDownload(msg):
+            if not confirmDownload(msg):
                 wsm.refreshModel()
                 return
         elif fileItem.status == FileStatus.UNTRACKED:
@@ -1140,7 +955,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
             return
         elif fileItem.status == FileStatus.SERVER_COPY_OUTDATED:
             msg = "The local copy is newer than the active version."
-            if not self.confirmDownload(msg):
+            if not confirmDownload(msg):
                 wsm.refreshModel()
                 return
         elif fileItem.status == FileStatus.SYNCED:
@@ -1150,14 +965,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
         wsm.downloadFile(fileItem)
         if Utils.isOpenableByFreeCAD(fileItem.getPath()):
             self.updateThumbnail(fileItem)
-
-    def restoreFile(self, pathFile):
-        # iterate over the files
-        for doc in FreeCAD.listDocuments().values():
-            if doc.FileName == pathFile:
-                doc.restore()
-                return True
-        return False
 
     def handle_api_call(self, func, message):
         """Handle an API call.
@@ -1247,7 +1054,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         #     # open models online
         #     self.currentModelId = file_item.serverFileDict["modelId"]
         self.updateThumbnail(file_item)
-        self.form.fileNameLabel.setText(renderFileName(fileName))
+        self.form.fileNameLabel.setText(Utils.renderFileName(fileName))
 
         version_model = None
         self.links_model = None
@@ -1304,7 +1111,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.thumbnail_label.show()
         self.form.thumbnail_label.setFixedSize(width, height)
         self.form.thumbnail_label.setPixmap(pixmap)
-        self.form.fileNameLabel.setText(renderFileName(fileName))
+        self.form.fileNameLabel.setText(Utils.renderFileName(fileName))
         self.form.fileNameLabel.show()
         self.hideLinkVersionDetails()
 
@@ -1346,44 +1153,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
             self.form.versionsComboBox.setModel(model)
             self.form.versionsComboBox.setCurrentIndex(model.getCurrentIndex())
             self.form.versionsComboBox.setVisible(True)
-
-    # workspace add and delete is preferred to do in the Dashboard
-    # def showWorkspaceContextMenu(self, pos):
-    #     index = self.form.workspaceListView.indexAt(pos)
-
-    #     if index.isValid():
-    #         menu = QtGui.QMenu()
-
-    #         deleteAction = menu.addAction("Delete")
-    #         deleteAction.setEnabled(self.api is not None)
-
-    #         action = menu.exec_(
-    #             self.form.workspaceListView.viewport().mapToGlobal(pos)
-    #         )
-
-    #         if action == deleteAction:
-    #             result = QtGui.QMessageBox.question(
-    #                 self,
-    #                 "Delete Workspace",
-    #                 "Are you sure you want to delete this workspace?",
-    #                 QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
-    #             )
-    #             if result == QtGui.QMessageBox.Yes:
-    #                 self.api.deleteWorkspace(
-    #                     self.workspacesModel.data(index)["_id"]
-    #                 )
-    #                 self.workspacesModel.refreshModel()
-    #     else:
-    #         menu = QtGui.QMenu()
-    #         addAction = menu.addAction("Add workspace")
-    #         addAction.setEnabled(self.api is not None)
-
-    #         action = menu.exec_(
-    #             self.form.workspaceListView.viewport().mapToGlobal(pos)
-    #         )
-
-    #         if action == addAction:
-    #             self.newWorkspaceBtnClicked()
 
     # ####
     # Managing preferences
@@ -2181,56 +1950,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
             self.currentWorkspaceModel.refreshModel()
 
         self.handle_api_call(tryCreateDir, "Failed to create the directory.")
-
         self.switchView()
-
-    # def newWorkspaceBtnClicked(self):
-    #     if self.api is None and self.access_token is None:
-    #         logger.debug("You need to login first")
-    #         self.login_btn_clicked()
-    #         return
-    #     if self.api is None and self.access_token is not None:
-    #         self.api = APIClient(
-    #             "", "", baseUrl, lensUrl, self.access_token, self.user
-    #         )
-
-    #     dialog = NewWorkspaceDialog()
-    #     # Show the dialog and wait for the user to close it
-    #     if dialog.exec_() == QtGui.QDialog.Accepted:
-    #         workspaceName = dialog.nameEdit.text()
-    #         workspaceDesc = dialog.descEdit.toPlainText()
-
-    #         personal_organisation = None
-    #         for organization in self.user["organizations"]:
-    #             if organization.get("name") == "Personal":
-    #                 personal_organisation = organization.get("_id")
-    #                 break
-
-    #         if personal_organisation is None:
-    #             return
-
-    #         self.api.createWorkspace(
-    #             workspaceName, workspaceDesc, personal_organisation
-    #         )
-
-    #         # workspaceType = "Ondsel"
-    #         # workspaceId = result["_id"]
-    #         # workspaceUrl = cachePath + workspaceId #workspace id.
-    #         # workspaceRootDir = result["rootDirectory"]
-
-    #         self.workspacesModel.refreshModel()
-
-    #         # # Determine workspace type and get corresponding values
-    #         # if dialog.localRadio.isChecked():
-    #         #     workspaceType = "Local"
-    #         #     workspaceUrl = dialog.localFolderLabel.text()
-    #         # elif dialog.ondselRadio.isChecked():
-    #         #     workspaceType = "Ondsel"
-    #         #     workspaceUrl = cachePath + dialog.nameEdit.text()
-    #         # else:
-    #         #     workspaceType = "External"
-    #         #     workspaceUrl = dialog.externalServerEdit.text()
-    #         # Update workspaceListWidget with new workspace
 
     def openDownloadPage(self):
         url = f"{self.api.get_base_url()}download-and-explore"
@@ -2454,488 +2174,6 @@ class WorkspaceView(QtWidgets.QScrollArea):
                     self.api, id1, id2, True
                 )
             )
-
-
-# class NewWorkspaceDialog(QtGui.QDialog):
-#     def __init__(self, parent=None):
-#         super(NewWorkspaceDialog, self).__init__(parent)
-#         self.setWindowTitle("Add Workspace")
-#         self.setModal(True)
-
-#         layout = QtGui.QVBoxLayout()
-
-#         # Radio buttons for selecting workspace type
-#         # self.localRadio = QtGui.QRadioButton("Local")
-#         # self.ondselRadio = QtGui.QRadioButton("Ondsel Server")
-#         # self.ondselRadio.setToolTip(
-#         #     "Ondsel currently supports only one workspace "
-#         #     "that is added automatically on login."
-#         # )
-#         # self.ondselRadio.setEnabled(False)
-#         # self.externalRadio = QtGui.QRadioButton("External Server")
-#         # self.externalRadio.setToolTip(
-#         #     "Currently external servers support is not implemented."
-#         # )
-#         # self.externalRadio.setEnabled(False)
-
-#         # button_group = QtGui.QButtonGroup()
-#         # button_group.addButton(self.localRadio)
-#         # button_group.addButton(self.ondselRadio)
-#         # button_group.addButton(self.externalRadio)
-
-#         # group_box = QtGui.QGroupBox("type")
-#         # group_box_layout = QtGui.QHBoxLayout()
-#         # group_box_layout.addWidget(self.localRadio)
-#         # group_box_layout.addWidget(self.ondselRadio)
-#         # group_box_layout.addWidget(self.externalRadio)
-#         # group_box.setLayout(group_box_layout)
-
-#         # Workspace Name
-#         self.nameLabel = QtGui.QLabel("Name")
-#         self.nameEdit = QtGui.QLineEdit()
-#         nameHlayout = QtGui.QHBoxLayout()
-#         nameHlayout.addWidget(self.nameLabel)
-#         nameHlayout.addWidget(self.nameEdit)
-
-#         # Workspace description
-#         self.descLabel = QtGui.QLabel("Description")
-#         self.descEdit = QtGui.QTextEdit()
-
-#         # # Widgets for local workspace type
-#         # self.localFolderLabel = QtGui.QLineEdit("")
-#         # self.localFolderEdit = QtGui.QPushButton("Select folder")
-#         # self.localFolderEdit.clicked.connect(self.show_folder_picker)
-#         # h_layout = QtGui.QHBoxLayout()
-#         # h_layout.addWidget(self.localFolderLabel)
-#         # h_layout.addWidget(self.localFolderEdit)
-
-#         # # Widgets for external server workspace type
-#         # self.externalServerLabel = QtGui.QLabel("Server URL")
-#         # self.externalServerEdit = QtGui.QLineEdit()
-
-#         # Add widgets to layout
-#         # layout.addWidget(group_box)
-#         layout.addLayout(nameHlayout)
-#         layout.addWidget(self.descLabel)
-#         layout.addWidget(self.descEdit)
-#         # layout.addLayout(h_layout)
-#         # layout.addWidget(self.externalServerLabel)
-#         # layout.addWidget(self.externalServerEdit)
-
-#         # Connect radio buttons to updateDialog function
-#         # self.localRadio.toggled.connect(self.updateDialog)
-#         # self.ondselRadio.toggled.connect(self.updateDialog)
-#         # self.externalRadio.toggled.connect(self.updateDialog)
-#         # self.localRadio.setChecked(True)
-
-#         # Add OK and Cancel buttons
-#         buttonBox = QtGui.QDialogButtonBox(
-#             QtGui.QDialogButtonBox.Ok | QtGui.QDialogButtonBox.Cancel
-#         )
-#         buttonBox.accepted.connect(self.accept)
-#         buttonBox.rejected.connect(self.reject)
-
-#         # Add layout and buttons to dialog
-#         self.setLayout(layout)
-#         layout.addWidget(buttonBox)
-
-#     # Function to update the dialog when the workspace type is changed
-#     def updateDialog(self):
-#         pass
-#         # if self.ondselRadio.isChecked():
-#         #     self.nameLabel.setText("ondsel.com/")
-#         # else:
-#         #     self.nameLabel.setText("Name")
-#         # self.localFolderLabel.setVisible(self.localRadio.isChecked())
-#         # self.localFolderEdit.setVisible(self.localRadio.isChecked())
-
-#         # self.externalServerLabel.setVisible(self.externalRadio.isChecked())
-#         # self.externalServerEdit.setVisible(self.externalRadio.isChecked())
-
-#     # def show_folder_picker(self):
-#     #     options = QtGui.QFileDialog.Options()
-#     #     options |= QtGui.QFileDialog.ShowDirsOnly
-#     #     folder_url = QtGui.QFileDialog.getExistingDirectory(
-#     #         self, "Select Folder", options=options
-#     #     )
-#     #     if folder_url:
-#     #         self.localFolderLabel.setText(folder_url)
-
-#     # def okClicked(self):
-#     #    pass
-#     # if self.localRadio.isChecked():
-#     #    if os.path.isdir(self.localFolderLabel.text()):
-#     #        self.accept()
-#     #    else:
-#     #        result = QtGui.QMessageBox.question(
-#     #            self,
-#     #            "Wrong URL",
-#     #            "The URL you entered is not correct.",
-#     #            QtGui.QMessageBox.Ok,
-#     #        )
-
-PROTECTION_COMBO_BOX_LISTED = 0
-PROTECTION_COMBO_BOX_UNLISTED = 1
-PROTECTION_COMBO_BOX_PIN = 2
-VERSION_FOLLOWING_COMBO_BOX_LOCKED = 0
-VERSION_FOLLOWING_COMBO_BOX_ACTIVE = 1
-
-
-class SharingLinkEditDialog(QtGui.QDialog):
-    def __init__(self, linkProperties=None, parent=None):
-        super(SharingLinkEditDialog, self).__init__(parent)
-
-        # Load the UI from the .ui file
-        self.dialog = FreeCADGui.PySideUic.loadUi(
-            Utils.mod_path + "/SharingLinkEditDialog.ui"
-        )
-
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.dialog)
-        self.setLayout(layout)
-
-        self.dialog.okBtn.clicked.connect(self.accept)
-        self.dialog.cancelBtn.clicked.connect(self.reject)
-        self.dialog.protectionComboBox.currentIndexChanged.connect(
-            self.protection_changed
-        )
-        self.dialog.versionFollowingComboBox.currentIndexChanged.connect(
-            self.version_following_changed
-        )
-
-        if linkProperties is None:
-            self.linkProperties = {
-                "isActive": True,
-                "isSystemGenerated": False,
-                "title": "",
-                "description": "",
-                "protection": "Listed",
-                "pin": "",
-                "versionFollowing": "Locked",
-                "canViewModelAttributes": True,
-                "canUpdateModel": True,
-                "canExportFCStd": True,
-                "canExportSTEP": True,
-                "canExportSTL": True,
-                "canExportOBJ": True,
-                "isActive": True,
-                "canViewModel": True,
-                "canDownloadDefaultModel": True,
-            }
-            self.creationAction = True  # we are creating a new share link
-        else:
-            self.linkProperties = linkProperties
-            self.creationAction = False  # we are editing an existing share link
-
-        if self.creationAction:
-            self.setWindowTitle("Create ShareLink")
-            self.dialog.enabledCheckBox.setVisible(False)
-        else:
-            self.setWindowTitle("Edit ShareLink")
-            # once created, you can NEVER change versionFollowing or protection
-            self.dialog.versionFollowingComboBox.setEnabled(False)
-            self.dialog.protectionComboBox.setEnabled(False)
-        if self.linkProperties["isSystemGenerated"]:
-            # cannot enable/disable a sys generated link
-            self.dialog.enabledCheckBox.setEnabled(False)
-        self.setLinkProperties()
-        self.protection_changed()  # do this to set initial PIN edit visibility
-        self.version_following_changed()
-
-    def protection_changed(self):
-        protectionIndex = self.dialog.protectionComboBox.currentIndex()
-        if protectionIndex == PROTECTION_COMBO_BOX_PIN:
-            if self.dialog.pinLineEdit.text() == "":
-                random_str = ""
-                for i in range(6):
-                    new_digit = math.floor(random.random() * 10)
-                    random_str += str(new_digit)
-                self.dialog.pinLineEdit.setText(random_str)
-            self.dialog.pinLabel.setVisible(True)
-            self.dialog.pinLineEdit.setVisible(True)
-        else:
-            self.dialog.pinLabel.setVisible(False)
-            self.dialog.pinLineEdit.setVisible(False)
-
-    def version_following_changed(self):
-        vfIndex = self.dialog.versionFollowingComboBox.currentIndex()
-        if vfIndex == VERSION_FOLLOWING_COMBO_BOX_ACTIVE:
-            self.dialog.canExportFCStdCheckBox.setChecked(False)
-            self.dialog.canExportFCStdCheckBox.setEnabled(False)
-            self.dialog.canExportSTEPCheckBox.setChecked(False)
-            self.dialog.canExportSTEPCheckBox.setEnabled(False)
-            self.dialog.canExportSTLCheckBox.setChecked(False)
-            self.dialog.canExportSTLCheckBox.setEnabled(False)
-            self.dialog.canExportOBJCheckBox.setChecked(False)
-            self.dialog.canExportOBJCheckBox.setEnabled(False)
-            self.dialog.canUpdateModelAttributesCheckBox.setChecked(False)
-            self.dialog.canUpdateModelAttributesCheckBox.setEnabled(False)
-        else:
-            self.dialog.canExportFCStdCheckBox.setEnabled(True)
-            self.dialog.canExportSTEPCheckBox.setEnabled(True)
-            self.dialog.canExportSTLCheckBox.setEnabled(True)
-            self.dialog.canExportOBJCheckBox.setEnabled(True)
-            self.dialog.canUpdateModelAttributesCheckBox.setEnabled(True)
-
-    def setLinkProperties(self):
-        self.dialog.linkTitle.setText(self.linkProperties["title"])
-        self.dialog.linkName.setText(self.linkProperties["description"])
-        if self.linkProperties["protection"] == "Listed":
-            self.dialog.protectionComboBox.setCurrentIndex(PROTECTION_COMBO_BOX_LISTED)
-        elif self.linkProperties["protection"] == "Unlisted":
-            self.dialog.protectionComboBox.setCurrentIndex(
-                PROTECTION_COMBO_BOX_UNLISTED
-            )
-        elif self.linkProperties["protection"] == "Pin":
-            self.dialog.protectionComboBox.setCurrentIndex(PROTECTION_COMBO_BOX_PIN)
-        self.dialog.pinLineEdit.setText(self.linkProperties["pin"])
-        if self.linkProperties["versionFollowing"] == "Locked":
-            self.dialog.versionFollowingComboBox.setCurrentIndex(
-                VERSION_FOLLOWING_COMBO_BOX_LOCKED
-            )
-        elif self.linkProperties["versionFollowing"] == "Active":
-            self.dialog.versionFollowingComboBox.setCurrentIndex(
-                VERSION_FOLLOWING_COMBO_BOX_ACTIVE
-            )
-        self.dialog.canViewModelCheckBox.setChecked(self.linkProperties["canViewModel"])
-        self.dialog.canViewModelAttributesCheckBox.setChecked(
-            self.linkProperties["canViewModelAttributes"]
-        )
-        self.dialog.canUpdateModelAttributesCheckBox.setChecked(
-            self.linkProperties["canUpdateModel"]
-        )
-        self.dialog.canDownloadOriginalCheckBox.setChecked(
-            self.linkProperties["canDownloadDefaultModel"]
-        )
-        self.dialog.canExportFCStdCheckBox.setChecked(
-            self.linkProperties["canExportFCStd"]
-        )
-        self.dialog.canExportSTEPCheckBox.setChecked(
-            self.linkProperties["canExportSTEP"]
-        )
-        self.dialog.canExportSTLCheckBox.setChecked(self.linkProperties["canExportSTL"])
-        self.dialog.canExportOBJCheckBox.setChecked(self.linkProperties["canExportOBJ"])
-        self.dialog.enabledCheckBox.setChecked(self.linkProperties["isActive"])
-
-    def getLinkProperties(self):
-        self.linkProperties["title"] = self.dialog.linkTitle.text()
-        self.linkProperties["description"] = self.dialog.linkName.text()
-        protectionIndex = self.dialog.protectionComboBox.currentIndex()
-        if protectionIndex == PROTECTION_COMBO_BOX_UNLISTED:
-            self.linkProperties["protection"] = "Unlisted"
-            self.linkProperties["pin"] = ""
-        elif protectionIndex == PROTECTION_COMBO_BOX_PIN:
-            self.linkProperties["protection"] = "Pin"
-            self.linkProperties["pin"] = self.dialog.pinLineEdit.text()
-        else:
-            self.linkProperties["protection"] = "Listed"  # the default
-            self.linkProperties["pin"] = ""
-        versionFollowingIndex = self.dialog.versionFollowingComboBox.currentIndex()
-        if versionFollowingIndex == VERSION_FOLLOWING_COMBO_BOX_ACTIVE:
-            self.linkProperties["versionFollowing"] = "Active"
-        else:
-            self.linkProperties["versionFollowing"] = "Locked"  # the default
-        self.linkProperties["canViewModel"] = (
-            self.dialog.canViewModelCheckBox.isChecked()
-        )
-        self.linkProperties["canViewModelAttributes"] = (
-            self.dialog.canViewModelAttributesCheckBox.isChecked()
-        )
-        self.linkProperties["canUpdateModel"] = (
-            self.dialog.canUpdateModelAttributesCheckBox.isChecked()
-        )
-        self.linkProperties["canExportFCStd"] = (
-            self.dialog.canExportFCStdCheckBox.isChecked()
-        )
-        self.linkProperties["canExportSTEP"] = (
-            self.dialog.canExportSTEPCheckBox.isChecked()
-        )
-        self.linkProperties["canExportSTL"] = (
-            self.dialog.canExportSTLCheckBox.isChecked()
-        )
-        self.linkProperties["canExportOBJ"] = (
-            self.dialog.canExportOBJCheckBox.isChecked()
-        )
-        self.linkProperties["canDownloadDefaultModel"] = (
-            self.dialog.canDownloadOriginalCheckBox.isChecked()
-        )
-        self.linkProperties["isActive"] = self.dialog.enabledCheckBox.isChecked()
-
-        return self.linkProperties
-
-
-class EnterCommitMessageDialog(QtGui.QDialog):
-    MAX_LENGTH_COMMIT_MESSAGE = 50
-
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Commit Message")
-
-        self.label = QtGui.QLabel("Please provide a commit message:")
-        self.commit_message_input = QtGui.QLineEdit()
-        self.commit_message_input.setMaxLength(
-            EnterCommitMessageDialog.MAX_LENGTH_COMMIT_MESSAGE
-        )
-
-        self.upload_button = QtGui.QPushButton("Upload")
-        self.upload_button.clicked.connect(self.accept)
-
-        self.cancel_button = QtGui.QPushButton("Cancel")
-        self.cancel_button.clicked.connect(self.reject)
-
-        self.upload_button.setEnabled(False)
-
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.label)
-        layout.addWidget(self.commit_message_input)
-
-        buttons_layout = QtGui.QHBoxLayout()
-        buttons_layout.addWidget(self.upload_button)
-        buttons_layout.addWidget(self.cancel_button)
-
-        layout.addLayout(buttons_layout)
-
-        self.setLayout(layout)
-
-        # Connect textChanged signals to enable/disable the create button
-        self.commit_message_input.textChanged.connect(self.check_commit_message)
-
-    def check_commit_message(self):
-        commit_message = self.commit_message_input.text()
-        enabled = len(commit_message) > 0
-        self.upload_button.setEnabled(enabled)
-
-    def getCommitMessage(self):
-        return self.commit_message_input.text()
-
-
-class CreateDirDialog(QtGui.QDialog):
-    def __init__(self, filenames):
-        super().__init__()
-        self.setWindowTitle("Create Directory")
-
-        self.filenames = filenames
-        self.label = QtGui.QLabel("Directory name:")
-        self.directory_input = QtGui.QLineEdit()
-
-        self.create_button = QtGui.QPushButton("Create")
-        self.create_button.clicked.connect(self.accept)
-
-        self.cancel_button = QtGui.QPushButton("Cancel")
-        self.cancel_button.clicked.connect(self.reject)
-
-        self.create_button.setEnabled(False)
-
-        layout = QtGui.QVBoxLayout()
-        layout.addWidget(self.label)
-        layout.addWidget(self.directory_input)
-
-        buttons_layout = QtGui.QHBoxLayout()
-        buttons_layout.addWidget(self.create_button)
-        buttons_layout.addWidget(self.cancel_button)
-
-        layout.addLayout(buttons_layout)
-
-        self.setLayout(layout)
-
-        # Connect textChanged signals to enable/disable the create button
-        self.directory_input.textChanged.connect(self.check_dir)
-
-    def check_dir(self):
-        dir = self.directory_input.text()
-        enabled = not (dir in self.filenames or dir == "")
-        self.create_button.setEnabled(enabled)
-
-    def getDir(self):
-        return self.directory_input.text()
-
-
-class LoginDialog(QtGui.QDialog):
-    def __init__(self):
-        super().__init__()
-        self.setWindowTitle("Login")
-
-        layout = QtGui.QVBoxLayout()
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(20)
-
-        self.email_label = QtGui.QLabel("Email:")
-        self.email_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
-        self.email_input = QtGui.QLineEdit()
-        self.email_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-
-        self.password_label = QtGui.QLabel("Password:")
-        self.password_label.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-
-        self.password_input = QtGui.QLineEdit()
-        self.password_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        self.password_input.setEchoMode(QtGui.QLineEdit.Password)
-
-        self.login_button = QtGui.QPushButton("Login")
-        self.login_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.login_button.clicked.connect(self.login)
-        self.cancel_button = QtGui.QPushButton("Cancel")
-        self.cancel_button.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
-        self.cancel_button.clicked.connect(self.reject)
-
-        self.login_button.setEnabled(False)
-
-        formLayout = QtGui.QFormLayout()
-        formLayout.setSpacing(5)
-        formLayout.addRow(self.email_label, self.email_input)
-        formLayout.addRow(self.password_label, self.password_input)
-
-        buttonLayout = QtGui.QHBoxLayout()
-        buttonLayout.addWidget(self.login_button)
-        buttonLayout.addWidget(self.cancel_button)
-
-        layout.addLayout(formLayout)
-        layout.addLayout(buttonLayout)
-        self.setLayout(layout)
-        self.adjustSize()
-
-        # Connect textChanged signals to enable/disable login button
-        self.email_input.textChanged.connect(self.check_credentials)
-        self.password_input.textChanged.connect(self.check_credentials)
-
-    def check_credentials(self):
-        email = self.email_input.text()
-        password = self.password_input.text()
-        valid_credentials = self.validate_credentials(email, password)
-        self.login_button.setEnabled(valid_credentials)
-
-    def login(self):
-        email = self.email_input.text()
-        password = self.password_input.text()
-
-        # Perform login validation and authentication here
-        if self.validate_credentials(email, password):
-            self.accept()
-        else:
-            self.show_error_message("Invalid credentials")
-
-    def validate_credentials(self, email, password):
-        # Check if email is a valid email address using a simple regular expression
-        if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-            return False
-        # Check if a password has been entered
-        if not password:
-            return False
-        # Add additional validation logic here if needed
-        # Example: Check against a user database or external authentication service
-
-        return True  # Return True if credentials are valid, False otherwise
-
-    def show_error_message(self, message):
-        # Add code to display an error message dialog to the user
-        # You can use QMessageBox or your own custom dialog implementation
-        pass
-
-    def get_credentials(self):
-        email = self.email_input.text()
-        password = self.password_input.text()
-        return email, password
 
 
 wsv = None
