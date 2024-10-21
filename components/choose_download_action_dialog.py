@@ -26,10 +26,10 @@ class ChooseDownloadActionDialog(QDialog):
 
     PREF_DOWNLOAD_ACTION = "downloadAction"
 
-    def __init__(self, name, data_parent, parent=None):
+    def __init__(self, name, api, parent=None):
         super().__init__(parent)
         self.quit_on_close = False
-        conn_status = data_parent.api.getStatus()
+        conn_status = api.getStatus()
 
         self.setWindowTitle(name)
         self.answer = self.CANCEL

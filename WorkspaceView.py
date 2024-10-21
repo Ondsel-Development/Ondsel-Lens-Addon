@@ -63,6 +63,8 @@ from views.public_shares_view import PublicSharesView
 
 from views.search_results_view import SearchResultsView
 
+from components.choose_download_action_dialog import ChooseDownloadActionDialog
+
 from PySide.QtGui import (
     QStyledItemDelegate,
     QStyle,
@@ -81,6 +83,8 @@ from PySide.QtCore import QByteArray
 from PySide.QtWidgets import QTreeView
 
 from WorkspaceListDelegate import WorkspaceListDelegate
+
+from Utils import wait_cursor
 
 
 logger = Utils.getLogger(__name__)
@@ -335,18 +339,7 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.setObjectName("workspaceView")
         self.form = FreeCADGui.PySideUic.loadUi(f"{Utils.mod_path}/WorkspaceView.ui")
 
-        tabWidget = self.form.findChildren(QtGui.QTabWidget)[0]
-        tabBar = tabWidget.tabBar()
-        wsIcon = QtGui.QIcon(Utils.icon_path + "folder-multiple-outline.svg")
-        tabBar.setTabIcon(IDX_TAB_WORKSPACES, wsIcon)
-        wsIcon = QtGui.QIcon(Utils.icon_path + "play-outline.svg")
-        tabBar.setTabIcon(IDX_TAB_ONDSEL_START, wsIcon)
-        bookmarkIcon = QtGui.QIcon(Utils.icon_path + "bookmark-outline.svg")
-        tabBar.setTabIcon(IDX_TAB_BOOKMARKS, bookmarkIcon)
-        searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
-        tabBar.setTabIcon(IDX_TAB_SEARCH, searchIcon)
-        publicIcon = QtGui.QIcon(Utils.icon_path + "dots-square.svg")
-        tabBar.setTabIcon(IDX_TAB_PUBLIC_SHARES, publicIcon)
+        self.initialize_tabs()
 
         self.setWidget(self.form)
         self.setWindowTitle("Ondsel Lens")
@@ -439,25 +432,30 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.txtExplain.setReadOnly(True)
         self.form.txtExplain.hide()
 
-        # initialize ondsel-start tab
-        self.initializeOndselStart()
+        with wait_cursor():
+            # initialize ondsel-start tab
+            self.initializeOndselStart()
 
-        # initialize bookmarks tab
-        self.initializeBookmarks()
+            # initialize bookmarks tab
+            self.initializeBookmarks()
 
-        # initialize search tab
-        self.form.searchResultScrollArea = SearchResultsView(self)
-        self.form.searchResultFrame.layout().addWidget(self.form.searchResultScrollArea)
+            # initialize search tab
+            self.form.searchResultScrollArea = SearchResultsView(self)
+            self.form.searchResultFrame.layout().addWidget(
+                self.form.searchResultScrollArea
+            )
 
-        # initialize public-shares tab
-        self.initializePublicShares()
+            # initialize public-shares tab
+            # We are only loading the public shares if the user clicks on the
+            # tab.  In that case we initialize it only once.
+            self.initialized_public_shares = False
 
-        self.initializeUpdateLens()
+            self.initializeUpdateLens()
 
-        self.try_login()
-        self.switchView()
+            self.try_login()
+            self.switchView()
 
-        self.workspacesModel.refreshModel()
+            self.workspacesModel.refreshModel()
 
         # Set a timer to check regularly the server
         self.timer = QtCore.QTimer()
@@ -466,6 +464,42 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.timer.start()
 
         self.handle_request(self.check_for_update)
+
+    def initialize_tabs(self):
+        tabWidget = self.form.tabWidget
+        tabBar = tabWidget.tabBar()
+
+        # workspaces
+        wsIcon = QtGui.QIcon(Utils.icon_path + "folder-multiple-outline.svg")
+        tabBar.setTabIcon(IDX_TAB_WORKSPACES, wsIcon)
+        tabWidget.setTabToolTip(
+            IDX_TAB_WORKSPACES,
+            "Explore and create 3D CAD designs in your Lens workspaces",
+        )
+
+        # Ondsel start
+        wsIcon = QtGui.QIcon(Utils.icon_path + "play-outline.svg")
+        tabBar.setTabIcon(IDX_TAB_ONDSEL_START, wsIcon)
+        tabWidget.setTabToolTip(
+            IDX_TAB_ONDSEL_START,
+            "Explore users, workspaces, and share links curated by Ondsel",
+        )
+
+        # Bookmarks
+        bookmarkIcon = QtGui.QIcon(Utils.icon_path + "bookmark-outline.svg")
+        tabBar.setTabIcon(IDX_TAB_BOOKMARKS, bookmarkIcon)
+        tabWidget.setTabToolTip(IDX_TAB_BOOKMARKS, "Explore your Lens bookmarks")
+
+        searchIcon = QtGui.QIcon(Utils.icon_path + "search.svg")
+        tabBar.setTabIcon(IDX_TAB_SEARCH, searchIcon)
+        tabWidget.setTabToolTip(
+            IDX_TAB_SEARCH,
+            "Search for users, workspaces, organizations, and share links",
+        )
+
+        publicIcon = QtGui.QIcon(Utils.icon_path + "dots-square.svg")
+        tabBar.setTabIcon(IDX_TAB_PUBLIC_SHARES, publicIcon)
+        tabWidget.setTabToolTip(IDX_TAB_PUBLIC_SHARES, "Explore public share links")
 
     def initializeOndselStart(self):
         self.form.ondselStartStatusLabel.setText("loading content...")
@@ -482,18 +516,13 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def initializeBookmarks(self):
         tabWidget = self.form.tabWidget
-        self.form.bookmarkStatusLabel = QtGui.QLabel("hello")
+        self.form.bookmarkStatusLabel = QtGui.QLabel("No bookmarks")
         self.form.tabBookmarks.layout().addWidget(self.form.bookmarkStatusLabel)
         self.form.viewBookmarks = BookmarkView(tabWidget)
         bookmarkView = self.form.viewBookmarks
         self.form.tabBookmarks.layout().addWidget(bookmarkView)
 
         tabWidget.currentChanged.connect(self.onTabChanged)
-        tabWidget.setTabToolTip(
-            IDX_TAB_WORKSPACES,
-            "Explore and create 3D CAD designs in your Lens workspaces",
-        )
-        tabWidget.setTabToolTip(IDX_TAB_BOOKMARKS, "Explore your Lens bookmarks")
         bookmarkView.setRootIsDecorated(False)
         bookmarkView.setToolTip("Bookmarks per organization")
         bookmarkView.setExpandsOnDoubleClick(False)
@@ -501,12 +530,15 @@ class WorkspaceView(QtWidgets.QScrollArea):
         bookmarkView.setItemDelegate(BookmarkDelegate())
         bookmarkView.doubleClicked.connect(self.bookmarkDoubleClicked)
         bookmarkView.setContextMenuPolicy(QtCore.Qt.CustomContextMenu)
-        bookmarkView.customContextMenuRequested.connect(self.showBookmarkContextMenu)
 
     def initializePublicShares(self):
-        self.form.publicSharesStatusLabel.setText("loading content...")
-        self.form.publicSharesScrollArea = PublicSharesView(self)
-        self.form.publicSharesFrame.layout().addWidget(self.form.publicSharesScrollArea)
+        if not self.initialized_public_shares:
+            self.form.publicSharesStatusLabel.setText("loading content...")
+            self.form.publicSharesScrollArea = PublicSharesView(self)
+            self.form.publicSharesFrame.layout().addWidget(
+                self.form.publicSharesScrollArea
+            )
+            self.initialized_public_shares = True
 
     def initializeUpdateLens(self):
         self.form.frameUpdate.hide()
@@ -854,8 +886,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def enterWorkspace(self, index):
         logger.debug("entering workspace")
-        self.current_workspace = self.workspacesModel.data(index)
-        self.setWorkspaceModel()
+        with wait_cursor():
+            self.current_workspace = self.workspacesModel.data(index)
+            self.setWorkspaceModel()
 
     def setWorkspaceModel(self):
         self.currentWorkspaceModel = ServerWorkspaceModel(
@@ -900,16 +933,17 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 self.form.workspaceListView.setVisible(True)
 
     def backClicked(self):
-        if self.current_workspace is None:
-            return
-        subPath = self.currentWorkspaceModel.subPath
+        with wait_cursor():
+            if self.current_workspace is None:
+                return
+            subPath = self.currentWorkspaceModel.subPath
 
-        if subPath == "":
-            self.leaveWorkspace()
-        else:
-            self.currentWorkspaceModel.openParentFolder()
-            self.setWorkspaceNameLabel()
-            self.hideFileDetails()
+            if subPath == "":
+                self.leaveWorkspace()
+            else:
+                self.currentWorkspaceModel.openParentFolder()
+                self.setWorkspaceNameLabel()
+                self.hideFileDetails()
 
     def handle_request(self, func):
         """Handle a function that raises an exception from requests."""
@@ -1021,8 +1055,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
         self.form.workspaceNameLabel.setText(workspacePath)
 
     def fileListDoubleClicked(self, index):
-        self.openFile(index)
-        self.setWorkspaceNameLabel()
+        with wait_cursor():
+            self.openFile(index)
+            self.setWorkspaceNameLabel()
 
     # ####
     # Downloading files
@@ -1180,7 +1215,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 else:
                     refreshUI()
 
-        self.handle_api_call(trySetVersion, "Failed to download version.")
+        with wait_cursor():
+            self.handle_api_call(trySetVersion, "Failed to download version.")
 
     def updateThumbnail(self, fileItem):
         fileName = fileItem.name
@@ -1275,16 +1311,17 @@ class WorkspaceView(QtWidgets.QScrollArea):
     def fileListClicked(self, index):
         # This function is also executed once in case of a double click. It is best to
         # do as little modifications to the state as possible.
-        file_item = self.currentWorkspaceModel.data(index)
-        fileName = file_item.name
-        # self.currentModelId = None
-        if Utils.isOpenableByFreeCAD(file_item.getPath()):
-            if self.is_connected():
-                self.fileListClickedConnected(file_item)
+        with wait_cursor():
+            file_item = self.currentWorkspaceModel.data(index)
+            fileName = file_item.name
+            # self.currentModelId = None
+            if Utils.isOpenableByFreeCAD(file_item.getPath()):
+                if self.is_connected():
+                    self.fileListClickedConnected(file_item)
+                else:
+                    self.fileListClickedDisconnected(fileName)
             else:
-                self.fileListClickedDisconnected(fileName)
-        else:
-            self.hideFileDetails()
+                self.hideFileDetails()
 
     def getServerThumbnail(self, fileName, path, fileId):
         # check if we have stored the thumbnail locally already.
@@ -1412,7 +1449,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 FILENAME_SYS_CFG,
             )
 
-        self.handle_api_call(tryStorePrefs, "No preferences stored.")
+        with wait_cursor():
+            self.handle_api_call(tryStorePrefs, "No preferences stored.")
 
     def convertParam(self, type, paramGroup, value):
         if type == "FCBool":
@@ -1589,7 +1627,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
 
     def loadPrefs(self, prefsId):
         # throws APIClientException
-        result = self.api.downloadPrefs(prefsId)
+        with wait_cursor():
+            result = self.api.downloadPrefs(prefsId)
         if result:
             backupFiles = self.backupPrefs()
             self.setPrefs(result)
@@ -1835,8 +1874,9 @@ class WorkspaceView(QtWidgets.QScrollArea):
         dialog = SharingLinkEditDialog(link_data, self)
 
         if dialog.exec_() == QtGui.QDialog.Accepted:
-            link_properties = dialog.getLinkProperties()
-            self.handle_update_sharelink(lambda: func(link_properties))
+            with wait_cursor():
+                link_properties = dialog.getLinkProperties()
+                self.handle_update_sharelink(lambda: func(link_properties))
 
     def linksListDoubleClicked(self, index):
         self.editShareLinkClicked(index)
@@ -1865,7 +1905,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             QtGui.QMessageBox.Yes | QtGui.QMessageBox.No,
         )
         if result == QtGui.QMessageBox.Yes:
-            self.handle_update_sharelink(lambda: model.delete_link(linkId))
+            with wait_cursor():
+                self.handle_update_sharelink(lambda: model.delete_link(linkId))
 
     def showLinksContextMenu(self, pos):
         index = self.form.linksView.indexAt(pos)
@@ -2025,7 +2066,8 @@ class WorkspaceView(QtWidgets.QScrollArea):
             comboBox.setCurrentIndex(versionModel.getCurrentIndex())
             self.form.makeActiveBtn.setVisible(versionModel.canBeMadeActive())
 
-        self.handle_api_call(trySetVersion, "Setting active version failed.")
+        with wait_cursor():
+            self.handle_api_call(trySetVersion, "Setting active version failed.")
 
     def ondselAccount(self):
         url = f"{Utils.env.lens_url}login"
@@ -2243,43 +2285,23 @@ class WorkspaceView(QtWidgets.QScrollArea):
                 viewBookmarks.setModel(bookmarkModel)
                 viewBookmarks.expandAll()
 
-            api_result = fancy_handle(tryRefresh)
-            if api_result == APICallResult.OK:
-                self.form.bookmarkStatusLabel.setText("")
-            elif api_result == APICallResult.DISCONNECTED:
-                self.form.bookmarkStatusLabel.setText("Disconnected")
-            elif api_result == APICallResult.NOT_LOGGED_IN:
-                self.hideBookmarks()
-            else:
-                self.hideBookmarks("See report log.")
+            with wait_cursor():
+                api_result = fancy_handle(tryRefresh)
+                if api_result == APICallResult.OK:
+                    self.form.bookmarkStatusLabel.setText("")
+                elif api_result == APICallResult.DISCONNECTED:
+                    self.form.bookmarkStatusLabel.setText("Disconnected")
+                elif api_result == APICallResult.NOT_LOGGED_IN:
+                    self.hideBookmarks()
+                else:
+                    self.hideBookmarks("See report log.")
+        elif index == IDX_TAB_PUBLIC_SHARES:
+            with wait_cursor():
+                self.initializePublicShares()
 
     def hideBookmarks(self, message="You must be logged in to see bookmarks."):
         self.form.bookmarkStatusLabel.setText(message)
         self.form.viewBookmarks.setModel(QStandardItemModel())
-
-    def downloadBookmarkFile(self, idSharedModel):
-        # throws an APIClientException
-        path = Utils.joinPath(PATH_BOOKMARKS, idSharedModel)
-        sharedModel = self.api.getSharedModel(idSharedModel)
-        model = sharedModel["model"]
-        if sharedModel["canDownloadDefaultModel"]:
-            uniqueFileName = model["uniqueFileName"]
-            fileModel = model["file"]
-            fileName = fileModel["custFileName"]
-            pathFile = Utils.joinPath(path, fileName)
-            self.api.downloadFileFromServer(uniqueFileName, pathFile)
-            return pathFile
-        else:
-            objUrl = model["objUrl"]
-            fileName = Utils.getFileNameFromURL(objUrl)
-            pathFile = Utils.joinPath(path, fileName)
-            self.api.downloadObjectFileFromServer(objUrl, pathFile)
-            return pathFile
-
-    def openBookmark(self, idSharedModel):
-        # throws an APIClientException
-        pathFile = self.downloadBookmarkFile(idSharedModel)
-        self.tryOpenPathFile(pathFile)
 
     def bookmarkDoubleClicked(self, index):
         viewBookmarks = self.form.viewBookmarks
@@ -2287,40 +2309,30 @@ class WorkspaceView(QtWidgets.QScrollArea):
         typeItem = bookmarkModel.data(index, ROLE_TYPE)
         if typeItem == TYPE_BOOKMARK:
             idShareModel = bookmarkModel.data(index, ROLE_SHARE_MODEL_ID)
-            api_result = fancy_handle(lambda: self.openBookmark(idShareModel))
+            nameShareModel = bookmarkModel.data(index)
+            dlg = ChooseDownloadActionDialog(nameShareModel, self.api)
+            overall_response = dlg.exec()
+            if overall_response != 0:
+                if dlg.answer == ChooseDownloadActionDialog.OPEN_ON_WEB:
+                    self.openShareLinkOnline(idShareModel)
+                elif dlg.answer == ChooseDownloadActionDialog.DL_TO_MEM:
+                    self.download_to_mem_sharelink(idShareModel)
 
-            if api_result == APICallResult.OK:
-                pass
-            if api_result == APICallResult.DISCONNECTED:
-                logger.info("Not connected")
-            elif api_result == APICallResult.NOT_LOGGED_IN:
-                logger.info("Not logged in")
-                self.hideBookmarks()
-            else:
-                self.hideBookmarks("see report log")
+    def download_to_mem_sharelink(self, idShareModel):
+        with wait_cursor():
+            try:
+                name_file = handlers.download_shared_model_to_memory(
+                    self.api, idShareModel
+                )
+                handlers.warn_downloaded_file(name_file)
+            except handlers.HandlerException as e:
+                logger.warn(e)
+                logger.warn("Unable to download; opening in browser instead.")
+                self.openShareLinkOnline(idShareModel)
 
     def openShareLinkOnline(self, idShareModel):
         url = f"{self.api.get_base_url()}share/{idShareModel}"
         self.open_url(url)
-
-    def showBookmarkContextMenu(self, pos):
-        viewBookmarks = self.form.viewBookmarks
-        index = viewBookmarks.indexAt(pos)
-        if index.isValid():
-            bookmarkModel = viewBookmarks.model()
-            typeItem = bookmarkModel.data(index, ROLE_TYPE)
-            if typeItem == TYPE_BOOKMARK:
-                menu = QtGui.QMenu()
-                openAction = menu.addAction("Open bookmark")
-                viewAction = menu.addAction("View the bookmark in Lens")
-
-                action = menu.exec_(viewBookmarks.viewport().mapToGlobal(pos))
-
-                idShareModel = bookmarkModel.data(index, ROLE_SHARE_MODEL_ID)
-                if action == openAction:
-                    self.handle(lambda: self.openBookmark(idShareModel))
-                elif action == viewAction:
-                    self.openShareLinkOnline(idShareModel)
 
     def find_our_toolbaritem_action(self):
         # first try to find and set the toolbar
@@ -2422,14 +2434,26 @@ class WorkspaceView(QtWidgets.QScrollArea):
         else:
             return None
 
+    def handle_download(self, func):
+        with wait_cursor():
+            try:
+                name_file = func()
+                handlers.warn_downloaded_file(name_file)
+            except handlers.HandlerException as e:
+                logger.warning(e)
+
     def handle_lens_url(self, url):
         sub_scheme, id1, id2 = self.parse_url(url)
         if sub_scheme == "share":
-            message = handlers.download_shared_model_to_memory(self.api, id1)
-            logger.info(message)
+            self.handle_download(
+                lambda: handlers.download_shared_model_to_memory(self.api, id1)
+            )
         else:
-            message = handlers.download_file_version_to_memory(self.api, id1, id2, True)
-            logger.info(message)
+            self.handle_download(
+                lambda: handlers.download_file_version_to_memory(
+                    self.api, id1, id2, True
+                )
+            )
 
 
 # class NewWorkspaceDialog(QtGui.QDialog):
