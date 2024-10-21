@@ -1015,9 +1015,7 @@ class APIClient:
         if "Authorization" in headers:
             del headers["Authorization"]
         try:
-            _ = requests.get(
-                f"{self.base_url}/status", headers=headers, params={}
-            )
+            _ = requests.get(f"{self.base_url}/status", headers=headers, params={})
         except Exception as e:
             logger.debug(e)
         return
