@@ -2,20 +2,21 @@
 
 This FreeCAD addon provides a convenient way to upload designs
 to [Lens](https://lens.ondsel.com), a cloud service by Ondsel, designed
-to publicly share and manipulate FreeCAD projects. 
+to publicly share and manipulate FreeCAD projects.
 
 ## Installation
 
 The Ondsel Lens addon is already installed by default in [Ondsel ES](https://ondsel.com/download/).
-For FreeCAD, the Ondsel Lens addon is available through the FreeCAD Addon Manager. 
+For FreeCAD, the Ondsel Lens addon is available through the FreeCAD Addon Manager.
 
 Open the Addon manager. Find in the list 'Ondsel-Lens' and install it.
 The installation will require restarting FreeCAD.
 
-You should see the Ondsel Addon shown as a new MDI tab. If it doesn't appear, right-click on the toolbar area and toggle the visibility of the 'Ondsel Lens'.
+You should see the Ondsel Addon in its own tab besides Start.  If it doesn't appear, you can click the yellow or orange Ondsel button or you can type Ctrl-L.
 
 <!-- ![image](https://github.com/Ondsel-Development/Ondsel-Lens/assets/538057/766b7cd7-5c0a-409b-9135-940be8b2fe54)-->
 ![image](https://github.com/user-attachments/assets/7cc30135-4b7f-4bc3-9cfc-d7ce78621ba6)
+
 ## Dependencies
 
 The addon requires a couple of additional Python dependencies that should be installed automatically by the FreeCAD addon manager.
@@ -36,17 +37,18 @@ Note: ```pip install jwt``` installs the wrong library. You need ```pip install 
 The addon introduces the notion of "workspaces". Workspaces are collections of
 files that constitute a project and are hosted on the Ondsel Lens server.  To
 start working and collaborating on FreeCAD designs, you must create an account
-on Ondsel by following the signup link in the dropdown menu.
+on Ondsel Lens by following the signup link in the dropdown menu.
 
 Once an account is created, you can log in through the addon and enter your
 workspace "Default (Personal)".  From here you can save files and access them
 from another location.
 
+In addition, you can browse examples curated by Ondsel (the Ondsel Start tab),
+browse your bookmarks, search for models, or view the most recent models that are shared on Lens.
+
 <!-- needs to be updated with images from the new flavor -->
 <!-- ![image](https://github.com/Ondsel-Development/Ondsel-Lens/assets/538057/5de4781c-b90c-4de1-bd8a-e23283348fbd) -->
-
 ![image](https://github.com/user-attachments/assets/d59fb797-bdc8-44a7-b84c-dcec3a2e30a4)
-
 
 ### Workspaces
 
