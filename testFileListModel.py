@@ -1,8 +1,6 @@
-# ***********************************************************************
-# *                                                                     *
-# * Copyright (c) 2023 Ondsel                                           *
-# *                                                                     *
-# ***********************************************************************
+# SPDX-FileCopyrightText: 2023 Ondsel <development@ondsel.com>
+#
+# SPDX-License-Identifier: LGPL-2.0-or-later
 
 import unittest
 from PySide.QtCore import Qt, QModelIndex
