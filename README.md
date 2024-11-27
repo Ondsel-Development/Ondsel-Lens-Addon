@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Ondsel <development@ondsel.com>
+
+SPDX-License-Identifier: LGPL-2.0-or-later
+-->
+
 # Ondsel Lens Addon
 
 This FreeCAD addon provides a convenient way to upload designs

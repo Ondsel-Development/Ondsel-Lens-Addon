@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Ondsel <development@ondsel.com>
+#
+# SPDX-License-Identifier: LGPL-2.0-or-later
+
 from PySide.QtGui import QCursor
 from PySide.QtWidgets import QApplication
 from PySide.QtCore import Qt

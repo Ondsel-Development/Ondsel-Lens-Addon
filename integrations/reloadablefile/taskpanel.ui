@@ -1,4 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+SPDX-FileCopyrightText: 2024 Ondsel <development@ondsel.com>
+
+SPDX-License-Identifier: LGPL-2.0-or-later
+-->
+
 <ui version="4.0">
  <class>TaskPanel</class>
  <widget class="QWidget" name="TaskPanel">

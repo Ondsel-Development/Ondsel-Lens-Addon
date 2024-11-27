@@ -1,11 +1,18 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+
+<!--
+SPDX-FileCopyrightText: 2024 Ondsel <development@ondsel.com>
+
+SPDX-License-Identifier: LGPL-2.0-or-later
+-->
+
 <package format="1" xmlns="https://wiki.freecad.org/Package_Metadata">
   <name>Ondsel Lens Addon</name>
   <description>Workspace manager for Ondsel Lens workspaces</description>
   <version>2024.10.21.01</version>
   <date>2024-10-21</date>
   <maintainer email="development@ondsel.com">Ondsel Development</maintainer>
-  <license file="LICENSE">MIT</license>
+  <license file="LICENSE">LGPL-2.0-or-later</license>
   <url type="repository" branch="main">https://github.com/Ondsel-Development/Ondsel-Lens-Addon</url>
   <url type="readme">https://github.com/Ondsel-Development/Ondsel-Lens-Addon/blob/main/README.md</url>
   <icon>Resources/icons/OndselWorkbench.svg</icon>
