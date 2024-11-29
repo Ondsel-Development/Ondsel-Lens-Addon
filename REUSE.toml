@@ -1,0 +1,105 @@
+# SPDX-FileCopyrightText: 2024 Ondsel <development@ondsel.com>
+#
+# SPDX-License-Identifier: LGPL-2.0-or-later
+
+version = 1
+
+# Third party files
+[[annotations]]
+path = [
+     "Resources/icons/bookmark-outline.svg",
+     "Resources/icons/cloud_download.svg",
+     "Resources/icons/dots-square.svg",
+     "Resources/icons/file-outline.svg"
+]
+SPDX-FileCopyrightText = "2016 Google"
+# Distributed via Pictogrammers <https://pictogrammers.com/>
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+     "Resources/icons/folder-multiple-outline.svg"
+]
+SPDX-FileCopyrightText = "Austin Andrews - Pictogrammers <https://pictogrammers.com>"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+     "Resources/icons/folder.svg",
+     "Resources/icons/group.svg",
+     "Resources/icons/link.svg",
+     "Resources/icons/person.svg",
+     "Resources/icons/public.svg",
+     "Resources/icons/search.svg",
+     "Resources/icons/settings.svg"
+]
+SPDX-FileCopyrightText = "2016 Google"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+     "Resources/icons/play-outline.svg"
+]
+SPDX-FileCopyrightText = "Michael Irigoyen - Pictogrammers <https://pictogrammers.com>"
+SPDX-License-Identifier = "Apache-2.0"
+
+[[annotations]]
+path = [
+     "Resources/icons/button_left.svg"
+]
+SPDX-FileCopyrightText = [
+    "2017 Alexander Gryson <agryson@gmail.com>",
+    "2013 Werner Mayer <wmayer@users.sourceforge.net>"
+]
+SPDX-License-Identifier = "CC-BY-SA-2.0"
+
+# Logos
+[[annotations]]
+path = [
+     "Resources/icons/OndselWorkbench.svg",
+     "Resources/icons/OndselWorkbench-disconnected.svg",
+     "Resources/icons/OndselWorkbench-loggedout.svg",
+]
+SPDX-FileCopyrightText = "2024 Ondsel <development@ondsel.com>"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+# icons
+[[annotations]]
+path = [
+     "Resources/thumbTest.png",
+     "integrations/reloadablefile/resources/bluearrow.svg",
+     "integrations/reloadablefile/resources/orangearrow.svg"
+]
+SPDX-FileCopyrightText = "2024 Ondsel <development@ondsel.com>"
+SPDX-License-Identifier = "CC-BY-SA-4.0"
+
+[[annotations]]
+path = [
+     "integrations/reloadablefile/resources/reloadable.svg",
+     "integrations/reloadablefile/resources/reloadable-ondselupdate.svg",
+     "integrations/reloadablefile/resources/reloadable-orange.svg",
+     "integrations/reloadablefile/resources/reloadable-update-blue-arrow.svg"
+]
+SPDX-FileCopyrightText = [
+    "2017 Alexander Gryson <agryson@gmail.com>",
+    "2024 Ondsel <development@ondsel.com"
+]
+SPDX-License-Identifier = "LGPL-2.0-or-later"
+
+[[annotations]]
+path = [
+    "integrations/reloadablefile/resources/reloadable-update-arrows.svg",
+    "integrations/reloadablefile/resources/reloadable-update-refresh.svg"
+]
+SPDX-FileCopyrightText = [
+    "2017 Alexander Gryson <agryson@gmail.com>",
+    "2024 Max Wilfinger <max@wilfinger.de>",
+    "2024 Ondsel <development@ondsel.com"
+]
+SPDX-License-Identifier = "LGPL-2.0-or-later"
+
+# testfile
+[[annotations]]
+path = "testshape.FCStd"
+SPDX-FileCopyrightText = "2024 Ondsel <development@ondsel.com>"
+SPDX-License-Identifier = "CC-BY-SA-4.0"

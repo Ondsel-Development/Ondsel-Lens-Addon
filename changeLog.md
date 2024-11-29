@@ -1,3 +1,9 @@
+<!--
+SPDX-FileCopyrightText: 2024 Ondsel <development@ondsel.com>
+
+SPDX-License-Identifier: LGPL-2.0-or-later
+-->
+
 # 2023.07.24.01
 Add notification string for available updates.
 
@@ -34,3 +40,6 @@ Fix small errors
 
 # 2024.10.21.01
 Large update with an MDI view with various tabs that allow browsing Lens.
+
+<version>
+Change license from MIT to LGPL-2.0-or-later

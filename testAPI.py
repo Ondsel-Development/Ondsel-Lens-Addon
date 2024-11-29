@@ -1,8 +1,7 @@
-# ***********************************************************************
-# *                                                                     *
-# * Copyright (c) 2023 Ondsel                                           *
-# *                                                                     *
-# ***********************************************************************
+# Copyright (c) 2023 Ondsel                                           *
+# SPDX-FileCopyrightText: 2023 Ondsel <development@ondsel.com>
+#
+# SPDX-License-Identifier: LGPL-2.0-or-later
 
 from APIClient import APIClient
 import unittest

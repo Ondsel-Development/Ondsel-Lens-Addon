@@ -9,8 +9,8 @@
    viewBox="0 0 64 64"
    enable-background="new 0 0 32 32"
    xml:space="preserve"
-   inkscape:version="1.1-beta1 (77e7b44db3, 2021-03-28)"
-   sodipodi:docname="OndselWorkbench-off.svg"
+   inkscape:version="1.4 (e7c3feb100, 2024-10-09)"
+   sodipodi:docname="OndselWorkbench-loggedout.svg"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns:xlink="http://www.w3.org/1999/xlink"
@@ -877,26 +877,33 @@
    guidetolerance="10"
    inkscape:pageopacity="0"
    inkscape:pageshadow="2"
-   inkscape:window-width="3840"
-   inkscape:window-height="1571"
+   inkscape:window-width="2560"
+   inkscape:window-height="1379"
    id="namedview5"
    showgrid="true"
    inkscape:zoom="16"
-   inkscape:cx="-15.03125"
-   inkscape:cy="34.03125"
-   inkscape:window-x="-9"
-   inkscape:window-y="-9"
+   inkscape:cx="25"
+   inkscape:cy="29.0625"
+   inkscape:window-x="2560"
+   inkscape:window-y="0"
    inkscape:window-maximized="1"
    inkscape:current-layer="Layer_1"
    inkscape:snap-global="true"
-   inkscape:pagecheckerboard="0">
+   inkscape:pagecheckerboard="0"
+   inkscape:showpageshadow="2"
+   inkscape:deskcolor="#d1d1d1">
     <inkscape:grid
    type="xygrid"
    id="grid3100"
    empspacing="2"
    visible="true"
    enabled="true"
-   snapvisiblegridlinesonly="true" />
+   snapvisiblegridlinesonly="true"
+   originx="0"
+   originy="0"
+   spacingy="1"
+   spacingx="1"
+   units="px" />
   </sodipodi:namedview>
   <g
    style="fill:#000000;fill-opacity:1;stroke:none"
@@ -960,8 +967,6 @@
    transform="matrix(0.11092093,0,0,0.11092093,4.0607239,-3.7404507)">
 </g>
 <path
-   inkscape:connector-curvature="0"
-   class="cls-1"
-   d="M 32.344336,3.0635643 C 15.229776,2.508064 1.1887003,16.524547 1.7451987,33.608408 2.2501355,49.107999 14.851665,61.686331 30.379108,62.190362 47.493668,62.745863 61.534737,48.72938 60.978246,31.645519 60.473309,16.146521 47.87178,3.5675953 32.344336,3.0635643 Z M 6.9557803,32.626963 c 0,-9.817392 5.8482767,-18.295434 14.2490987,-22.149033 0.518569,-0.237821 1.13137,-0.13015 1.534966,0.272721 l 3.973717,3.966596 c 0.530427,0.529469 0.530427,1.388454 0,1.917923 L 11.65372,31.667999 c -0.530421,0.529469 -0.530421,1.388453 0,1.917929 l 15.059842,15.032829 c 0.530427,0.529469 0.530427,1.388454 0,1.917923 l -3.973717,3.966596 c -0.403596,0.402871 -1.016397,0.510535 -1.534966,0.272721 C 12.804057,50.922397 6.9557803,42.444355 6.9557803,32.626963 Z M 38,39.253333 v 0 c -3.666136,3.660152 -9.611015,3.660152 -13.277149,0 v 0 c -3.666135,-3.659558 -3.666135,-9.593181 0,-13.253333 v 0 C 28.388985,22.340442 34.333864,22.340442 38,26 v 0 c 3.666134,3.65956 3.666134,9.593181 0,13.253333 z m -6.638872,17.735201 c -0.896088,0 -1.780911,-0.04969 -2.651514,-0.14435 -0.335444,-0.03665 -0.480642,-0.442505 -0.242394,-0.680919 l 22.618501,-22.57793 c 0.530421,-0.529469 0.530421,-1.388454 0,-1.91793 L 28.467807,9.0900685 c -0.23824,-0.2378204 -0.09304,-0.644244 0.242394,-0.6809178 0.871197,-0.094658 1.755434,-0.1443515 2.651521,-0.1443515 13.457311,0 24.405936,10.9289858 24.405936,24.3621638 0,13.433172 -10.948625,24.362159 -24.405936,24.362159 z"
-   id="path216"
-   style="fill:#cccc00;fill-opacity:1;stroke-width:0.05921187" /></svg>
+   id="path2-7"
+   style="display:inline;fill:#cccc00;fill-opacity:1;stroke:none;stroke-width:0.0488106;stroke-opacity:1"
+   d="M 31.391862,3.024079 A 29.632516,29.632516 0 0 0 1.759346,32.656595 29.632516,29.632516 0 0 0 31.391862,62.289111 29.632516,29.632516 0 0 0 61.024377,32.656595 29.632516,29.632516 0 0 0 31.391862,3.024079 Z m -0.02959,5.197493 A 24.405343,24.405343 0 0 1 55.767658,32.626963 24.405343,24.405343 0 0 1 31.36227,57.032351 24.405343,24.405343 0 0 1 6.9568808,32.626963 24.405343,24.405343 0 0 1 31.36227,8.221572 Z" /></svg>

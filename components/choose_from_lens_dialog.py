@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Ondsel <development@ondsel.com>
+#
+# SPDX-License-Identifier: LGPL-2.0-or-later
+
 from APIClient import APICallResult
 from PySide import QtWidgets, QtGui
 from PySide import QtCore

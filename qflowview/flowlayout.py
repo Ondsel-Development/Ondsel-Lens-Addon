@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2024 Ondsel <development@ondsel.com>
+#
+# SPDX-License-Identifier: LGPL-2.0-or-later
+
 # sourced from QT docs and other places including
 # https://github.com/baoboa/pyqt5/blob/master/examples/layouts/flowlayout.py
 
