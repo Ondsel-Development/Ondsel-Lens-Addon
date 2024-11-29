@@ -41,5 +41,5 @@ Fix small errors
 # 2024.10.21.01
 Large update with an MDI view with various tabs that allow browsing Lens.
 
-<version>
+# 2024.11.29.01
 Change license from MIT to LGPL-2.0-or-later
